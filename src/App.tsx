@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { LayoutDashboard, ChefHat, Layers } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Header } from "@/components/Header";
 import { DateFilterBar } from "@/components/DateFilterBar";
 import { KpiCards } from "@/components/KpiCards";
 import { ChartsSection } from "@/components/ChartsSection";
 import { TablesSection } from "@/components/TablesSection";
+import { TechnicalSheetAndDreSection } from "@/components/TechnicalSheetAndDreSection";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import {
@@ -18,12 +20,14 @@ import {
   NewProductPayload,
   NewSalePayload,
   resetLocalDemoData,
+  saveProductFichaTecnica,
   updateProductStock,
 } from "@/services/dataService";
 import {
   DashboardDataSnapshot,
   DateFilterRange,
   DatePreset,
+  FichaTecnicaProduto,
 } from "@/types/dashboard";
 
 const THEME_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_theme`;
@@ -65,6 +69,14 @@ export function App() {
     getDateRangeForPreset("7dias")
   );
 
+  // Active View Tab ("completo" | "visao_geral" | "ficha_dre")
+  const [activeSection, setActiveSection] = useState<
+    "completo" | "visao_geral" | "ficha_dre"
+  >("completo");
+  const [selectedProductId, setSelectedProductId] = useState<string>(
+    "prod-ninho-nutella"
+  );
+
   // Dashboard Data Snapshot
   const [snapshot, setSnapshot] = useState<DashboardDataSnapshot | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
@@ -100,7 +112,6 @@ export function App() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     window.addEventListener("appinstalled", handleAppInstalled);
 
-    // Check URL shortcuts (?action=nova-venda or ?action=estoque) from PWA home screen icon
     const params = new URLSearchParams(window.location.search);
     const action = params.get("action");
     if (action === "nova-venda") {
@@ -169,6 +180,14 @@ export function App() {
     setSnapshot(updated);
   };
 
+  const handleSaveFicha = async (
+    ficha: FichaTecnicaProduto,
+    novoPrecoVenda?: number
+  ) => {
+    const updated = await saveProductFichaTecnica(ficha, novoPrecoVenda);
+    setSnapshot(updated);
+  };
+
   const handleResetDemo = () => {
     const fresh = resetLocalDemoData();
     setSnapshot(fresh);
@@ -211,39 +230,104 @@ export function App() {
           }}
         />
 
-        {!analytics ? (
+        {/* Navigation Switcher: Visão Completa | Visão Geral | Ficha Técnica & DRE */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setActiveSection("completo")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeSection === "completo"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <Layers className="h-4 w-4" />
+              Painel Completo
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection("visao_geral")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeSection === "visao_geral"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Vendas & Estoque
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection("ficha_dre")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeSection === "ficha_dre"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <ChefHat className="h-4 w-4" />
+              Ficha Técnica & DRE por Produto
+            </button>
+          </div>
+        </div>
+
+        {!analytics || !snapshot ? (
           <div className="flex h-64 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
             Carregando indicadores de {BRAND_CONFIG.companyName}...
           </div>
         ) : (
           <>
-            {/* 5 KPIs */}
+            {/* 5 KPIs always visible at top */}
             <KpiCards
               kpis={analytics.kpis}
               onClickLowStock={() => {
-                const el = document.getElementById("tabelas-operacionais");
-                el?.scrollIntoView({ behavior: "smooth" });
+                setActiveSection("completo");
+                setTimeout(() => {
+                  const el = document.getElementById("tabelas-operacionais");
+                  el?.scrollIntoView({ behavior: "smooth" });
+                }, 50);
               }}
             />
 
-            {/* 4 Charts */}
-            <ChartsSection
-              dailySales={analytics.dailySales}
-              topFlavors={analytics.topFlavors}
-              paymentDistribution={analytics.paymentDistribution}
-              inventoryByFlavor={analytics.inventoryByFlavor}
-            />
+            {(activeSection === "completo" ||
+              activeSection === "visao_geral") && (
+              <>
+                {/* 4 Charts */}
+                <ChartsSection
+                  dailySales={analytics.dailySales}
+                  topFlavors={analytics.topFlavors}
+                  paymentDistribution={analytics.paymentDistribution}
+                  inventoryByFlavor={analytics.inventoryByFlavor}
+                />
 
-            {/* 2 Operational Tables */}
-            <TablesSection
-              ultimasVendas={analytics.ultimasVendas}
-              reposicaoEstoque={analytics.reposicaoEstoque}
-              onQuickStockChange={handleUpdateStock}
-              onOpenStockModal={() => {
-                setModalTab("estoque");
-                setModalOpen(true);
-              }}
-            />
+                {/* 2 Operational Tables */}
+                <TablesSection
+                  ultimasVendas={analytics.ultimasVendas}
+                  reposicaoEstoque={analytics.reposicaoEstoque}
+                  onQuickStockChange={handleUpdateStock}
+                  onOpenStockModal={() => {
+                    setModalTab("estoque");
+                    setModalOpen(true);
+                  }}
+                />
+              </>
+            )}
+
+            {(activeSection === "completo" ||
+              activeSection === "ficha_dre") && (
+              <TechnicalSheetAndDreSection
+                produtos={snapshot.produtos}
+                fichasTecnicas={snapshot.fichasTecnicas}
+                drePorProduto={analytics.drePorProduto}
+                dreConsolidada={analytics.dreConsolidada}
+                selectedProductId={selectedProductId}
+                onSelectProductId={setSelectedProductId}
+                onSaveFicha={handleSaveFicha}
+              />
+            )}
           </>
         )}
       </main>

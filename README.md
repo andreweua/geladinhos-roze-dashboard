@@ -1,6 +1,6 @@
 # 🍧 Geladinhos Gourmet da Roze — Dashboard Gerencial (PWA & White-Label)
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-1.1.0-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-1.2.0-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
 ![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Vite%20%2B%20TypeScript%20%2B%20Supabase-f59e0b)
 
@@ -19,15 +19,19 @@ Dashboard financeiro e operacional desenvolvido em **React + Vite + TypeScript +
    - **Total de Geladinhos Vendidos** (Unidades totais entregues)
    - **Ticket Médio** (Valor médio por venda concluída)
    - **Alerta de Estoque Baixo** (Sabores ativos com menos de 10 unidades)
-2. **4 Gráficos Analíticos (Recharts)**:
+2. **Engenharia de Cardápio: Ficha Técnica & DRE por Produto (`v1.2.0`)**:
+   - **Ficha Técnica Completa e Editável**: Cadastro de insumos da receita, quantidades, custos por batelada, rendimento (unidades), volume (ml), tempo de preparo, embalagem e energia/freezer — calculando automaticamente o custo unitário e o markup.
+   - **DRE Gerencial por Produto (Período e Unitária)**: Apuração completa da Receita Bruta $\rightarrow$ (-) Taxas de Cartão $\rightarrow$ (=) Receita Líquida $\rightarrow$ (-) CMV Insumos $\rightarrow$ (-) Embalagens $\rightarrow$ (-) Custo Operacional $\rightarrow$ (=) Lucro Líquido e Margem de Contribuição (%).
+   - **Matriz Comparativa de DRE**: Tabela consolidada comparando a lucratividade líquida de todos os sabores lado a lado.
+3. **4 Gráficos Analíticos (Recharts)**:
    - **Evolução Diária de Vendas** (100% largura — comparativo Faturamento vs. Custo Estimado em Linha/Área ou Barras)
    - **Top 5 Sabores Mais Vendidos** (Barras horizontais por quantidade)
    - **Divisão por Forma de Pagamento** (Donut chart: Pix, Cartão de Crédito, Cartão de Débito e Dinheiro)
    - **Nível de Estoque por Sabor** + **Catálogo Gourmet & Potencial Financeiro do Estoque**
-3. **2 Tabelas Operacionais + Central Rápida**:
+4. **2 Tabelas Operacionais + Central Rápida**:
    - **Tabela de Últimas Vendas** e **Tabela de Reposição de Estoque** (com ajuste rápido `-1`, `+1`, `+10`)
    - **Modal Central Rápida** para lançar novas vendas (abatendo estoque automaticamente) e cadastrar novos sabores.
-4. **Filtros Globais de Período**:
+5. **Filtros Globais de Período**:
    - *Hoje, Ontem, 7 dias, Este mês, Mês passado, 3 meses e Personalizado*.
 
 ---

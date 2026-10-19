@@ -6,6 +6,25 @@ export type PaymentMethod =
 
 export type SaleStatus = "concluida" | "pendente" | "cancelada";
 
+export interface IngredienteFicha {
+  id: string;
+  nome: string;
+  quantidade_receita: number;
+  unidade: "g" | "ml" | "un" | "colher";
+  custo_receita: number; // R$ total deste insumo na receita/batelada
+}
+
+export interface FichaTecnicaProduto {
+  produto_id: string;
+  rendimento_unidades: number; // Quantos geladinhos rende 1 receita
+  volume_unitario_ml: number; // Ex: 130 ml por geladinho
+  tempo_preparo_min: number; // Ex: 35 min
+  custo_embalagem_un: number; // Saquinho gourmet + adesivo/fita por unidade
+  custo_operacional_un: number; // Energia/congelamento estimado por unidade
+  modo_preparo: string;
+  ingredientes: IngredienteFicha[];
+}
+
 export interface Produto {
   id: string;
   nome: string;
@@ -60,6 +79,30 @@ export interface EstoquePorProduto {
   abaixo_do_minimo: boolean;
 }
 
+export interface DreProdutoItem {
+  produto_id: string;
+  nome: string;
+  preco_venda: number;
+  unidades_vendidas: number;
+  // Valores Unitários (por 1 geladinho)
+  custo_insumos_un: number;
+  custo_embalagem_un: number;
+  custo_operacional_un: number;
+  custo_total_un: number;
+  lucro_bruto_un: number;
+  markup_multiplicador: number;
+  // DRE do Período Selecionado (R$)
+  receita_bruta: number;
+  taxas_pagamento: number;
+  receita_liquida: number;
+  cmv_insumos: number;
+  custo_embalagens_total: number;
+  custo_operacional_total: number;
+  cpv_total: number;
+  lucro_liquido: number;
+  margem_contribuicao_pct: number;
+}
+
 export type DatePreset =
   | "hoje"
   | "ontem"
@@ -105,6 +148,7 @@ export interface DashboardDataSnapshot {
   vendas: Venda[];
   itensVenda: ItemVenda[];
   estoqueLotes: EstoqueLote[];
+  fichasTecnicas: FichaTecnicaProduto[];
   source: "supabase" | "demo_local";
   lastSyncedAt: string;
 }

@@ -29,6 +29,12 @@ export interface BrandConfig {
     topProductsChartTitle: string;
     stockChartTitle: string;
   };
+  paymentFeeRates: {
+    Pix: number; // % fee
+    Dinheiro: number;
+    Cartao_Debito: number;
+    Cartao_Credito: number;
+  };
   chartColors: {
     revenue: string;
     cost: string;
@@ -51,7 +57,7 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "1.1.0",
+  appVersion: "1.2.0",
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",
@@ -72,6 +78,13 @@ export const BRAND_CONFIG: BrandConfig = {
     unitsSoldTitle: "Total de Geladinhos Vendidos",
     topProductsChartTitle: "Top 5 Sabores Mais Vendidos",
     stockChartTitle: "Nível de Estoque por Sabor",
+  },
+  // Taxas médias de maquininha/meios de pagamento (%) para apuração da DRE por Produto
+  paymentFeeRates: {
+    Pix: 0.0,
+    Dinheiro: 0.0,
+    Cartao_Debito: 1.99,
+    Cartao_Credito: 3.99,
   },
   chartColors: {
     revenue: "#e11d48", // Rose 600

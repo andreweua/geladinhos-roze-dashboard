@@ -3,6 +3,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import {
   DashboardDataSnapshot,
   EstoqueLote,
+  FichaTecnicaProduto,
   ItemVenda,
   PaymentMethod,
   Produto,
@@ -11,7 +12,6 @@ import {
 
 const STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_dashboard_data_v1`;
 
-// Seeded pseudo-random generator so demo data is realistic and consistent
 function seededRandom(seed: number): () => number {
   let s = seed % 2147483647;
   if (s <= 0) s += 2147483646;
@@ -21,9 +21,344 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+export function calculateUnitCostFromFicha(ficha: FichaTecnicaProduto): {
+  custoInsumosReceita: number;
+  custoInsumosUn: number;
+  custoTotalUn: number;
+} {
+  const rendimento = Math.max(1, ficha.rendimento_unidades);
+  const custoInsumosReceita = ficha.ingredientes.reduce(
+    (acc, ing) => acc + Number(ing.custo_receita || 0),
+    0
+  );
+  const custoInsumosUn = custoInsumosReceita / rendimento;
+  const custoTotalUn =
+    custoInsumosUn +
+    Number(ficha.custo_embalagem_un || 0) +
+    Number(ficha.custo_operacional_un || 0);
+
+  return {
+    custoInsumosReceita: Number(custoInsumosReceita.toFixed(2)),
+    custoInsumosUn: Number(custoInsumosUn.toFixed(2)),
+    custoTotalUn: Number(custoTotalUn.toFixed(2)),
+  };
+}
+
+function getDefaultFichasTecnicas(): FichaTecnicaProduto[] {
+  return [
+    {
+      produto_id: "prod-ninho-nutella",
+      rendimento_unidades: 20,
+      volume_unitario_ml: 130,
+      tempo_preparo_min: 35,
+      custo_embalagem_un: 0.35,
+      custo_operacional_un: 0.15,
+      modo_preparo:
+        "Bater a base cremosa (leite integral, leite condensado, creme de leite, leite Ninho e liga neutra) por 3 minutos. Espalhar 15g de Nutella na parede interna de cada saquinho gourmet antes de envasar 130ml da calda.",
+      ingredientes: [
+        {
+          id: "ing-nn-1",
+          nome: "Leite Condensado Integral (2 cx)",
+          quantidade_receita: 790,
+          unidade: "g",
+          custo_receita: 13.8,
+        },
+        {
+          id: "ing-nn-2",
+          nome: "Creme de Leite 20% Gordura (2 cx)",
+          quantidade_receita: 400,
+          unidade: "g",
+          custo_receita: 7.6,
+        },
+        {
+          id: "ing-nn-3",
+          nome: "Leite Integral Tipo A",
+          quantidade_receita: 1000,
+          unidade: "ml",
+          custo_receita: 5.4,
+        },
+        {
+          id: "ing-nn-4",
+          nome: "Leite em Pó Ninho Integral",
+          quantidade_receita: 180,
+          unidade: "g",
+          custo_receita: 9.2,
+        },
+        {
+          id: "ing-nn-5",
+          nome: "Nutella Original (recheio lateral 15g/un)",
+          quantidade_receita: 300,
+          unidade: "g",
+          custo_receita: 17.2,
+        },
+        {
+          id: "ing-nn-6",
+          nome: "Liga Neutra Confeitaria",
+          quantidade_receita: 15,
+          unidade: "g",
+          custo_receita: 0.8,
+        },
+      ],
+    },
+    {
+      produto_id: "prod-morango-calda",
+      rendimento_unidades: 20,
+      volume_unitario_ml: 130,
+      tempo_preparo_min: 40,
+      custo_embalagem_un: 0.35,
+      custo_operacional_un: 0.15,
+      modo_preparo:
+        "Reduzir morangos frescos com açúcar cristal até formar geleia artesanal brilhante. Bater a base cremosa com polpa natural e envasar nos saquinhos decorados com a calda.",
+      ingredientes: [
+        {
+          id: "ing-mc-1",
+          nome: "Leite Condensado Integral (2 cx)",
+          quantidade_receita: 790,
+          unidade: "g",
+          custo_receita: 13.8,
+        },
+        {
+          id: "ing-mc-2",
+          nome: "Creme de Leite (2 cx)",
+          quantidade_receita: 400,
+          unidade: "g",
+          custo_receita: 7.6,
+        },
+        {
+          id: "ing-mc-3",
+          nome: "Leite Integral",
+          quantidade_receita: 1000,
+          unidade: "ml",
+          custo_receita: 5.4,
+        },
+        {
+          id: "ing-mc-4",
+          nome: "Morangos Frescos Selecionados (Calda + Base)",
+          quantidade_receita: 600,
+          unidade: "g",
+          custo_receita: 18.0,
+        },
+        {
+          id: "ing-mc-5",
+          nome: "Açúcar Cristal + Liga Neutra",
+          quantidade_receita: 165,
+          unidade: "g",
+          custo_receita: 3.2,
+        },
+      ],
+    },
+    {
+      produto_id: "prod-maracuja-trufado",
+      rendimento_unidades: 20,
+      volume_unitario_ml: 130,
+      tempo_preparo_min: 35,
+      custo_embalagem_un: 0.35,
+      custo_operacional_un: 0.15,
+      modo_preparo:
+        "Preparar ganache meio amargo (chocolate nobre + creme de leite) para trufar o saquinho. Bater a mousse cremosa com redução concentrada de maracujá natural.",
+      ingredientes: [
+        {
+          id: "ing-mt-1",
+          nome: "Leite Condensado + Creme de Leite",
+          quantidade_receita: 1190,
+          unidade: "g",
+          custo_receita: 21.4,
+        },
+        {
+          id: "ing-mt-2",
+          nome: "Polpa Natural de Maracujá (In Natura)",
+          quantidade_receita: 450,
+          unidade: "ml",
+          custo_receita: 12.6,
+        },
+        {
+          id: "ing-mt-3",
+          nome: "Chocolate Nobre Meio Amargo (Ganache)",
+          quantidade_receita: 280,
+          unidade: "g",
+          custo_receita: 14.0,
+        },
+        {
+          id: "ing-mt-4",
+          nome: "Leite Integral + Liga Neutra",
+          quantidade_receita: 800,
+          unidade: "ml",
+          custo_receita: 4.0,
+        },
+      ],
+    },
+    {
+      produto_id: "prod-pistache-real",
+      rendimento_unidades: 20,
+      volume_unitario_ml: 130,
+      tempo_preparo_min: 45,
+      custo_embalagem_un: 0.4,
+      custo_operacional_un: 0.2,
+      modo_preparo:
+        "Homogeneizar a pasta pura de pistache italiano na base láctea premium. Decorar os saquinhos com ganache branca de pistache e xerém de pistache torrado.",
+      ingredientes: [
+        {
+          id: "ing-pr-1",
+          nome: "Base Láctea Premium (Condensado + Creme + Leite)",
+          quantidade_receita: 2100,
+          unidade: "ml",
+          custo_receita: 26.8,
+        },
+        {
+          id: "ing-pr-2",
+          nome: "Pasta Pura de Pistache Importada",
+          quantidade_receita: 220,
+          unidade: "g",
+          custo_receita: 34.0,
+        },
+        {
+          id: "ing-pr-3",
+          nome: "Chocolate Branco Nobre + Xerém de Pistache",
+          quantidade_receita: 250,
+          unidade: "g",
+          custo_receita: 17.2,
+        },
+      ],
+    },
+    {
+      produto_id: "prod-oreo-creme",
+      rendimento_unidades: 20,
+      volume_unitario_ml: 130,
+      tempo_preparo_min: 30,
+      custo_embalagem_un: 0.35,
+      custo_operacional_un: 0.15,
+      modo_preparo:
+        "Bater a base de baunilha com chocolate branco derretido. Adicionar pedaços crocantes de biscoito Oreo diretamente em cada saquinho antes de selar.",
+      ingredientes: [
+        {
+          id: "ing-oc-1",
+          nome: "Base Láctea (Leite Condensado + Creme + Leite)",
+          quantidade_receita: 2100,
+          unidade: "ml",
+          custo_receita: 26.8,
+        },
+        {
+          id: "ing-oc-2",
+          nome: "Biscoito Oreo Original (4 pacotes)",
+          quantidade_receita: 360,
+          unidade: "g",
+          custo_receita: 15.2,
+        },
+        {
+          id: "ing-oc-3",
+          nome: "Chocolate Branco + Essência Baunilha",
+          quantidade_receita: 150,
+          unidade: "g",
+          custo_receita: 8.0,
+        },
+      ],
+    },
+    {
+      produto_id: "prod-coco-queimado",
+      rendimento_unidades: 20,
+      volume_unitario_ml: 130,
+      tempo_preparo_min: 35,
+      custo_embalagem_un: 0.35,
+      custo_operacional_un: 0.15,
+      modo_preparo:
+        "Dourar o coco ralado em flocos com açúcar caramelizado na panela. Bater metade na base com leite de coco e deixar flocos caramelizados na lateral do saquinho.",
+      ingredientes: [
+        {
+          id: "ing-cq-1",
+          nome: "Base Láctea + Leite de Coco (400ml)",
+          quantidade_receita: 2200,
+          unidade: "ml",
+          custo_receita: 25.0,
+        },
+        {
+          id: "ing-cq-2",
+          nome: "Coco em Flocos Integral Queimado",
+          quantidade_receita: 300,
+          unidade: "g",
+          custo_receita: 11.0,
+        },
+        {
+          id: "ing-cq-3",
+          nome: "Caramelo Artesanal + Liga Neutra",
+          quantidade_receita: 150,
+          unidade: "g",
+          custo_receita: 2.0,
+        },
+      ],
+    },
+    {
+      produto_id: "prod-ferrero-gourmet",
+      rendimento_unidades: 20,
+      volume_unitario_ml: 130,
+      tempo_preparo_min: 40,
+      custo_embalagem_un: 0.4,
+      custo_operacional_un: 0.2,
+      modo_preparo:
+        "Base de chocolate belga 50% cacau com pasta de avelã. Casquinha interna de ganache com castanha/avelã triturada torrada.",
+      ingredientes: [
+        {
+          id: "ing-fr-1",
+          nome: "Base Láctea + Cacau 50% Alcalino",
+          quantidade_receita: 2200,
+          unidade: "ml",
+          custo_receita: 31.0,
+        },
+        {
+          id: "ing-fr-2",
+          nome: "Creme de Avelã + Chocolate Meio Amargo",
+          quantidade_receita: 350,
+          unidade: "g",
+          custo_receita: 26.0,
+        },
+        {
+          id: "ing-fr-3",
+          nome: "Avelãs e Castanhas Torradas Granuladas",
+          quantidade_receita: 200,
+          unidade: "g",
+          custo_receita: 17.0,
+        },
+      ],
+    },
+    {
+      produto_id: "prod-limao-suspiro",
+      rendimento_unidades: 20,
+      volume_unitario_ml: 130,
+      tempo_preparo_min: 30,
+      custo_embalagem_un: 0.35,
+      custo_operacional_un: 0.15,
+      modo_preparo:
+        "Bater a mousse cítrica com suco e raspas finas de limão siciliano fresco. Finalizar com creme de suspiro artesanal.",
+      ingredientes: [
+        {
+          id: "ing-ls-1",
+          nome: "Base Láctea (Leite Condensado + Creme + Leite)",
+          quantidade_receita: 2000,
+          unidade: "ml",
+          custo_receita: 26.8,
+        },
+        {
+          id: "ing-ls-2",
+          nome: "Limão Siciliano Fresco (Suco + Raspas)",
+          quantidade_receita: 500,
+          unidade: "g",
+          custo_receita: 10.2,
+        },
+        {
+          id: "ing-ls-3",
+          nome: "Merengue / Suspiro Artesanal",
+          quantidade_receita: 200,
+          unidade: "g",
+          custo_receita: 8.0,
+        },
+      ],
+    },
+  ];
+}
+
 function generateInitialDemoData(): DashboardDataSnapshot {
   const now = new Date();
   const rand = seededRandom(20261019);
+  const fichasTecnicas = getDefaultFichasTecnicas();
 
   const produtos: Produto[] = [
     {
@@ -92,7 +427,6 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
   ];
 
-  // Stock batches with deliberate low-stock items (< 10) to showcase the alert KPI and table
   const estoqueLotes: EstoqueLote[] = [
     {
       id: "est-1",
@@ -144,7 +478,6 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
   ];
 
-  // Weights for popularity (Ninho com Nutella, Morango, Pistache, Maracuja lead)
   const productWeights = [0.24, 0.18, 0.15, 0.14, 0.1, 0.07, 0.07, 0.05];
   const paymentMethods: PaymentMethod[] = [
     "Pix",
@@ -171,7 +504,6 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     return produtos[0];
   };
 
-  // Generate 90 days of sales including Today (daysAgo = 0) and Yesterday (daysAgo = 1)
   let saleCounter = 1;
   let itemCounter = 1;
 
@@ -181,10 +513,9 @@ function generateInitialDemoData(): DashboardDataSnapshot {
       now.getMonth(),
       now.getDate() - daysAgo
     );
-    const dayOfWeek = dayDate.getDay(); // 0 = Sun, 6 = Sat
+    const dayOfWeek = dayDate.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 || dayOfWeek === 5;
 
-    // Ensure Today and Yesterday always have several orders
     const numOrders =
       daysAgo === 0
         ? 5
@@ -208,7 +539,6 @@ function generateInitialDemoData(): DashboardDataSnapshot {
         minute
       );
 
-      // Avoid future timestamps on "Today"
       if (daysAgo === 0 && saleTimestamp.getTime() > now.getTime()) {
         saleTimestamp.setTime(now.getTime() - (numOrders - o) * 18 * 60000);
       }
@@ -223,7 +553,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
         if (chosenIds.has(prod.id)) continue;
         chosenIds.add(prod.id);
 
-        const qtd = Math.floor(rand() * 4) + 1; // 1 to 4 units per flavor
+        const qtd = Math.floor(rand() * 4) + 1;
         const subtotal = Number((qtd * prod.preco_venda).toFixed(2));
         valorTotal = Number((valorTotal + subtotal).toFixed(2));
 
@@ -257,9 +587,62 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     ),
     itensVenda,
     estoqueLotes,
+    fichasTecnicas,
     source: "demo_local",
     lastSyncedAt: new Date().toISOString(),
   };
+}
+
+function ensureFichasForProducts(
+  produtos: Produto[],
+  existingFichas?: FichaTecnicaProduto[]
+): FichaTecnicaProduto[] {
+  const defaults = getDefaultFichasTecnicas();
+  const map = new Map<string, FichaTecnicaProduto>();
+
+  for (const d of defaults) {
+    map.set(d.produto_id, d);
+  }
+  if (Array.isArray(existingFichas)) {
+    for (const f of existingFichas) {
+      map.set(f.produto_id, f);
+    }
+  }
+
+  // Ensure every product has a technical sheet
+  for (const prod of produtos) {
+    if (!map.has(prod.id)) {
+      const custoInsumo = Math.max(0.5, prod.custo_estimado - 0.5);
+      map.set(prod.id, {
+        produto_id: prod.id,
+        rendimento_unidades: 20,
+        volume_unitario_ml: 130,
+        tempo_preparo_min: 35,
+        custo_embalagem_un: 0.35,
+        custo_operacional_un: 0.15,
+        modo_preparo:
+          "Bater os ingredientes da base láctea no liquidificador por 3 minutos, envasar 130ml por saquinho gourmet e levar ao congelador.",
+        ingredientes: [
+          {
+            id: `ing-${prod.id}-1`,
+            nome: "Base Láctea Gourmet (Condensado + Creme + Leite)",
+            quantidade_receita: 2000,
+            unidade: "ml",
+            custo_receita: Number((custoInsumo * 20 * 0.65).toFixed(2)),
+          },
+          {
+            id: `ing-${prod.id}-2`,
+            nome: `Insumo Principal (${prod.nome})`,
+            quantidade_receita: 350,
+            unidade: "g",
+            custo_receita: Number((custoInsumo * 20 * 0.35).toFixed(2)),
+          },
+        ],
+      });
+    }
+  }
+
+  return Array.from(map.values());
 }
 
 function getLocalSnapshot(): DashboardDataSnapshot {
@@ -267,14 +650,18 @@ function getLocalSnapshot(): DashboardDataSnapshot {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as DashboardDataSnapshot;
-      // Check if today has any sales; if the stored snapshot is from an older day, refresh demo or keep
       if (
         parsed &&
         Array.isArray(parsed.produtos) &&
         Array.isArray(parsed.vendas)
       ) {
+        const fichas = ensureFichasForProducts(
+          parsed.produtos,
+          parsed.fichasTecnicas
+        );
         return {
           ...parsed,
+          fichasTecnicas: fichas,
           source: "demo_local",
           lastSyncedAt: new Date().toISOString(),
         };
@@ -321,12 +708,14 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
         !itensRes.error &&
         !estoqueRes.error
       ) {
+        const prods = (produtosRes.data || []).map((p) => ({
+          ...p,
+          preco_venda: Number(p.preco_venda),
+          custo_estimado: Number(p.custo_estimado),
+        }));
+        const localSnap = getLocalSnapshot();
         return {
-          produtos: (produtosRes.data || []).map((p) => ({
-            ...p,
-            preco_venda: Number(p.preco_venda),
-            custo_estimado: Number(p.custo_estimado),
-          })),
+          produtos: prods,
           vendas: (vendasRes.data || []).map((v) => ({
             ...v,
             valor_total: Number(v.valor_total),
@@ -340,17 +729,13 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
             ...e,
             quantidade_disponivel: Number(e.quantidade_disponivel),
           })),
+          fichasTecnicas: ensureFichasForProducts(
+            prods,
+            localSnap.fichasTecnicas
+          ),
           source: "supabase",
           lastSyncedAt: new Date().toISOString(),
         };
-      } else {
-        console.warn(
-          "Aviso ao consultar tabelas no Supabase, usando fallback local:",
-          produtosRes.error ||
-            vendasRes.error ||
-            itensRes.error ||
-            estoqueRes.error
-        );
       }
     } catch (err) {
       console.warn("Erro de conexão Supabase, ativando modo local:", err);
@@ -412,13 +797,15 @@ export async function createNewSale(
       }));
       await supabase.from("itens_venda").insert(itemsToInsert);
 
-      // Update inventory batches in Supabase
       for (const item of preparedItems) {
         const lote = current.estoqueLotes.find(
           (e) => e.produto_id === item.produto_id
         );
         if (lote) {
-          const novaQtd = Math.max(0, lote.quantidade_disponivel - item.quantidade);
+          const novaQtd = Math.max(
+            0,
+            lote.quantidade_disponivel - item.quantidade
+          );
           await supabase
             .from("estoque_lotes")
             .update({
@@ -433,7 +820,6 @@ export async function createNewSale(
     }
   }
 
-  // Local mode update
   const newVendaId = `venda-${Date.now()}`;
   const nowIso = new Date().toISOString();
 
@@ -593,11 +979,70 @@ export async function createNewProduct(
     updated_at: nowIso,
   };
 
+  const novasFichas = ensureFichasForProducts(
+    [...current.produtos, novoProduto],
+    current.fichasTecnicas
+  );
+
   const updatedSnapshot: DashboardDataSnapshot = {
     ...current,
     produtos: [...current.produtos, novoProduto],
     estoqueLotes: [...current.estoqueLotes, novoLote],
+    fichasTecnicas: novasFichas,
     lastSyncedAt: nowIso,
+  };
+
+  saveLocalSnapshot(updatedSnapshot);
+  return updatedSnapshot;
+}
+
+export async function saveProductFichaTecnica(
+  ficha: FichaTecnicaProduto,
+  novoPrecoVenda?: number
+): Promise<DashboardDataSnapshot> {
+  const current = await fetchDashboardData();
+  const { custoTotalUn } = calculateUnitCostFromFicha(ficha);
+
+  if (current.source === "supabase" && supabase) {
+    const updateData: Record<string, number> = {
+      custo_estimado: custoTotalUn,
+    };
+    if (typeof novoPrecoVenda === "number" && novoPrecoVenda > 0) {
+      updateData.preco_venda = Number(novoPrecoVenda.toFixed(2));
+    }
+    await supabase
+      .from("produtos")
+      .update(updateData)
+      .eq("id", ficha.produto_id);
+  }
+
+  const novosProdutos = current.produtos.map((p) => {
+    if (p.id !== ficha.produto_id) return p;
+    return {
+      ...p,
+      custo_estimado: custoTotalUn,
+      preco_venda:
+        typeof novoPrecoVenda === "number" && novoPrecoVenda > 0
+          ? Number(novoPrecoVenda.toFixed(2))
+          : p.preco_venda,
+    };
+  });
+
+  const existingIdx = current.fichasTecnicas.findIndex(
+    (f) => f.produto_id === ficha.produto_id
+  );
+  const novasFichas = [...current.fichasTecnicas];
+  if (existingIdx >= 0) {
+    novasFichas[existingIdx] = ficha;
+  } else {
+    novasFichas.push(ficha);
+  }
+
+  const updatedSnapshot: DashboardDataSnapshot = {
+    ...current,
+    produtos: novosProdutos,
+    fichasTecnicas: novasFichas,
+    lastSyncedAt: new Date().toISOString(),
   };
 
   saveLocalSnapshot(updatedSnapshot);

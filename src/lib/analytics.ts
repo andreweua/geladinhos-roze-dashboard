@@ -1,10 +1,12 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { formatShortDate, PAYMENT_METHOD_LABELS } from "@/lib/utils";
+import { calculateUnitCostFromFicha } from "@/services/dataService";
 import {
   DailySalesPoint,
   DashboardDataSnapshot,
   DateFilterRange,
   DatePreset,
+  DreProdutoItem,
   EstoquePorProduto,
   PaymentMethod,
   PaymentMethodPoint,
@@ -56,7 +58,15 @@ export function getDateRangeForPreset(
     }
 
     case "este_mes": {
-      const startMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const startMonth = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1,
+        0,
+        0,
+        0,
+        0
+      );
       return { preset, startDate: startMonth, endDate: endOfToday };
     }
 
@@ -132,19 +142,22 @@ export interface ComputedDashboardAnalytics {
   inventoryByFlavor: EstoquePorProduto[];
   ultimasVendas: VendaDetalhada[];
   reposicaoEstoque: EstoquePorProduto[];
+  drePorProduto: DreProdutoItem[];
+  dreConsolidada: DreProdutoItem;
 }
 
 export function computeDashboardAnalytics(
   snapshot: DashboardDataSnapshot,
   dateFilter: DateFilterRange
 ): ComputedDashboardAnalytics {
-  const { produtos, vendas, itensVenda, estoqueLotes } = snapshot;
+  const { produtos, vendas, itensVenda, estoqueLotes, fichasTecnicas } =
+    snapshot;
   const startMs = dateFilter.startDate.getTime();
   const endMs = dateFilter.endDate.getTime();
 
   const productMap = new Map(produtos.map((p) => [p.id, p]));
+  const fichaMap = new Map((fichasTecnicas || []).map((f) => [f.produto_id, f]));
 
-  // Group sale items by venda_id
   const itemsBySale = new Map<string, typeof itensVenda>();
   for (const item of itensVenda) {
     const arr = itemsBySale.get(item.venda_id) || [];
@@ -152,7 +165,6 @@ export function computeDashboardAnalytics(
     itemsBySale.set(item.venda_id, arr);
   }
 
-  // Filter sales within date range
   const vendasNoPeriodo = vendas.filter((v) => {
     const t = new Date(v.data_venda).getTime();
     return t >= startMs && t <= endMs;
@@ -166,7 +178,6 @@ export function computeDashboardAnalytics(
   let custoEstimadoTotal = 0;
   let totalGeladinhosVendidos = 0;
 
-  // Map for daily evolution
   const dailyMap = new Map<
     string,
     {
@@ -177,7 +188,6 @@ export function computeDashboardAnalytics(
     }
   >();
 
-  // Pre-seed daily buckets so the line/bar chart has continuous dates when range <= 92 days
   const diffDays = Math.min(
     95,
     Math.max(1, Math.round((endMs - startMs) / 86400000) + 1)
@@ -196,13 +206,16 @@ export function computeDashboardAnalytics(
     });
   }
 
-  // Map for flavor ranking
   const flavorStats = new Map<
     string,
-    { nome: string; quantidade: number; faturamento: number }
+    {
+      nome: string;
+      quantidade: number;
+      faturamento: number;
+      taxasPagamento: number;
+    }
   >();
 
-  // Map for payment methods
   const paymentStats = new Map<
     PaymentMethod,
     { valor: number; quantidadeVendas: number }
@@ -215,6 +228,8 @@ export function computeDashboardAnalytics(
 
   for (const venda of vendasConcluidas) {
     const items = itemsBySale.get(venda.id) || [];
+    const feeRatePct =
+      BRAND_CONFIG.paymentFeeRates[venda.forma_pagamento] || 0;
     let vendaCusto = 0;
     let vendaUnidades = 0;
 
@@ -223,6 +238,7 @@ export function computeDashboardAnalytics(
       const custoUnit = prod ? prod.custo_estimado : 0;
       const itemCusto = custoUnit * item.quantidade;
       const itemReceita = item.preco_unitario * item.quantidade;
+      const itemTaxa = itemReceita * (feeRatePct / 100);
 
       vendaCusto += itemCusto;
       vendaUnidades += item.quantidade;
@@ -231,9 +247,11 @@ export function computeDashboardAnalytics(
         nome: prod ? prod.nome : "Sabor Removido",
         quantidade: 0,
         faturamento: 0,
+        taxasPagamento: 0,
       };
       currentFlavor.quantidade += item.quantidade;
       currentFlavor.faturamento += itemReceita;
+      currentFlavor.taxasPagamento += itemTaxa;
       flavorStats.set(item.produto_id, currentFlavor);
     }
 
@@ -241,7 +259,6 @@ export function computeDashboardAnalytics(
     custoEstimadoTotal += vendaCusto;
     totalGeladinhosVendidos += vendaUnidades;
 
-    // Aggregate daily bucket
     const d = new Date(venda.data_venda);
     const dayKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
       d.getDate()
@@ -261,7 +278,6 @@ export function computeDashboardAnalytics(
     bucket.unidades += vendaUnidades;
     dailyMap.set(dayKey, bucket);
 
-    // Aggregate payment method
     const payStat = paymentStats.get(venda.forma_pagamento) || {
       valor: 0,
       quantidadeVendas: 0,
@@ -285,7 +301,6 @@ export function computeDashboardAnalytics(
       ? Number((faturamentoTotal / vendasConcluidas.length).toFixed(2))
       : 0;
 
-  // Daily sales array sorted chronologically
   const dailySales: DailySalesPoint[] = Array.from(dailyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([dateKey, val]) => ({
@@ -297,7 +312,6 @@ export function computeDashboardAnalytics(
       unidades: val.unidades,
     }));
 
-  // Top 5 flavors by quantity sold
   const topFlavors: TopFlavorPoint[] = Array.from(flavorStats.entries())
     .map(([produto_id, st]) => ({
       produto_id,
@@ -308,7 +322,6 @@ export function computeDashboardAnalytics(
     .sort((a, b) => b.quantidade - a.quantidade || b.faturamento - a.faturamento)
     .slice(0, 5);
 
-  // Payment methods distribution
   const paymentDistribution: PaymentMethodPoint[] = Array.from(
     paymentStats.entries()
   )
@@ -325,7 +338,6 @@ export function computeDashboardAnalytics(
     }))
     .sort((a, b) => b.valor - a.valor);
 
-  // Inventory aggregation per active flavor
   const stockByProduct = new Map<
     string,
     { quantidade: number; updated_at: string }
@@ -367,12 +379,10 @@ export function computeDashboardAnalytics(
     (item) => item.abaixo_do_minimo
   ).length;
 
-  // Sorted lowest stock first for the replenishment table
   const reposicaoEstoque = [...inventoryByFlavor].sort(
     (a, b) => a.quantidade_disponivel - b.quantidade_disponivel
   );
 
-  // Detailed sales list for the filtered period
   const ultimasVendas: VendaDetalhada[] = vendasNoPeriodo
     .sort(
       (a, b) =>
@@ -397,6 +407,161 @@ export function computeDashboardAnalytics(
       };
     });
 
+  // Compute DRE por Produto (Product Income Statement)
+  const drePorProduto: DreProdutoItem[] = activeProducts.map((prod) => {
+    const ficha = fichaMap.get(prod.id);
+    let custoInsumosUn = Number((prod.custo_estimado - 0.5).toFixed(2));
+    let custoEmbalagemUn = 0.35;
+    let custoOperacionalUn = 0.15;
+    let custoTotalUn = prod.custo_estimado;
+
+    if (ficha) {
+      const calc = calculateUnitCostFromFicha(ficha);
+      custoInsumosUn = calc.custoInsumosUn;
+      custoEmbalagemUn = Number(ficha.custo_embalagem_un.toFixed(2));
+      custoOperacionalUn = Number(ficha.custo_operacional_un.toFixed(2));
+      custoTotalUn = calc.custoTotalUn;
+    }
+
+    const st = flavorStats.get(prod.id) || {
+      nome: prod.nome,
+      quantidade: 0,
+      faturamento: 0,
+      taxasPagamento: 0,
+    };
+
+    const unidadesVendidas = st.quantidade;
+    const receitaBruta = Number(st.faturamento.toFixed(2));
+    const taxasPagamento = Number(st.taxasPagamento.toFixed(2));
+    const receitaLiquida = Number((receitaBruta - taxasPagamento).toFixed(2));
+
+    const cmvInsumos = Number((unidadesVendidas * custoInsumosUn).toFixed(2));
+    const custoEmbalagensTotal = Number(
+      (unidadesVendidas * custoEmbalagemUn).toFixed(2)
+    );
+    const custoOperacionalTotal = Number(
+      (unidadesVendidas * custoOperacionalUn).toFixed(2)
+    );
+    const cpvTotal = Number(
+      (cmvInsumos + custoEmbalagensTotal + custoOperacionalTotal).toFixed(2)
+    );
+    const lucroLiquido = Number((receitaLiquida - cpvTotal).toFixed(2));
+
+    const lucroBrutoUn = Number((prod.preco_venda - custoTotalUn).toFixed(2));
+    const markupMultiplicador =
+      custoTotalUn > 0
+        ? Number((prod.preco_venda / custoTotalUn).toFixed(2))
+        : 0;
+
+    const margemContribuicaoPct =
+      receitaBruta > 0
+        ? Number(((lucroLiquido / receitaBruta) * 100).toFixed(1))
+        : prod.preco_venda > 0
+          ? Number(((lucroBrutoUn / prod.preco_venda) * 100).toFixed(1))
+          : 0;
+
+    return {
+      produto_id: prod.id,
+      nome: prod.nome,
+      preco_venda: prod.preco_venda,
+      unidades_vendidas: unidadesVendidas,
+      custo_insumos_un: custoInsumosUn,
+      custo_embalagem_un: custoEmbalagemUn,
+      custo_operacional_un: custoOperacionalUn,
+      custo_total_un: custoTotalUn,
+      lucro_bruto_un: lucroBrutoUn,
+      markup_multiplicador: markupMultiplicador,
+      receita_bruta: receitaBruta,
+      taxas_pagamento: taxasPagamento,
+      receita_liquida: receitaLiquida,
+      cmv_insumos: cmvInsumos,
+      custo_embalagens_total: custoEmbalagensTotal,
+      custo_operacional_total: custoOperacionalTotal,
+      cpv_total: cpvTotal,
+      lucro_liquido: lucroLiquido,
+      margem_contribuicao_pct: margemContribuicaoPct,
+    };
+  });
+
+  // Sort DRE por Produto by lucro_liquido descending
+  drePorProduto.sort((a, b) => b.lucro_liquido - a.lucro_liquido);
+
+  // Consolidated DRE across all products in the filtered period
+  const totalUnidades = drePorProduto.reduce(
+    (acc, d) => acc + d.unidades_vendidas,
+    0
+  );
+  const totalReceitaBruta = Number(
+    drePorProduto.reduce((acc, d) => acc + d.receita_bruta, 0).toFixed(2)
+  );
+  const totalTaxas = Number(
+    drePorProduto.reduce((acc, d) => acc + d.taxas_pagamento, 0).toFixed(2)
+  );
+  const totalReceitaLiquida = Number(
+    (totalReceitaBruta - totalTaxas).toFixed(2)
+  );
+  const totalCmvInsumos = Number(
+    drePorProduto.reduce((acc, d) => acc + d.cmv_insumos, 0).toFixed(2)
+  );
+  const totalEmbalagens = Number(
+    drePorProduto
+      .reduce((acc, d) => acc + d.custo_embalagens_total, 0)
+      .toFixed(2)
+  );
+  const totalOperacional = Number(
+    drePorProduto
+      .reduce((acc, d) => acc + d.custo_operacional_total, 0)
+      .toFixed(2)
+  );
+  const totalCpv = Number(
+    (totalCmvInsumos + totalEmbalagens + totalOperacional).toFixed(2)
+  );
+  const totalLucroLiquido = Number(
+    (totalReceitaLiquida - totalCpv).toFixed(2)
+  );
+
+  const dreConsolidada: DreProdutoItem = {
+    produto_id: "consolidado",
+    nome: "Consolidado Geral (Todos os Sabores)",
+    preco_venda:
+      totalUnidades > 0
+        ? Number((totalReceitaBruta / totalUnidades).toFixed(2))
+        : 0,
+    unidades_vendidas: totalUnidades,
+    custo_insumos_un:
+      totalUnidades > 0
+        ? Number((totalCmvInsumos / totalUnidades).toFixed(2))
+        : 0,
+    custo_embalagem_un:
+      totalUnidades > 0
+        ? Number((totalEmbalagens / totalUnidades).toFixed(2))
+        : 0,
+    custo_operacional_un:
+      totalUnidades > 0
+        ? Number((totalOperacional / totalUnidades).toFixed(2))
+        : 0,
+    custo_total_un:
+      totalUnidades > 0 ? Number((totalCpv / totalUnidades).toFixed(2)) : 0,
+    lucro_bruto_un:
+      totalUnidades > 0
+        ? Number(((totalReceitaBruta - totalCpv) / totalUnidades).toFixed(2))
+        : 0,
+    markup_multiplicador:
+      totalCpv > 0 ? Number((totalReceitaBruta / totalCpv).toFixed(2)) : 0,
+    receita_bruta: totalReceitaBruta,
+    taxas_pagamento: totalTaxas,
+    receita_liquida: totalReceitaLiquida,
+    cmv_insumos: totalCmvInsumos,
+    custo_embalagens_total: totalEmbalagens,
+    custo_operacional_total: totalOperacional,
+    cpv_total: totalCpv,
+    lucro_liquido: totalLucroLiquido,
+    margem_contribuicao_pct:
+      totalReceitaBruta > 0
+        ? Number(((totalLucroLiquido / totalReceitaBruta) * 100).toFixed(1))
+        : 0,
+  };
+
   return {
     kpis: {
       faturamentoTotal,
@@ -413,5 +578,7 @@ export function computeDashboardAnalytics(
     inventoryByFlavor,
     ultimasVendas,
     reposicaoEstoque,
+    drePorProduto,
+    dreConsolidada,
   };
 }
