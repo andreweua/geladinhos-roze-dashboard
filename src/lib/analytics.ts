@@ -14,6 +14,40 @@ import {
   VendaDetalhada,
 } from "@/types/dashboard";
 
+/**
+ * Calcula dinamicamente o Preço de Venda no iFood com base na taxa cadastrada (%)
+ * Fórmula: Preço iFood = Preço Local / (1 - Taxa/100)
+ * Garante que o Repasse Líquido seja exatamente igual ao Preço Local,
+ * preservando 100% do Lucro Líquido unitário!
+ */
+export function calculateDynamicIfoodPrice(
+  precoLocal: number,
+  custoUnitario: number,
+  taxaIfoodPct: number
+): {
+  fatorDivisor: number;
+  precoIfood: number;
+  taxaValor: number;
+  repasseLiquido: number;
+  lucroLiquidoIfood: number;
+} {
+  const taxaSegura = Math.min(95, Math.max(0, Number(taxaIfoodPct) || 0));
+  const fatorDivisor = Number(((100 - taxaSegura) / 100).toFixed(4));
+  const precoIfood =
+    fatorDivisor > 0 ? Number((precoLocal / fatorDivisor).toFixed(2)) : precoLocal;
+  const taxaValor = Number((precoIfood * (taxaSegura / 100)).toFixed(2));
+  const repasseLiquido = Number((precoIfood - taxaValor).toFixed(2));
+  const lucroLiquidoIfood = Number((repasseLiquido - custoUnitario).toFixed(2));
+
+  return {
+    fatorDivisor,
+    precoIfood,
+    taxaValor,
+    repasseLiquido,
+    lucroLiquidoIfood,
+  };
+}
+
 export function getDateRangeForPreset(
   preset: DatePreset,
   customStart?: Date,
@@ -148,7 +182,8 @@ export interface ComputedDashboardAnalytics {
 
 export function computeDashboardAnalytics(
   snapshot: DashboardDataSnapshot,
-  dateFilter: DateFilterRange
+  dateFilter: DateFilterRange,
+  ifoodFeePct: number = BRAND_CONFIG.defaultIfoodFeePct
 ): ComputedDashboardAnalytics {
   const { produtos, vendas, itensVenda, estoqueLotes, fichasTecnicas } =
     snapshot;
@@ -407,7 +442,7 @@ export function computeDashboardAnalytics(
       };
     });
 
-  // Compute DRE por Produto (Product Income Statement)
+  // Compute DRE por Produto (Product Income Statement) with dynamic iFood fee rate
   const drePorProduto: DreProdutoItem[] = activeProducts.map((prod) => {
     const ficha = fichaMap.get(prod.id);
     let custoInsumosUn = Number((prod.custo_estimado - 0.35).toFixed(2));
@@ -415,10 +450,6 @@ export function computeDashboardAnalytics(
     let custoOperacionalUn = 0.3;
     let custoTotalUn = prod.custo_estimado;
     let rendimentoLote = 8;
-    let precoIfood = prod.preco_ifood || Number((prod.preco_venda * 1.35).toFixed(2));
-    let lucroLiquidoIfood = Number(
-      (precoIfood * (1 - 0.262) - custoTotalUn).toFixed(2)
-    );
 
     if (ficha) {
       const calc = calculateUnitCostFromFicha(ficha);
@@ -427,9 +458,14 @@ export function computeDashboardAnalytics(
       custoOperacionalUn = Number(ficha.custo_operacional_un.toFixed(2));
       custoTotalUn = calc.custoTotalUn;
       rendimentoLote = ficha.rendimento_unidades;
-      precoIfood = ficha.preco_ifood_sugerido;
-      lucroLiquidoIfood = ficha.lucro_ifood_estimado;
     }
+
+    // Dynamic calculation: Preço iFood = Preço Venda / (1 - Taxa/100)
+    const ifoodCalc = calculateDynamicIfoodPrice(
+      prod.preco_venda,
+      custoTotalUn,
+      ifoodFeePct
+    );
 
     const st = flavorStats.get(prod.id) || {
       nome: prod.nome,
@@ -461,9 +497,7 @@ export function computeDashboardAnalytics(
         ? Number((prod.preco_venda / custoTotalUn).toFixed(2))
         : 0;
     const margemSobreCustoPct =
-      custoTotalUn > 0
-        ? Math.round((lucroBrutoUn / custoTotalUn) * 100)
-        : 0;
+      custoTotalUn > 0 ? Math.round((lucroBrutoUn / custoTotalUn) * 100) : 0;
 
     const margemContribuicaoPct =
       receitaBruta > 0
@@ -476,8 +510,8 @@ export function computeDashboardAnalytics(
       produto_id: prod.id,
       nome: prod.nome,
       preco_venda: prod.preco_venda,
-      preco_ifood: precoIfood,
-      lucro_liquido_ifood: lucroLiquidoIfood,
+      preco_ifood: ifoodCalc.precoIfood,
+      lucro_liquido_ifood: ifoodCalc.lucroLiquidoIfood,
       rendimento_lote: rendimentoLote,
       unidades_vendidas: unidadesVendidas,
       custo_insumos_un: custoInsumosUn,
@@ -534,15 +568,24 @@ export function computeDashboardAnalytics(
     (totalReceitaLiquida - totalCpv).toFixed(2)
   );
 
+  const precoMedioConsolidado =
+    totalUnidades > 0
+      ? Number((totalReceitaBruta / totalUnidades).toFixed(2))
+      : 0;
+  const custoMedioConsolidado =
+    totalUnidades > 0 ? Number((totalCpv / totalUnidades).toFixed(2)) : 0;
+  const ifoodConsolidado = calculateDynamicIfoodPrice(
+    precoMedioConsolidado,
+    custoMedioConsolidado,
+    ifoodFeePct
+  );
+
   const dreConsolidada: DreProdutoItem = {
     produto_id: "consolidado",
     nome: "Consolidado Geral (Todos os Sabores)",
-    preco_venda:
-      totalUnidades > 0
-        ? Number((totalReceitaBruta / totalUnidades).toFixed(2))
-        : 0,
-    preco_ifood: 9.8,
-    lucro_liquido_ifood: 4.2,
+    preco_venda: precoMedioConsolidado,
+    preco_ifood: ifoodConsolidado.precoIfood,
+    lucro_liquido_ifood: ifoodConsolidado.lucroLiquidoIfood,
     rendimento_lote: 69,
     unidades_vendidas: totalUnidades,
     custo_insumos_un:
@@ -557,8 +600,7 @@ export function computeDashboardAnalytics(
       totalUnidades > 0
         ? Number((totalOperacional / totalUnidades).toFixed(2))
         : 0,
-    custo_total_un:
-      totalUnidades > 0 ? Number((totalCpv / totalUnidades).toFixed(2)) : 0,
+    custo_total_un: custoMedioConsolidado,
     lucro_bruto_un:
       totalUnidades > 0
         ? Number(((totalReceitaBruta - totalCpv) / totalUnidades).toFixed(2))

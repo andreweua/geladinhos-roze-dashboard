@@ -15,6 +15,7 @@ export interface BrandConfig {
   locale: string;
   currency: string;
   lowStockThreshold: number;
+  defaultIfoodFeePct: number;
   storagePrefix: string;
   userProfile: {
     name: string;
@@ -57,7 +58,7 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "1.3.0",
+  appVersion: "1.4.0",
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",
@@ -65,6 +66,7 @@ export const BRAND_CONFIG: BrandConfig = {
   locale: "pt-BR",
   currency: "BRL",
   lowStockThreshold: 10,
+  defaultIfoodFeePct: 26.2, // Taxa padrão iFood (23% + 3,2% = 26,2% -> Fator divisor 0,738)
   storagePrefix: "roze_gourmet_v1",
   userProfile: {
     name: "Rozana",

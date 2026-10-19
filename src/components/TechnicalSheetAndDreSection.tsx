@@ -16,6 +16,7 @@ import {
   Search,
   Sparkles,
   PackageCheck,
+  Percent,
 } from "lucide-react";
 import {
   Card,
@@ -26,6 +27,7 @@ import {
   Badge,
   Button,
 } from "@/components/ui/primitives";
+import { calculateDynamicIfoodPrice } from "@/lib/analytics";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { calculateUnitCostFromFicha } from "@/services/dataService";
 import {
@@ -52,6 +54,8 @@ interface TechnicalSheetAndDreSectionProps {
     ficha: FichaTecnicaProduto,
     novoPrecoVenda?: number
   ) => Promise<void>;
+  ifoodFeePct: number;
+  onChangeIfoodFeePct: (newRate: number) => void;
 }
 
 export const TechnicalSheetAndDreSection: React.FC<
@@ -64,6 +68,8 @@ export const TechnicalSheetAndDreSection: React.FC<
   selectedProductId,
   onSelectProductId,
   onSaveFicha,
+  ifoodFeePct,
+  onChangeIfoodFeePct,
 }) => {
   const activeProducts = produtos.filter((p) => p.ativo);
   const currentProduct =
@@ -105,12 +111,15 @@ export const TechnicalSheetAndDreSection: React.FC<
   const calc = calculateUnitCostFromFicha(draftFicha);
   const precoVendaNum =
     parseFloat(draftPrecoVenda) || currentProduct.preco_venda;
-  const precoIfoodNum = draftFicha.preco_ifood_sugerido || 9.5;
-  const taxaIfoodValor = Number((precoIfoodNum * 0.262).toFixed(2));
-  const lucroIfoodUn = Number(
-    (precoIfoodNum - taxaIfoodValor - calc.custoTotalUn).toFixed(2)
-  );
   const lucroLocalUn = Number((precoVendaNum - calc.custoTotalUn).toFixed(2));
+
+  // Dynamic iFood calculation based on registered fee rate (ifoodFeePct)
+  const dynamicIfood = calculateDynamicIfoodPrice(
+    precoVendaNum,
+    calc.custoTotalUn,
+    ifoodFeePct
+  );
+
   const markupMultiplicador =
     calc.custoTotalUn > 0
       ? Number((precoVendaNum / calc.custoTotalUn).toFixed(2))
@@ -164,7 +173,12 @@ export const TechnicalSheetAndDreSection: React.FC<
 
   const handleSave = async () => {
     if (!draftFicha) return;
-    await onSaveFicha(draftFicha, precoVendaNum);
+    const updatedFicha: FichaTecnicaProduto = {
+      ...draftFicha,
+      preco_ifood_sugerido: dynamicIfood.precoIfood,
+      lucro_ifood_estimado: dynamicIfood.lucroLiquidoIfood,
+    };
+    await onSaveFicha(updatedFicha, precoVendaNum);
     setIsEditing(false);
     setSavedNotice(true);
     setTimeout(() => setSavedNotice(false), 3000);
@@ -199,16 +213,16 @@ export const TechnicalSheetAndDreSection: React.FC<
             lucroLiquido: lucroLocalUn,
           }
         : {
-            subtitulo: `Venda pelo iFood (Taxa 26,2%) — Por 1 Saquinho (${draftFicha.volume_unitario_ml}ml)`,
-            receitaBruta: precoIfoodNum,
-            labelTaxas: "(-) Comissão & Taxa iFood (26,2%)",
-            taxasPagamento: taxaIfoodValor,
-            receitaLiquida: Number((precoIfoodNum - taxaIfoodValor).toFixed(2)),
+            subtitulo: `Venda Delivery / iFood (Taxa Cadastrada ${ifoodFeePct}% → Fator ÷ ${dynamicIfood.fatorDivisor})`,
+            receitaBruta: dynamicIfood.precoIfood,
+            labelTaxas: `(-) Comissão & Taxa Cadastrada (${ifoodFeePct}%)`,
+            taxasPagamento: dynamicIfood.taxaValor,
+            receitaLiquida: dynamicIfood.repasseLiquido,
             cmvInsumos: calc.custoInsumosUn,
             embalagens: draftFicha.custo_embalagem_un,
             operacional: draftFicha.custo_operacional_un,
             cpvTotal: calc.custoTotalUn,
-            lucroLiquido: lucroIfoodUn,
+            lucroLiquido: dynamicIfood.lucroLiquidoIfood,
           };
 
   const pctOfBruta = (val: number) =>
@@ -246,7 +260,9 @@ export const TechnicalSheetAndDreSection: React.FC<
             <p className="mt-0.5 text-xs text-muted-foreground">
               Saquinho 150ml a{" "}
               <strong>
-                {formatCurrency(loteCardapioExpandido9Receitas.custoSaquinho150ml)}
+                {formatCurrency(
+                  loteCardapioExpandido9Receitas.custoSaquinho150ml
+                )}
               </strong>{" "}
               / un.
             </p>
@@ -304,7 +320,10 @@ export const TechnicalSheetAndDreSection: React.FC<
               </span>
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Compra: {formatCurrency(loteCaderno6Receitas.desembolsoCaixaEmbalagensFechadas)}{" "}
+              Compra:{" "}
+              {formatCurrency(
+                loteCaderno6Receitas.desembolsoCaixaEmbalagensFechadas
+              )}{" "}
               • Uso:{" "}
               {formatCurrency(loteCaderno6Receitas.custoEfetivamenteConsumido)}
             </p>
@@ -312,9 +331,9 @@ export const TechnicalSheetAndDreSection: React.FC<
         </Card>
       </div>
 
-      {/* Selector Bar for Flavors */}
+      {/* Selector Bar for Flavors + Dynamic iFood Fee Configurator */}
       <Card className="border-rose-500/20 bg-gradient-to-r from-rose-500/[0.04] via-card to-amber-500/[0.04]">
-        <CardContent className="p-4 sm:p-5">
+        <CardContent className="p-4 sm:p-5 space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-2">
@@ -324,21 +343,82 @@ export const TechnicalSheetAndDreSection: React.FC<
                 </h2>
               </div>
               <p className="text-xs text-muted-foreground">
-                Selecione um sabor do caderno de receitas para ver ou editar os
-                ingredientes fracionados, rendimento e DRE (Venda Local vs.
-                iFood)
+                O preço iFood é calculado dinamicamente pela fórmula{" "}
+                <strong className="text-foreground">
+                  Preço Local ÷ (1 - Taxa%)
+                </strong>{" "}
+                para garantir que você ganhe exatamente o mesmo valor líquido da
+                venda local.
               </p>
             </div>
 
-            {savedNotice && (
-              <Badge variant="success" className="gap-1.5 py-1 text-xs">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Ficha Técnica e Custo Unitário atualizados!
+            {/* Dynamic iFood Fee Rate Control */}
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-rose-500/30 bg-card px-3.5 py-2.5 shadow-sm">
+              <div className="flex items-center gap-1.5">
+                <Percent className="h-4 w-4 text-rose-500" />
+                <label
+                  htmlFor="taxa-ifood-input"
+                  className="text-xs font-bold text-foreground"
+                >
+                  Taxa iFood Cadastrada:
+                </label>
+              </div>
+              <div className="flex items-center gap-1">
+                <input
+                  id="taxa-ifood-input"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="80"
+                  value={ifoodFeePct}
+                  onChange={(e) =>
+                    onChangeIfoodFeePct(
+                      Math.min(80, Math.max(0, parseFloat(e.target.value) || 0))
+                    )
+                  }
+                  className="w-16 rounded-lg border border-input bg-background px-2 py-1 text-center text-xs font-extrabold text-primary focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <span className="text-xs font-bold text-muted-foreground">
+                  %
+                </span>
+              </div>
+
+              <Badge variant="secondary" className="text-[11px] font-bold">
+                Fator: ÷ {dynamicIfood.fatorDivisor}
               </Badge>
-            )}
+
+              {/* Quick rate presets */}
+              <div className="flex items-center gap-1 border-l border-border pl-2">
+                {[
+                  { label: "26,2% (÷0,738)", val: 26.2 },
+                  { label: "30% (÷0,70)", val: 30.0 },
+                  { label: "15% (÷0,85)", val: 15.0 },
+                ].map((preset) => (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => onChangeIfoodFeePct(preset.val)}
+                    className={`rounded-md px-2 py-1 text-[10px] font-bold transition-all ${
+                      Math.abs(ifoodFeePct - preset.val) < 0.05
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary/70 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          {savedNotice && (
+            <Badge variant="success" className="gap-1.5 py-1 text-xs">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Ficha Técnica e Custo Unitário atualizados!
+            </Badge>
+          )}
+
+          <div className="flex flex-wrap gap-2">
             {activeProducts.map((prod) => {
               const active = prod.id === currentProduct.id;
               return (
@@ -434,7 +514,8 @@ export const TechnicalSheetAndDreSection: React.FC<
                   />
                 ) : (
                   <p className="mt-1 text-base font-extrabold text-foreground">
-                    {draftFicha.rendimento_unidades} un ({draftFicha.volume_unitario_ml}ml)
+                    {draftFicha.rendimento_unidades} un (
+                    {draftFicha.volume_unitario_ml}ml)
                   </p>
                 )}
               </div>
@@ -462,31 +543,17 @@ export const TechnicalSheetAndDreSection: React.FC<
                 </p>
               </div>
 
-              <div className="rounded-xl border border-border/70 bg-secondary/35 p-3">
-                <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                  <ShoppingBag className="h-3 w-3 text-rose-500" />
-                  Preço iFood (26,2%)
+              <div className="rounded-xl border border-rose-500/30 bg-rose-500/[0.06] p-3">
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                  <ShoppingBag className="h-3 w-3" />
+                  iFood ({ifoodFeePct}% → ÷{dynamicIfood.fatorDivisor})
                 </span>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    step="0.10"
-                    value={draftFicha.preco_ifood_sugerido}
-                    onChange={(e) =>
-                      setDraftFicha({
-                        ...draftFicha,
-                        preco_ifood_sugerido: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1 text-sm font-bold"
-                  />
-                ) : (
-                  <p className="mt-1 text-base font-extrabold text-rose-600 dark:text-rose-400">
-                    {formatCurrency(precoIfoodNum)}
-                  </p>
-                )}
-                <p className="text-[10px] text-muted-foreground">
-                  Lucro iFood: +{formatCurrency(lucroIfoodUn)}/un
+                <p className="mt-1 text-base font-extrabold text-rose-600 dark:text-rose-400">
+                  {formatCurrency(dynamicIfood.precoIfood)}
+                </p>
+                <p className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                  Lucro Líquido: +{formatCurrency(dynamicIfood.lucroLiquidoIfood)}
+                  /un
                 </p>
               </div>
 
@@ -508,8 +575,8 @@ export const TechnicalSheetAndDreSection: React.FC<
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Ingredientes da Receita (Rendimento: {draftFicha.rendimento_unidades}{" "}
-                  saquinhos de 150ml)
+                  Ingredientes da Receita (Rendimento:{" "}
+                  {draftFicha.rendimento_unidades} saquinhos de 150ml)
                 </h4>
                 <button
                   type="button"
@@ -771,7 +838,7 @@ export const TechnicalSheetAndDreSection: React.FC<
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  iFood (1 un)
+                  iFood ({ifoodFeePct}%)
                 </button>
               </div>
             </div>
@@ -802,7 +869,7 @@ export const TechnicalSheetAndDreSection: React.FC<
 
             {/* 3. Receita Líquida */}
             <div className="flex items-center justify-between border-y border-border/70 px-3.5 py-2 font-semibold text-foreground">
-              <span>(=) Receita Líquida de Vendas</span>
+              <span>(=) Receita Líquida (Repasse)</span>
               <div className="text-right">
                 <span>{formatCurrency(dreLinhas.receitaLiquida)}</span>
                 <span className="ml-2 text-[11px] text-muted-foreground">
@@ -864,7 +931,8 @@ export const TechnicalSheetAndDreSection: React.FC<
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
                     Local: +{formatCurrency(lucroLocalUn)}/un • iFood: +
-                    {formatCurrency(lucroIfoodUn)}/un
+                    {formatCurrency(dynamicIfood.lucroLiquidoIfood)}/un (Empate
+                    100%)
                   </p>
                 </div>
                 <div className="text-right">
@@ -881,18 +949,20 @@ export const TechnicalSheetAndDreSection: React.FC<
         </Card>
       </div>
 
-      {/* FULL-WIDTH OFFICIAL PRICING & DRE MATRIX (MATCHING PDF 2 + REAL PERIOD SALES) */}
+      {/* FULL-WIDTH OFFICIAL PRICING & DRE MATRIX */}
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5 text-rose-500" />
-                Tabela Completa: Ficha Técnica, Precificação Local/iFood & DRE
-                do Período (150ml)
+                Tabela Completa: Ficha Técnica, Precificação Local vs. iFood
+                (Taxa {ifoodFeePct}% → ÷{dynamicIfood.fatorDivisor}) & DRE
               </CardTitle>
               <CardDescription>
-                Clique em qualquer sabor para abrir sua receita detalhada acima
+                O Preço iFood é calculado automaticamente sobre a taxa
+                cadastrada ({ifoodFeePct}%) para empatar 100% o lucro líquido
+                com a venda local
               </CardDescription>
             </div>
             <Badge variant="secondary" className="text-xs">
@@ -912,13 +982,11 @@ export const TechnicalSheetAndDreSection: React.FC<
                   <th className="pb-3 px-2 text-right">Preço Local</th>
                   <th className="pb-3 px-2 text-right">Lucro Local</th>
                   <th className="pb-3 px-2 text-right">
-                    Preço iFood (26,2%)
+                    Preço iFood (÷{dynamicIfood.fatorDivisor})
                   </th>
                   <th className="pb-3 px-2 text-right">Lucro iFood</th>
                   <th className="pb-3 px-2 text-center">Vendidos</th>
-                  <th className="pb-3 pl-2 text-right">
-                    (=) Lucro Período
-                  </th>
+                  <th className="pb-3 pl-2 text-right">(=) Lucro Período</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -949,10 +1017,10 @@ export const TechnicalSheetAndDreSection: React.FC<
                       <td className="py-3 px-2 text-right font-semibold text-emerald-600 dark:text-emerald-400">
                         {formatCurrency(item.lucro_bruto_un)}
                       </td>
-                      <td className="py-3 px-2 text-right font-semibold text-foreground">
+                      <td className="py-3 px-2 text-right font-extrabold text-rose-600 dark:text-rose-400">
                         {formatCurrency(item.preco_ifood)}
                       </td>
-                      <td className="py-3 px-2 text-right text-emerald-600 dark:text-emerald-400">
+                      <td className="py-3 px-2 text-right font-semibold text-emerald-600 dark:text-emerald-400">
                         {formatCurrency(item.lucro_liquido_ifood)}
                       </td>
                       <td className="py-3 px-2 text-center font-semibold">
@@ -985,9 +1053,8 @@ export const TechnicalSheetAndDreSection: React.FC<
         </CardContent>
       </Card>
 
-      {/* CALDAS ARTESANAIS BASE & SOBRAS DE ESTOQUE (FROM PDF 1, 2, 3, 4) */}
+      {/* CALDAS ARTESANAIS BASE & SOBRAS DE ESTOQUE */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Caldas Artesanais Base (5 cols) */}
         <Card className="lg:col-span-5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1015,7 +1082,10 @@ export const TechnicalSheetAndDreSection: React.FC<
                 </div>
                 <p className="text-muted-foreground">
                   <strong>Rendimento:</strong> {calda.rendimento} (Custo:{" "}
-                  <strong>{formatCurrency(calda.custoPorPorcao)}/porção</strong>)
+                  <strong>
+                    {formatCurrency(calda.custoPorPorcao)}/porção
+                  </strong>
+                  )
                 </p>
                 <p className="text-muted-foreground">
                   <strong>Ingredientes:</strong> {calda.ingredientes}
@@ -1026,7 +1096,6 @@ export const TechnicalSheetAndDreSection: React.FC<
           </CardContent>
         </Card>
 
-        {/* Desembolso Inicial x Ingredientes em Estoque (7 cols) */}
         <Card className="lg:col-span-7">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1094,7 +1163,7 @@ export const TechnicalSheetAndDreSection: React.FC<
 
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
-                <Search className=" absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Buscar insumo ou marca..."

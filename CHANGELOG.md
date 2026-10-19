@@ -7,6 +7,16 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [1.4.0] - 2026-10-19
+
+### Adicionado & Alterado
+- **Cálculo Dinâmico de Preço Delivery / iFood Baseado na Taxa Cadastrada (`src/lib/analytics.ts` & `src/components/TechnicalSheetAndDreSection.tsx`)**:
+  - Substituição dos preços fixos de iFood pela fórmula matemática exata baseada na taxa cadastrada: $\text{Preço}_{\text{iFood}} = \frac{\text{Preço}_{\text{Local}}}{1 - (\text{Taxa}/100)}$.
+  - Campo interativo **"Taxa iFood Cadastrada (%)"** no painel com botões rápidos (`26,2% → ÷0,738`, `30% → ÷0,70`, `15% → ÷0,85`) e exibição em tempo real do **Fator Divisor** calculado.
+  - Garantia matemática de que o **Repasse Líquido** e o **Lucro Líquido Unitário** no iFood empatam em 100% com o lucro da venda local em todos os sabores do cardápio.
+
+---
+
 ## [1.3.0] - 2026-10-19
 
 ### Adicionado & Atualizado

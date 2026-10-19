@@ -31,6 +31,7 @@ import {
 } from "@/types/dashboard";
 
 const THEME_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_theme`;
+const IFOOD_FEE_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_ifood_fee_pct`;
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -63,6 +64,31 @@ export function App() {
       // ignore
     }
   }, [isDark]);
+
+  // Registered iFood Fee % state (persisted in localStorage, defaults to BRAND_CONFIG.defaultIfoodFeePct = 26.2%)
+  const [ifoodFeePct, setIfoodFeePct] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(IFOOD_FEE_STORAGE_KEY);
+      if (saved !== null) {
+        const parsed = parseFloat(saved);
+        if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 80) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return BRAND_CONFIG.defaultIfoodFeePct;
+  });
+
+  const handleChangeIfoodFeePct = (newRate: number) => {
+    setIfoodFeePct(newRate);
+    try {
+      localStorage.setItem(IFOOD_FEE_STORAGE_KEY, String(newRate));
+    } catch {
+      // ignore
+    }
+  };
 
   // Global Date Filter state
   const [dateFilter, setDateFilter] = useState<DateFilterRange>(() =>
@@ -195,8 +221,8 @@ export function App() {
 
   const analytics = useMemo(() => {
     if (!snapshot) return null;
-    return computeDashboardAnalytics(snapshot, dateFilter);
-  }, [snapshot, dateFilter]);
+    return computeDashboardAnalytics(snapshot, dateFilter, ifoodFeePct);
+  }, [snapshot, dateFilter, ifoodFeePct]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -326,6 +352,8 @@ export function App() {
                 selectedProductId={selectedProductId}
                 onSelectProductId={setSelectedProductId}
                 onSaveFicha={handleSaveFicha}
+                ifoodFeePct={ifoodFeePct}
+                onChangeIfoodFeePct={handleChangeIfoodFeePct}
               />
             )}
           </>

@@ -1,6 +1,6 @@
 # 🍧 Geladinhos Gourmet da Roze — Dashboard Gerencial (PWA & White-Label)
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-1.3.0-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-1.4.0-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
 ![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Vite%20%2B%20TypeScript%20%2B%20Supabase-f59e0b)
 
