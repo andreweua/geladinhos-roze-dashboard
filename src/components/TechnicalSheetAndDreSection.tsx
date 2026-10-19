@@ -17,6 +17,7 @@ import {
   Sparkles,
   PackageCheck,
   Percent,
+  Receipt,
 } from "lucide-react";
 import {
   Card,
@@ -30,6 +31,7 @@ import {
 import { calculateDynamicIfoodPrice } from "@/lib/analytics";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { calculateUnitCostFromFicha } from "@/services/dataService";
+import { loadCurrentQuotations } from "@/services/quotationService";
 import {
   CALDAS_ARTESANAIS_BASE,
   RESUMO_LOTES_PRODUCAO,
@@ -56,6 +58,7 @@ interface TechnicalSheetAndDreSectionProps {
   ) => Promise<void>;
   ifoodFeePct: number;
   onChangeIfoodFeePct: (newRate: number) => void;
+  onOpenInvoiceModal?: () => void;
 }
 
 export const TechnicalSheetAndDreSection: React.FC<
@@ -70,6 +73,7 @@ export const TechnicalSheetAndDreSection: React.FC<
   onSaveFicha,
   ifoodFeePct,
   onChangeIfoodFeePct,
+  onOpenInvoiceModal,
 }) => {
   const activeProducts = produtos.filter((p) => p.ativo);
   const currentProduct =
@@ -230,7 +234,8 @@ export const TechnicalSheetAndDreSection: React.FC<
       ? Number(((val / dreLinhas.receitaBruta) * 100).toFixed(1))
       : 0;
 
-  const filteredQuotations = TABELA_COTACAO_INSUMOS.filter((item) => {
+  const currentCatalog = loadCurrentQuotations();
+  const filteredQuotations = currentCatalog.filter((item) => {
     const matchesCat = insumoCat === "Todas" || item.categoria === insumoCat;
     const matchesSearch =
       !insumoSearch.trim() ||
@@ -1151,10 +1156,22 @@ export const TechnicalSheetAndDreSection: React.FC<
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Beaker className="h-5 w-5 text-rose-500" />
-                Tabela de Cotação de Insumos (Varejo, Atacado & Preço de 1g)
-              </CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className="flex items-center gap-2">
+                  <Beaker className="h-5 w-5 text-primary" />
+                  Tabela de Cotação de Insumos (Varejo, Atacado & Preço de 1g)
+                </CardTitle>
+                {onOpenInvoiceModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenInvoiceModal}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
+                  >
+                    <Receipt className="h-3.5 w-3.5" />
+                    Atualizar por NF-e / Cupom Fiscal
+                  </button>
+                )}
+              </div>
               <CardDescription>
                 Base completa de referência de preços por unidade e por grama
                 (1g) para cálculo de fichas técnicas

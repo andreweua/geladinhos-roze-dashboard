@@ -17,6 +17,7 @@ import {
   Award,
   Layers,
   Bot,
+  Receipt,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
@@ -33,6 +34,7 @@ interface AiIntelligenceSectionProps {
   analytics: ComputedDashboardAnalytics;
   ifoodFeePct: number;
   onUpdateStock: (produtoId: string, newQty: number) => Promise<void>;
+  onOpenInvoiceModal?: () => void;
 }
 
 const GEMINI_KEY_STORAGE = `${BRAND_CONFIG.storagePrefix}_gemini_api_key`;
@@ -59,6 +61,7 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
   analytics,
   ifoodFeePct,
   onUpdateStock,
+  onOpenInvoiceModal,
 }) => {
   // Interactive Profit Target Simulator State
   const [metaLucroMensal, setMetaLucroMensal] = useState<number>(3500);
@@ -201,7 +204,7 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
       aria-label="PereiraLabs IA — Inteligência, Produção e Consultor Financeiro"
     >
       {/* Hero Banner PereiraLabs IA */}
-      <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-amber-500/10 p-5 shadow-sm sm:p-6">
+      <div className="relative overflow-hidden rounded-2xl border border-border/80 bg-card p-5 shadow-sm sm:p-6">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div className="space-y-2 max-w-3xl">
             <div className="inline-flex flex-wrap items-center gap-2">
@@ -532,14 +535,26 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
           {/* Right 5 cols: Lista de Compras Automática com Aproveitamento de Sobras */}
           <div className="xl:col-span-5 rounded-2xl border border-border/80 bg-card p-5 shadow-sm flex flex-col justify-between">
             <div>
-              <div className="border-b border-border pb-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  Módulo IA #2 • Cruzamento com Sobras da Despensa
-                </span>
-                <h3 className="text-base font-extrabold text-foreground flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                  Lista de Compras Inteligente (Desconta Sobras)
-                </h3>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                    Módulo IA #2 • Cruzamento com Sobras da Despensa
+                  </span>
+                  <h3 className="text-base font-extrabold text-foreground flex items-center gap-2">
+                    <ShoppingCart className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    Lista de Compras Inteligente (Desconta Sobras)
+                  </h3>
+                </div>
+                {onOpenInvoiceModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenInvoiceModal}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
+                  >
+                    <Receipt className="h-3.5 w-3.5" />
+                    Atualizar por NF-e
+                  </button>
+                )}
               </div>
 
               {/* Savings highlight box */}
@@ -700,13 +715,25 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
                   Radar de Redução de Custo (Varejo vs. Atacado)
                 </h3>
               </div>
-              <div className="rounded-xl bg-emerald-500/10 px-3 py-1.5 text-right">
-                <p className="text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-300">
-                  Economia Potencial Estimada
-                </p>
-                <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-                  +{formatCurrency(report.costOptimizations.economiaMensalPotencial)} / mês
-                </p>
+              <div className="flex items-center gap-2">
+                {onOpenInvoiceModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenInvoiceModal}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-bold text-foreground shadow-sm hover:bg-secondary transition-colors"
+                  >
+                    <Receipt className="h-3.5 w-3.5 text-primary" />
+                    Importar Nota Fiscal
+                  </button>
+                )}
+                <div className="rounded-xl bg-emerald-500/10 px-3 py-1.5 text-right">
+                  <p className="text-[10px] font-semibold uppercase text-emerald-700 dark:text-emerald-300">
+                    Economia Potencial Estimada
+                  </p>
+                  <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                    +{formatCurrency(report.costOptimizations.economiaMensalPotencial)} / mês
+                  </p>
+                </div>
               </div>
             </div>
 

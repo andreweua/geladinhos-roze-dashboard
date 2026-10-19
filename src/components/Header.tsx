@@ -9,6 +9,7 @@ import {
   Database,
   Sparkles,
   Smartphone,
+  Receipt,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
@@ -19,6 +20,7 @@ interface HeaderProps {
   onOpenNewSale: () => void;
   onOpenStockModal: () => void;
   onOpenInstallModal: () => void;
+  onOpenInvoiceModal: () => void;
   isPwaInstalled: boolean;
   onRefresh: () => void;
   isRefreshing: boolean;
@@ -31,6 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewSale,
   onOpenStockModal,
   onOpenInstallModal,
+  onOpenInvoiceModal,
   isPwaInstalled,
   onRefresh,
   isRefreshing,
@@ -41,9 +44,9 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
         {/* Left: Brand Identity */}
         <div className="flex items-center gap-3.5">
-          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-600 via-rose-500 to-amber-400 text-white shadow-md shadow-rose-500/20">
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
             <IceCreamCone className="h-6 w-6" />
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[10px] text-rose-950 shadow">
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] text-white shadow">
               <Sparkles className="h-2.5 w-2.5" />
             </span>
           </div>
@@ -78,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
             variant="default"
             size="sm"
             onClick={onOpenNewSale}
-            className="bg-gradient-to-r from-rose-600 to-rose-500 text-white shadow-sm hover:from-rose-700 hover:to-rose-600"
+            className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
           >
             <PlusCircle className="h-4 w-4" />
             <span>Nova Venda</span>
@@ -90,8 +93,19 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onOpenStockModal}
             className="hidden sm:inline-flex"
           >
-            <PackagePlus className="h-4 w-4 text-rose-500" />
+            <PackagePlus className="h-4 w-4 text-primary" />
             <span>Repor Estoque</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenInvoiceModal}
+            title="Importar Nota Fiscal ou Cupom para atualizar preços de insumos"
+            className="hidden md:inline-flex items-center gap-1.5"
+          >
+            <Receipt className="h-4 w-4 text-primary" />
+            <span>Atualizar Insumos (NF-e)</span>
           </Button>
 
           {!isPwaInstalled && (

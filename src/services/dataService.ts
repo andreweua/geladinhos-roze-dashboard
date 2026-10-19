@@ -1082,3 +1082,31 @@ export async function saveProductFichaTecnica(
   saveLocalSnapshot(updatedSnapshot);
   return updatedSnapshot;
 }
+
+export async function saveBatchFichasTecnicas(
+  fichas: FichaTecnicaProduto[]
+): Promise<DashboardDataSnapshot> {
+  const current = await fetchDashboardData();
+  const fichaMap = new Map(fichas.map((f) => [f.produto_id, f]));
+
+  const novosProdutos = current.produtos.map((p) => {
+    const ficha = fichaMap.get(p.id);
+    if (!ficha) return p;
+    const { custoTotalUn } = calculateUnitCostFromFicha(ficha);
+    return {
+      ...p,
+      custo_estimado: custoTotalUn,
+      preco_ifood: ficha.preco_ifood_sugerido,
+    };
+  });
+
+  const updatedSnapshot: DashboardDataSnapshot = {
+    ...current,
+    produtos: novosProdutos,
+    fichasTecnicas: fichas,
+    lastSyncedAt: new Date().toISOString(),
+  };
+
+  saveLocalSnapshot(updatedSnapshot);
+  return updatedSnapshot;
+}

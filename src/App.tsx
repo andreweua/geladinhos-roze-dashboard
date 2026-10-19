@@ -8,6 +8,7 @@ import { ChartsSection } from "@/components/ChartsSection";
 import { TablesSection } from "@/components/TablesSection";
 import { TechnicalSheetAndDreSection } from "@/components/TechnicalSheetAndDreSection";
 import { AiIntelligenceSection } from "@/components/AiIntelligenceSection";
+import { InvoicePriceUpdaterModal } from "@/components/InvoicePriceUpdaterModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import {
@@ -21,6 +22,7 @@ import {
   NewProductPayload,
   NewSalePayload,
   resetLocalDemoData,
+  saveBatchFichasTecnicas,
   saveProductFichaTecnica,
   updateProductStock,
 } from "@/services/dataService";
@@ -112,6 +114,7 @@ export function App() {
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [modalTab, setModalTab] = useState<"venda" | "estoque">("venda");
   const [installModalOpen, setInstallModalOpen] = useState<boolean>(false);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState<boolean>(false);
 
   // PWA Install Prompt state (Android / Chrome / Edge)
   const [deferredPrompt, setDeferredPrompt] =
@@ -215,6 +218,13 @@ export function App() {
     setSnapshot(updated);
   };
 
+  const handleSaveBatchFichas = async (
+    updatedFichas: FichaTecnicaProduto[]
+  ) => {
+    const updated = await saveBatchFichasTecnicas(updatedFichas);
+    setSnapshot(updated);
+  };
+
   const handleResetDemo = () => {
     const fresh = resetLocalDemoData();
     setSnapshot(fresh);
@@ -239,6 +249,7 @@ export function App() {
           setModalOpen(true);
         }}
         onOpenInstallModal={() => setInstallModalOpen(true)}
+        onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
         isPwaInstalled={isPwaInstalled}
         onRefresh={loadData}
         isRefreshing={isRefreshing}
@@ -339,6 +350,7 @@ export function App() {
                 analytics={analytics}
                 ifoodFeePct={ifoodFeePct}
                 onUpdateStock={handleUpdateStock}
+                onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
               />
             )}
 
@@ -378,6 +390,7 @@ export function App() {
                 onSaveFicha={handleSaveFicha}
                 ifoodFeePct={ifoodFeePct}
                 onChangeIfoodFeePct={handleChangeIfoodFeePct}
+                onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
               />
             )}
           </>
@@ -421,6 +434,15 @@ export function App() {
           onCreateProduct={handleCreateProduct}
           onResetDemoData={handleResetDemo}
           dataSource={snapshot?.source || "demo_local"}
+        />
+      )}
+
+      {snapshot && (
+        <InvoicePriceUpdaterModal
+          isOpen={invoiceModalOpen}
+          onClose={() => setInvoiceModalOpen(false)}
+          fichasTecnicas={snapshot.fichasTecnicas}
+          onSaveBatchFichas={handleSaveBatchFichas}
         />
       )}
 

@@ -1,7 +1,8 @@
 # 🍧 Geladinhos Gourmet da Roze — Dashboard Gerencial (PWA & White-Label)
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-1.5.0-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-1.6.0-2563eb)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
+![Paleta](https://img.shields.io/badge/Paleta-Slate%20%2F%20Indigo%20Executiva-64748b)
 ![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Vite%20%2B%20TypeScript%20%2B%20Supabase%20%2B%20PereiraLabs%20IA-f59e0b)
 
 Dashboard financeiro, operacional e de Inteligência Artificial desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase + PereiraLabs IA**, projetado para hospedagem no **GitHub Pages**, instalação nativa como **PWA (Android WebAPK, iOS Safari e Desktop)** e arquitetura **White-Label replicável** para novos clientes.
@@ -13,7 +14,11 @@ Dashboard financeiro, operacional e de Inteligência Artificial desenvolvido em 
 
 ## 📊 Funcionalidades Principais
 
-1. **5 KPIs em Tempo Real**:
+1. **Paleta Executiva & Limpa (`v1.6.0`)**:
+   - Design profissional baseado em tons de **Slate / Indigo**, eliminando saturação excessiva e garantindo leitura límpida de números e margens.
+2. **Atualizador de Preços por Nota Fiscal / Cupom (`v1.6.0`)**:
+   - Importação automática por **Chave / QR Code de NFC-e**, **Upload de XML**, **Foto do Cupom Impresso** ou **Copiar & Colar / CSV**, recalculando todas as 8 Fichas Técnicas e DREs na hora.
+3. **5 KPIs em Tempo Real**:
    - **Faturamento Total** (R$ no período filtrado)
    - **Lucro Bruto Estimado** (Receita menos custo estimado dos itens vendidos + margem %)
    - **Total de Geladinhos Vendidos** (Unidades totais entregues)

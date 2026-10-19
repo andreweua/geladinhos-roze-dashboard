@@ -7,6 +7,22 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [1.6.0] - 2026-10-19
+
+### Adicionado & Aprimorado
+- **Paleta de Cores Executiva & Limpa (Slate/Indigo) — Foco em Clareza Financeira**:
+  - Substituição da paleta anterior com tons quentes/rosados dispersos por uma identidade visual sóbria, executiva e profissional baseada em tons neutros de **Slate** (cinza grafite e off-white) com acentos em **Indigo / Azul Corporativo** (`#2563eb`), verde esmeralda para lucro (`#10b981`) e cinza ardósia para custos (`#64748b`).
+  - Remoção de gradientes multicoloridos e ruído visual nos cards e banners da IA, garantindo máxima legibilidade de relatórios contábeis tanto no tema Claro quanto no tema Escuro (*Dark Mode*).
+- **Importador e Atualizador de Preços de Insumos do Supermercado (`src/services/quotationService.ts` & `src/components/InvoicePriceUpdaterModal.tsx`)**:
+  - **Consulta por Chave de Acesso da NFC-e (44 dígitos) ou QR Code**: Permite consultar notas fiscais eletrônicas de consumidor com 1 clique ou testar com notas pré-carregadas (Atacadão / Supermercados BH).
+  - **Upload de Arquivo XML da NF-e / NFC-e**: Processamento no cliente de XMLs SEFAZ com extração automática de produto (`xProd`), quantidade (`qCom`), valor unitário (`vUnCom`) e valor total (`vProd`).
+  - **Foto do Cupom Fiscal Impresso**: Reconhecimento inteligente de itens a partir de fotos tiradas pela câmera do celular ou upload de imagem.
+  - **Copiar & Colar / CSV**: Importação direta de texto colado de mensagens ou planilhas.
+  - **Tabela de Conciliação e Ajuste de Vínculos**: Exibe o produto da nota lado a lado com o insumo correspondente do catálogo, comparando o preço anterior e novo com indicador percentual ($\Delta$).
+  - **Recálculo Automático das Fichas Técnicas**: Ao aplicar a nota fiscal, os custos dos insumos são gravados no catálogo e todas as 8 receitas de 150ml têm seus custos unitários, DRE e Lista de Compras recalculados instantaneamente!
+
+---
+
 ## [1.5.0] - 2026-10-19
 
 ### Adicionado

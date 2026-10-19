@@ -5,6 +5,7 @@ import {
 } from "@/data/insumosCatalog";
 import { ComputedDashboardAnalytics, calculateDynamicIfoodPrice } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/utils";
+import { loadCurrentQuotations } from "@/services/quotationService";
 import { DashboardDataSnapshot } from "@/types/dashboard";
 
 export interface ProductionRecommendationItem {

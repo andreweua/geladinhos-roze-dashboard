@@ -58,7 +58,7 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "1.5.0",
+  appVersion: "1.6.0",
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",
@@ -89,17 +89,17 @@ export const BRAND_CONFIG: BrandConfig = {
     Cartao_Credito: 3.99,
   },
   chartColors: {
-    revenue: "#e11d48", // Rose 600
-    cost: "#f59e0b", // Amber 500
-    profit: "#10b981", // Emerald 500
-    primaryBar: "#fb7185", // Rose 400
-    stockNormal: "#f43f5e", // Rose 500
+    revenue: "#2563eb", // Royal Indigo / Blue 600
+    cost: "#64748b", // Neutral Slate 500
+    profit: "#10b981", // Clean Emerald 500
+    primaryBar: "#3b82f6", // Blue 500
+    stockNormal: "#0284c7", // Sky 600
     stockLow: "#d97706", // Amber 600 (Alert)
     paymentMethods: {
-      Pix: "#e11d48", // Rose / Berry
-      Cartao_Credito: "#fb923c", // Soft Peach / Orange
-      Cartao_Debito: "#f59e0b", // Amber Gold
-      Dinheiro: "#10b981", // Mint Emerald
+      Pix: "#2563eb", // Indigo
+      Cartao_Credito: "#0ea5e9", // Sky Blue
+      Cartao_Debito: "#6366f1", // Indigo Violet
+      Dinheiro: "#10b981", // Clean Emerald
     },
   },
   developerCredit: {
