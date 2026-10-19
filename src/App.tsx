@@ -248,14 +248,23 @@ export function App() {
         )}
       </main>
 
-      <footer className="mt-10 border-t border-border/60 bg-card/50 py-5 text-center text-xs text-muted-foreground">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 sm:flex-row sm:px-6 lg:px-8">
+      <footer className="mt-10 border-t border-border/60 bg-card/60 py-6 text-center text-xs text-muted-foreground">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 sm:flex-row sm:px-6 lg:px-8">
           <p>
-            <strong>{BRAND_CONFIG.companyName}</strong> — {BRAND_CONFIG.tagline}
+            <strong className="text-foreground">
+              {BRAND_CONFIG.companyName}
+            </strong>{" "}
+            — {BRAND_CONFIG.tagline}
           </p>
-          <p>
-            Arquitetura Replicável White-Label • Pronto para GitHub Pages,
-            Android & iOS PWA
+          <p className="font-medium text-foreground/90">
+            Desenvolvido por{" "}
+            <span className="font-bold text-primary">
+              {BRAND_CONFIG.developerCredit.studio}
+            </span>{" "}
+            <span className="mx-1 text-muted-foreground">|</span>{" "}
+            <span className="font-semibold">
+              {BRAND_CONFIG.developerCredit.company}
+            </span>
           </p>
         </div>
       </footer>

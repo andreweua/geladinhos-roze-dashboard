@@ -42,6 +42,11 @@ export interface BrandConfig {
       Cartao_Debito: string;
     };
   };
+  developerCredit: {
+    studio: string;
+    company: string;
+    fullText: string;
+  };
 }
 
 export const BRAND_CONFIG: BrandConfig = {
@@ -79,5 +84,11 @@ export const BRAND_CONFIG: BrandConfig = {
       Cartao_Debito: "#f59e0b", // Amber Gold
       Dinheiro: "#10b981", // Mint Emerald
     },
+  },
+  developerCredit: {
+    studio: "PereiraLabs - Divisão de tecnologia e IA",
+    company: "Louzada & Pereira - soluções digitais",
+    fullText:
+      "Desenvolvido por PereiraLabs - Divisão de tecnologia e IA | Louzada & Pereira - soluções digitais",
   },
 };
