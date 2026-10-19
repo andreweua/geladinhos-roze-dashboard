@@ -12,6 +12,10 @@ import {
   CheckCircle2,
   Edit3,
   Layers,
+  ShoppingBag,
+  Search,
+  Sparkles,
+  PackageCheck,
 } from "lucide-react";
 import {
   Card,
@@ -24,6 +28,12 @@ import {
 } from "@/components/ui/primitives";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { calculateUnitCostFromFicha } from "@/services/dataService";
+import {
+  CALDAS_ARTESANAIS_BASE,
+  RESUMO_LOTES_PRODUCAO,
+  SOBRAS_ESTOQUE_INSUMOS,
+  TABELA_COTACAO_INSUMOS,
+} from "@/data/insumosCatalog";
 import {
   DreProdutoItem,
   FichaTecnicaProduto,
@@ -71,10 +81,14 @@ export const TechnicalSheetAndDreSection: React.FC<
     null
   );
   const [draftPrecoVenda, setDraftPrecoVenda] = useState<string>("");
-  const [dreViewMode, setDreViewMode] = useState<"periodo" | "unitario">(
-    "periodo"
-  );
+  const [dreViewMode, setDreViewMode] = useState<
+    "periodo" | "local_un" | "ifood_un"
+  >("periodo");
   const [savedNotice, setSavedNotice] = useState(false);
+
+  // Quotation table filter
+  const [insumoSearch, setInsumoSearch] = useState("");
+  const [insumoCat, setInsumoCat] = useState<string>("Todas");
 
   useEffect(() => {
     if (currentFicha && currentProduct) {
@@ -91,11 +105,12 @@ export const TechnicalSheetAndDreSection: React.FC<
   const calc = calculateUnitCostFromFicha(draftFicha);
   const precoVendaNum =
     parseFloat(draftPrecoVenda) || currentProduct.preco_venda;
-  const lucroUnitario = Number((precoVendaNum - calc.custoTotalUn).toFixed(2));
-  const margemUnitariaPct =
-    precoVendaNum > 0
-      ? Number(((lucroUnitario / precoVendaNum) * 100).toFixed(1))
-      : 0;
+  const precoIfoodNum = draftFicha.preco_ifood_sugerido || 9.5;
+  const taxaIfoodValor = Number((precoIfoodNum * 0.262).toFixed(2));
+  const lucroIfoodUn = Number(
+    (precoIfoodNum - taxaIfoodValor - calc.custoTotalUn).toFixed(2)
+  );
+  const lucroLocalUn = Number((precoVendaNum - calc.custoTotalUn).toFixed(2));
   const markupMultiplicador =
     calc.custoTotalUn > 0
       ? Number((precoVendaNum / calc.custoTotalUn).toFixed(2))
@@ -155,17 +170,13 @@ export const TechnicalSheetAndDreSection: React.FC<
     setTimeout(() => setSavedNotice(false), 3000);
   };
 
-  // DRE values depending on toggle ("periodo" vs "unitario")
-  const taxaMediaPct =
-    currentDre.receita_bruta > 0
-      ? (currentDre.taxas_pagamento / currentDre.receita_bruta) * 100
-      : 1.5;
-
+  // DRE values depending on toggle ("periodo" vs "local_un" vs "ifood_un")
   const dreLinhas =
     dreViewMode === "periodo"
       ? {
-          subtitulo: `${formatNumber(currentDre.unidades_vendidas)} unidades vendidas no período filtrado`,
+          subtitulo: `${formatNumber(currentDre.unidades_vendidas)} saquinhos (150ml) vendidos no período filtrado`,
           receitaBruta: currentDre.receita_bruta,
+          labelTaxas: "(-) Taxas de Maquininha / Cartão",
           taxasPagamento: currentDre.taxas_pagamento,
           receitaLiquida: currentDre.receita_liquida,
           cmvInsumos: currentDre.cmv_insumos,
@@ -174,32 +185,47 @@ export const TechnicalSheetAndDreSection: React.FC<
           cpvTotal: currentDre.cpv_total,
           lucroLiquido: currentDre.lucro_liquido,
         }
-      : {
-          subtitulo: `Simulação unitária por 1 geladinho (${draftFicha.volume_unitario_ml}ml)`,
-          receitaBruta: precoVendaNum,
-          taxasPagamento: Number(
-            ((precoVendaNum * taxaMediaPct) / 100).toFixed(2)
-          ),
-          receitaLiquida: Number(
-            (precoVendaNum - (precoVendaNum * taxaMediaPct) / 100).toFixed(2)
-          ),
-          cmvInsumos: calc.custoInsumosUn,
-          embalagens: draftFicha.custo_embalagem_un,
-          operacional: draftFicha.custo_operacional_un,
-          cpvTotal: calc.custoTotalUn,
-          lucroLiquido: Number(
-            (
-              precoVendaNum -
-              (precoVendaNum * taxaMediaPct) / 100 -
-              calc.custoTotalUn
-            ).toFixed(2)
-          ),
-        };
+      : dreViewMode === "local_un"
+        ? {
+            subtitulo: `Venda Local / Retirada — Por 1 Saquinho (${draftFicha.volume_unitario_ml}ml)`,
+            receitaBruta: precoVendaNum,
+            labelTaxas: "(-) Taxa Venda Direta (Pix/Dinheiro 0%)",
+            taxasPagamento: 0,
+            receitaLiquida: precoVendaNum,
+            cmvInsumos: calc.custoInsumosUn,
+            embalagens: draftFicha.custo_embalagem_un,
+            operacional: draftFicha.custo_operacional_un,
+            cpvTotal: calc.custoTotalUn,
+            lucroLiquido: lucroLocalUn,
+          }
+        : {
+            subtitulo: `Venda pelo iFood (Taxa 26,2%) — Por 1 Saquinho (${draftFicha.volume_unitario_ml}ml)`,
+            receitaBruta: precoIfoodNum,
+            labelTaxas: "(-) Comissão & Taxa iFood (26,2%)",
+            taxasPagamento: taxaIfoodValor,
+            receitaLiquida: Number((precoIfoodNum - taxaIfoodValor).toFixed(2)),
+            cmvInsumos: calc.custoInsumosUn,
+            embalagens: draftFicha.custo_embalagem_un,
+            operacional: draftFicha.custo_operacional_un,
+            cpvTotal: calc.custoTotalUn,
+            lucroLiquido: lucroIfoodUn,
+          };
 
   const pctOfBruta = (val: number) =>
     dreLinhas.receitaBruta > 0
       ? Number(((val / dreLinhas.receitaBruta) * 100).toFixed(1))
       : 0;
+
+  const filteredQuotations = TABELA_COTACAO_INSUMOS.filter((item) => {
+    const matchesCat = insumoCat === "Todas" || item.categoria === insumoCat;
+    const matchesSearch =
+      !insumoSearch.trim() ||
+      item.produto.toLowerCase().includes(insumoSearch.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
+
+  const { loteCardapioExpandido9Receitas, loteCaderno6Receitas } =
+    RESUMO_LOTES_PRODUCAO;
 
   return (
     <section
@@ -207,6 +233,85 @@ export const TechnicalSheetAndDreSection: React.FC<
       aria-label="Ficha Técnica e DRE por Produto"
       className="space-y-6"
     >
+      {/* EXECUTIVE BATCH PROJECTION BANNER (FROM PDF 1 & PDF 2) */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <Card className="border-l-4 border-l-rose-500">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Lote Completo (1 Receita/Sabor)
+            </p>
+            <p className="mt-1 text-xl font-extrabold text-foreground">
+              {loteCardapioExpandido9Receitas.rendimentoTotal}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Saquinho 150ml a{" "}
+              <strong>
+                {formatCurrency(loteCardapioExpandido9Receitas.custoSaquinho150ml)}
+              </strong>{" "}
+              / un.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-amber-500">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Custo Produção (69 un.)
+            </p>
+            <p className="mt-1 text-xl font-extrabold text-foreground">
+              {formatCurrency(loteCardapioExpandido9Receitas.custoTotalProducao)}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Insumos + Saquinhos + Gás (15%)
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-emerald-500">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Lucro Líquido do Lote (Local)
+            </p>
+            <div className="mt-1 flex items-baseline gap-2">
+              <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                {formatCurrency(
+                  loteCardapioExpandido9Receitas.lucroLiquidoEstimadoLocal
+                )}
+              </p>
+              <Badge variant="success" className="text-[10px]">
+                +{loteCardapioExpandido9Receitas.margemLucroSobreCustoPct}% s/
+                custo
+              </Badge>
+            </div>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Faturamento Bruto:{" "}
+              {formatCurrency(
+                loteCardapioExpandido9Receitas.faturamentoBrutoLocal
+              )}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-pink-500">
+          <CardContent className="p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Desembolso Caixa vs. Sobras
+            </p>
+            <p className="mt-1 text-xl font-extrabold text-foreground">
+              {formatCurrency(loteCaderno6Receitas.valorFicadoEmEstoqueSobras)}{" "}
+              <span className="text-xs font-semibold text-muted-foreground">
+                em sobras
+              </span>
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Compra: {formatCurrency(loteCaderno6Receitas.desembolsoCaixaEmbalagensFechadas)}{" "}
+              • Uso:{" "}
+              {formatCurrency(loteCaderno6Receitas.custoEfetivamenteConsumido)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Selector Bar for Flavors */}
       <Card className="border-rose-500/20 bg-gradient-to-r from-rose-500/[0.04] via-card to-amber-500/[0.04]">
         <CardContent className="p-4 sm:p-5">
@@ -215,12 +320,13 @@ export const TechnicalSheetAndDreSection: React.FC<
               <div className="flex items-center gap-2">
                 <ChefHat className="h-5 w-5 text-rose-500" />
                 <h2 className="text-base font-bold text-foreground sm:text-lg">
-                  Engenharia de Cardápio: Ficha Técnica & DRE por Sabor
+                  Ficha Técnica & Precificação por Sabor (Saquinho de 150ml)
                 </h2>
               </div>
               <p className="text-xs text-muted-foreground">
-                Selecione um sabor abaixo para inspecionar ou editar sua receita,
-                custos de insumos e Demonstrativo de Resultado (DRE)
+                Selecione um sabor do caderno de receitas para ver ou editar os
+                ingredientes fracionados, rendimento e DRE (Venda Local vs.
+                iFood)
               </p>
             </div>
 
@@ -265,7 +371,7 @@ export const TechnicalSheetAndDreSection: React.FC<
 
       {/* 2-Column Grid: Left = Ficha Técnica | Right = DRE do Produto */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* LEFT COLUMN (7 cols): FICHA TÉCNICA COMPLETA */}
+        {/* LEFT COLUMN (7 cols): FICHA TÉCNICA COMPLETA (150ML) */}
         <Card className="lg:col-span-7">
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -273,10 +379,7 @@ export const TechnicalSheetAndDreSection: React.FC<
                 <ClipboardList className="h-5 w-5 text-rose-500" />
                 Ficha Técnica — {currentProduct.nome}
               </CardTitle>
-              <CardDescription>
-                Composição de insumos por batelada, rendimento e cálculo
-                automático do custo unitário
-              </CardDescription>
+              <CardDescription>{draftFicha.subtitulo_receita}</CardDescription>
             </div>
 
             <div className="flex items-center gap-2">
@@ -311,7 +414,7 @@ export const TechnicalSheetAndDreSection: React.FC<
               <div className="rounded-xl border border-border/70 bg-secondary/35 p-3">
                 <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
                   <Layers className="h-3 w-3 text-rose-500" />
-                  Rendimento Receita
+                  Rendimento (Saquinhos)
                 </span>
                 {isEditing ? (
                   <input
@@ -331,57 +434,7 @@ export const TechnicalSheetAndDreSection: React.FC<
                   />
                 ) : (
                   <p className="mt-1 text-base font-extrabold text-foreground">
-                    {draftFicha.rendimento_unidades} un.
-                  </p>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-border/70 bg-secondary/35 p-3">
-                <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                  <Beaker className="h-3 w-3 text-rose-500" />
-                  Volume Unitário
-                </span>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    min={50}
-                    value={draftFicha.volume_unitario_ml}
-                    onChange={(e) =>
-                      setDraftFicha({
-                        ...draftFicha,
-                        volume_unitario_ml: parseInt(e.target.value, 10) || 130,
-                      })
-                    }
-                    className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1 text-sm font-bold"
-                  />
-                ) : (
-                  <p className="mt-1 text-base font-extrabold text-foreground">
-                    {draftFicha.volume_unitario_ml} ml
-                  </p>
-                )}
-              </div>
-
-              <div className="rounded-xl border border-border/70 bg-secondary/35 p-3">
-                <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-                  <Clock className="h-3 w-3 text-amber-500" />
-                  Tempo Preparo
-                </span>
-                {isEditing ? (
-                  <input
-                    type="number"
-                    min={5}
-                    value={draftFicha.tempo_preparo_min}
-                    onChange={(e) =>
-                      setDraftFicha({
-                        ...draftFicha,
-                        tempo_preparo_min: parseInt(e.target.value, 10) || 30,
-                      })
-                    }
-                    className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1 text-sm font-bold"
-                  />
-                ) : (
-                  <p className="mt-1 text-base font-extrabold text-foreground">
-                    {draftFicha.tempo_preparo_min} min
+                    {draftFicha.rendimento_unidades} un ({draftFicha.volume_unitario_ml}ml)
                   </p>
                 )}
               </div>
@@ -389,7 +442,7 @@ export const TechnicalSheetAndDreSection: React.FC<
               <div className="rounded-xl border border-border/70 bg-secondary/35 p-3">
                 <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
                   <TrendingUp className="h-3 w-3 text-emerald-500" />
-                  Preço Venda (un.)
+                  Preço Local (un.)
                 </span>
                 {isEditing ? (
                   <input
@@ -404,6 +457,50 @@ export const TechnicalSheetAndDreSection: React.FC<
                     {formatCurrency(precoVendaNum)}
                   </p>
                 )}
+                <p className="text-[10px] text-muted-foreground">
+                  Lucro Local: +{formatCurrency(lucroLocalUn)}/un
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-secondary/35 p-3">
+                <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                  <ShoppingBag className="h-3 w-3 text-rose-500" />
+                  Preço iFood (26,2%)
+                </span>
+                {isEditing ? (
+                  <input
+                    type="number"
+                    step="0.10"
+                    value={draftFicha.preco_ifood_sugerido}
+                    onChange={(e) =>
+                      setDraftFicha({
+                        ...draftFicha,
+                        preco_ifood_sugerido: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1 text-sm font-bold"
+                  />
+                ) : (
+                  <p className="mt-1 text-base font-extrabold text-rose-600 dark:text-rose-400">
+                    {formatCurrency(precoIfoodNum)}
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                  Lucro iFood: +{formatCurrency(lucroIfoodUn)}/un
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-secondary/35 p-3">
+                <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                  <Clock className="h-3 w-3 text-amber-500" />
+                  Padronização
+                </span>
+                <p className="mt-1 text-base font-extrabold text-foreground">
+                  {draftFicha.volume_unitario_ml} ml
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Validade: 30 dias congelado
+                </p>
               </div>
             </div>
 
@@ -411,8 +508,8 @@ export const TechnicalSheetAndDreSection: React.FC<
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Insumos da Receita (Para {draftFicha.rendimento_unidades}{" "}
-                  unidades)
+                  Ingredientes da Receita (Rendimento: {draftFicha.rendimento_unidades}{" "}
+                  saquinhos de 150ml)
                 </h4>
                 <button
                   type="button"
@@ -430,7 +527,9 @@ export const TechnicalSheetAndDreSection: React.FC<
                     <tr>
                       <th className="py-2.5 pl-3 pr-2">Ingrediente / Insumo</th>
                       <th className="py-2.5 px-2 text-center">Qtd. Receita</th>
-                      <th className="py-2.5 px-2 text-right">Custo Receita</th>
+                      <th className="py-2.5 px-2 text-right">
+                        Custo Fracionado
+                      </th>
                       <th className="py-2.5 px-3 text-right">Custo / Un.</th>
                       {isEditing && <th className="py-2.5 pr-2 text-right" />}
                     </tr>
@@ -521,7 +620,7 @@ export const TechnicalSheetAndDreSection: React.FC<
                   <tfoot className="border-t border-border bg-secondary/40 font-bold text-foreground">
                     <tr>
                       <td className="py-2.5 pl-3 pr-2" colSpan={2}>
-                        Subtotal de Insumos da Receita
+                        Subtotal Efetivo de Ingredientes da Receita
                       </td>
                       <td className="py-2.5 px-2 text-right">
                         {formatCurrency(calc.custoInsumosReceita)}
@@ -536,16 +635,16 @@ export const TechnicalSheetAndDreSection: React.FC<
               </div>
             </div>
 
-            {/* Packaging + Operational Cost + Summary Bar */}
+            {/* Packaging (R$ 0,05) + Operational Cost (15% Gás/Energia) + Final Unit Cost */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-border/70 bg-background p-3">
                 <p className="text-[11px] font-medium text-muted-foreground">
-                  Embalagem + Adesivo (/un.)
+                  Saquinho 150ml (/un.)
                 </p>
                 {isEditing ? (
                   <input
                     type="number"
-                    step="0.05"
+                    step="0.01"
                     value={draftFicha.custo_embalagem_un}
                     onChange={(e) =>
                       setDraftFicha({
@@ -564,7 +663,7 @@ export const TechnicalSheetAndDreSection: React.FC<
 
               <div className="rounded-xl border border-border/70 bg-background p-3">
                 <p className="text-[11px] font-medium text-muted-foreground">
-                  Energia & Freezer (/un.)
+                  Gás / Energia / Água (15%)
                 </p>
                 {isEditing ? (
                   <input
@@ -588,7 +687,7 @@ export const TechnicalSheetAndDreSection: React.FC<
 
               <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
                 <p className="text-[11px] font-bold uppercase text-rose-600 dark:text-rose-400">
-                  Custo Unitário Final
+                  Custo p/ Unid.* (150ml)
                 </p>
                 <div className="mt-1 flex items-baseline justify-between">
                   <p className="text-base font-extrabold text-foreground">
@@ -604,7 +703,7 @@ export const TechnicalSheetAndDreSection: React.FC<
             {/* Modo de Preparo */}
             <div className="rounded-xl border border-border/70 bg-secondary/25 p-3.5 text-xs">
               <p className="mb-1 font-bold uppercase tracking-wider text-muted-foreground">
-                Padrão de Preparo & Envase
+                Modo de Preparo & Padronização Gourmet (150ml)
               </p>
               {isEditing ? (
                 <textarea
@@ -627,7 +726,7 @@ export const TechnicalSheetAndDreSection: React.FC<
           </CardContent>
         </Card>
 
-        {/* RIGHT COLUMN (5 cols): DRE DO PRODUTO SELECIONADO */}
+        {/* RIGHT COLUMN (5 cols): DRE DO PRODUTO (PERÍODO | LOCAL | IFOOD) */}
         <Card className="lg:col-span-5 flex flex-col justify-between">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -639,12 +738,12 @@ export const TechnicalSheetAndDreSection: React.FC<
                 <CardDescription>{dreLinhas.subtitulo}</CardDescription>
               </div>
 
-              {/* Switch Período vs Unitário */}
+              {/* Switch Período vs Local Un vs iFood Un */}
               <div className="inline-flex rounded-lg border border-border bg-secondary/50 p-1">
                 <button
                   type="button"
                   onClick={() => setDreViewMode("periodo")}
-                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-all ${
+                  className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-all ${
                     dreViewMode === "periodo"
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -654,14 +753,25 @@ export const TechnicalSheetAndDreSection: React.FC<
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDreViewMode("unitario")}
-                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-all ${
-                    dreViewMode === "unitario"
+                  onClick={() => setDreViewMode("local_un")}
+                  className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-all ${
+                    dreViewMode === "local_un"
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  Por 1 Un.
+                  Local (1 un)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDreViewMode("ifood_un")}
+                  className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-all ${
+                    dreViewMode === "ifood_un"
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  iFood (1 un)
                 </button>
               </div>
             </div>
@@ -679,9 +789,9 @@ export const TechnicalSheetAndDreSection: React.FC<
               </div>
             </div>
 
-            {/* 2. Deduções / Taxas de Pagamento */}
+            {/* 2. Deduções / Taxas de Pagamento ou iFood */}
             <div className="flex items-center justify-between px-3.5 py-1.5 text-muted-foreground">
-              <span>(-) Taxas de Pagamento (Cartão)</span>
+              <span>{dreLinhas.labelTaxas}</span>
               <div className="text-right font-medium text-amber-600 dark:text-amber-400">
                 <span>- {formatCurrency(dreLinhas.taxasPagamento)}</span>
                 <span className="ml-2 text-[11px]">
@@ -701,10 +811,10 @@ export const TechnicalSheetAndDreSection: React.FC<
               </div>
             </div>
 
-            {/* 4. Custos Variáveis (CMV + Embalagem + Operacional) */}
+            {/* 4. Custos Variáveis (CMV + Saquinho + Gás/Energia) */}
             <div className="space-y-1.5 pl-2">
               <div className="flex items-center justify-between px-2 py-1 text-muted-foreground">
-                <span>(-) CMV — Insumos da Ficha Técnica</span>
+                <span>(-) CMV — Ingredientes Fracionados</span>
                 <div className="text-right text-rose-600 dark:text-rose-400">
                   <span>- {formatCurrency(dreLinhas.cmvInsumos)}</span>
                   <span className="ml-2 text-[11px]">
@@ -714,7 +824,7 @@ export const TechnicalSheetAndDreSection: React.FC<
               </div>
 
               <div className="flex items-center justify-between px-2 py-1 text-muted-foreground">
-                <span>(-) Embalagens & Adesivos Gourmet</span>
+                <span>(-) Saquinho Gourmet 150ml (R$ 0,05/un)</span>
                 <div className="text-right text-rose-600 dark:text-rose-400">
                   <span>- {formatCurrency(dreLinhas.embalagens)}</span>
                   <span className="ml-2 text-[11px]">
@@ -724,7 +834,7 @@ export const TechnicalSheetAndDreSection: React.FC<
               </div>
 
               <div className="flex items-center justify-between px-2 py-1 text-muted-foreground">
-                <span>(-) Custo Operacional (Energia/Freezer)</span>
+                <span>(-) Adicional Operacional (Gás/Energia 15%)</span>
                 <div className="text-right text-rose-600 dark:text-rose-400">
                   <span>- {formatCurrency(dreLinhas.operacional)}</span>
                   <span className="ml-2 text-[11px]">
@@ -736,7 +846,7 @@ export const TechnicalSheetAndDreSection: React.FC<
 
             {/* 5. CPV Total */}
             <div className="flex items-center justify-between border-t border-border/70 px-3.5 py-2 font-semibold text-rose-600 dark:text-rose-400">
-              <span>(=) Custo Total do Produto (CPV)</span>
+              <span>(=) Custo Total de Produção (CPV)</span>
               <div className="text-right">
                 <span>- {formatCurrency(dreLinhas.cpvTotal)}</span>
                 <span className="ml-2 text-[11px]">
@@ -745,15 +855,16 @@ export const TechnicalSheetAndDreSection: React.FC<
               </div>
             </div>
 
-            {/* 6. Resultado / Margem de Contribuição Líquida */}
+            {/* 6. Resultado / Lucro Líquido */}
             <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                    (=) Lucro Líquido / Margem de Contribuição
+                    (=) Lucro Líquido Real
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    Livre de insumos, embalagens e taxas de cartão
+                    Local: +{formatCurrency(lucroLocalUn)}/un • iFood: +
+                    {formatCurrency(lucroIfoodUn)}/un
                   </p>
                 </div>
                 <div className="text-right">
@@ -761,7 +872,7 @@ export const TechnicalSheetAndDreSection: React.FC<
                     {formatCurrency(dreLinhas.lucroLiquido)}
                   </p>
                   <Badge variant="success" className="mt-1">
-                    {pctOfBruta(dreLinhas.lucroLiquido)}% de Margem Líquida
+                    {pctOfBruta(dreLinhas.lucroLiquido)}% s/ Receita
                   </Badge>
                 </div>
               </div>
@@ -770,22 +881,22 @@ export const TechnicalSheetAndDreSection: React.FC<
         </Card>
       </div>
 
-      {/* FULL-WIDTH COMPARATIVE DRE TABLE ACROSS ALL PRODUCTS */}
+      {/* FULL-WIDTH OFFICIAL PRICING & DRE MATRIX (MATCHING PDF 2 + REAL PERIOD SALES) */}
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5 text-rose-500" />
-                Matriz Comparativa de DRE por Produto (Período Filtrado)
+                Tabela Completa: Ficha Técnica, Precificação Local/iFood & DRE
+                do Período (150ml)
               </CardTitle>
               <CardDescription>
-                Demonstrativo consolidado comparando faturamento, taxas, custos
-                da ficha técnica e lucro líquido real de cada sabor
+                Clique em qualquer sabor para abrir sua receita detalhada acima
               </CardDescription>
             </div>
             <Badge variant="secondary" className="text-xs">
-              Margem Consolidada: {dreConsolidada.margem_contribuicao_pct}%
+              Margem Líquida no Período: {dreConsolidada.margem_contribuicao_pct}%
             </Badge>
           </div>
         </CardHeader>
@@ -795,14 +906,19 @@ export const TechnicalSheetAndDreSection: React.FC<
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <th className="pb-3 pr-3">Sabor Gourmet</th>
+                  <th className="pb-3 pr-3">Sabor / Receita (150ml)</th>
+                  <th className="pb-3 px-2 text-center">Rendimento</th>
+                  <th className="pb-3 px-2 text-right">Custo/Un.*</th>
+                  <th className="pb-3 px-2 text-right">Preço Local</th>
+                  <th className="pb-3 px-2 text-right">Lucro Local</th>
+                  <th className="pb-3 px-2 text-right">
+                    Preço iFood (26,2%)
+                  </th>
+                  <th className="pb-3 px-2 text-right">Lucro iFood</th>
                   <th className="pb-3 px-2 text-center">Vendidos</th>
-                  <th className="pb-3 px-2 text-right">(+) Rec. Bruta</th>
-                  <th className="pb-3 px-2 text-right">(-) Taxas</th>
-                  <th className="pb-3 px-2 text-right">(-) Insumos</th>
-                  <th className="pb-3 px-2 text-right">(-) Emb.+Oper.</th>
-                  <th className="pb-3 px-2 text-right">(=) Lucro Líquido</th>
-                  <th className="pb-3 pl-2 text-right">Margem %</th>
+                  <th className="pb-3 pl-2 text-right">
+                    (=) Lucro Período
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -818,42 +934,32 @@ export const TechnicalSheetAndDreSection: React.FC<
                           : "hover:bg-secondary/35"
                       }`}
                     >
-                      <td className="py-3 pr-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-foreground">
-                            {item.nome}
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">
-                            ({formatCurrency(item.preco_venda)})
-                          </span>
-                        </div>
+                      <td className="py-3 pr-3 font-bold text-foreground">
+                        {item.nome}
                       </td>
-                      <td className="py-3 px-2 text-center font-semibold">
-                        {formatNumber(item.unidades_vendidas)} un.
+                      <td className="py-3 px-2 text-center text-muted-foreground">
+                        {item.rendimento_lote} un
+                      </td>
+                      <td className="py-3 px-2 text-right text-rose-600 dark:text-rose-400 font-semibold">
+                        {formatCurrency(item.custo_total_un)}
+                      </td>
+                      <td className="py-3 px-2 text-right font-bold text-foreground">
+                        {formatCurrency(item.preco_venda)}
+                      </td>
+                      <td className="py-3 px-2 text-right font-semibold text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(item.lucro_bruto_un)}
                       </td>
                       <td className="py-3 px-2 text-right font-semibold text-foreground">
-                        {formatCurrency(item.receita_bruta)}
+                        {formatCurrency(item.preco_ifood)}
                       </td>
-                      <td className="py-3 px-2 text-right text-amber-600 dark:text-amber-400">
-                        -{formatCurrency(item.taxas_pagamento)}
+                      <td className="py-3 px-2 text-right text-emerald-600 dark:text-emerald-400">
+                        {formatCurrency(item.lucro_liquido_ifood)}
                       </td>
-                      <td className="py-3 px-2 text-right text-rose-600 dark:text-rose-400">
-                        -{formatCurrency(item.cmv_insumos)}
+                      <td className="py-3 px-2 text-center font-semibold">
+                        {formatNumber(item.unidades_vendidas)} un
                       </td>
-                      <td className="py-3 px-2 text-right text-rose-600 dark:text-rose-400">
-                        -
-                        {formatCurrency(
-                          item.custo_embalagens_total +
-                            item.custo_operacional_total
-                        )}
-                      </td>
-                      <td className="py-3 px-2 text-right font-extrabold text-emerald-600 dark:text-emerald-400">
+                      <td className="py-3 pl-2 text-right font-extrabold text-emerald-600 dark:text-emerald-400">
                         {formatCurrency(item.lucro_liquido)}
-                      </td>
-                      <td className="py-3 pl-2 text-right">
-                        <Badge variant="success" className="text-[11px]">
-                          {item.margem_contribuicao_pct}%
-                        </Badge>
                       </td>
                     </tr>
                   );
@@ -861,38 +967,201 @@ export const TechnicalSheetAndDreSection: React.FC<
               </tbody>
               <tfoot className="border-t-2 border-border bg-secondary/50 font-extrabold text-foreground">
                 <tr>
-                  <td className="py-3.5 pl-2 pr-3">
-                    TOTAL CONSOLIDADO NO PERÍODO
+                  <td className="py-3.5 pl-2 pr-3" colSpan={7}>
+                    RESULTADO CONSOLIDADO NO PERÍODO FILTRADO (Receita Bruta:{" "}
+                    {formatCurrency(dreConsolidada.receita_bruta)} | CPV:{" "}
+                    {formatCurrency(dreConsolidada.cpv_total)})
                   </td>
                   <td className="py-3.5 px-2 text-center">
-                    {formatNumber(dreConsolidada.unidades_vendidas)} un.
+                    {formatNumber(dreConsolidada.unidades_vendidas)} un
                   </td>
-                  <td className="py-3.5 px-2 text-right">
-                    {formatCurrency(dreConsolidada.receita_bruta)}
-                  </td>
-                  <td className="py-3.5 px-2 text-right text-amber-600 dark:text-amber-400">
-                    -{formatCurrency(dreConsolidada.taxas_pagamento)}
-                  </td>
-                  <td className="py-3.5 px-2 text-right text-rose-600 dark:text-rose-400">
-                    -{formatCurrency(dreConsolidada.cmv_insumos)}
-                  </td>
-                  <td className="py-3.5 px-2 text-right text-rose-600 dark:text-rose-400">
-                    -
-                    {formatCurrency(
-                      dreConsolidada.custo_embalagens_total +
-                        dreConsolidada.custo_operacional_total
-                    )}
-                  </td>
-                  <td className="py-3.5 px-2 text-right text-emerald-600 dark:text-emerald-400">
+                  <td className="py-3.5 pl-2 text-right text-emerald-600 dark:text-emerald-400">
                     {formatCurrency(dreConsolidada.lucro_liquido)}
-                  </td>
-                  <td className="py-3.5 pl-2 text-right">
-                    <Badge variant="success">
-                      {dreConsolidada.margem_contribuicao_pct}%
-                    </Badge>
                   </td>
                 </tr>
               </tfoot>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* CALDAS ARTESANAIS BASE & SOBRAS DE ESTOQUE (FROM PDF 1, 2, 3, 4) */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+        {/* Caldas Artesanais Base (5 cols) */}
+        <Card className="lg:col-span-5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-rose-500" />
+              Caldas & Geleias Artesanais (Base p/ Mesclar)
+            </CardTitle>
+            <CardDescription>
+              Receitas complementares do caderno aplicadas nas paredes internas
+              do saquinho de 150ml
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3.5">
+            {CALDAS_ARTESANAIS_BASE.map((calda) => (
+              <div
+                key={calda.id}
+                className="rounded-xl border border-border/80 bg-secondary/30 p-4 text-xs space-y-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-sm text-foreground">
+                    {calda.nome}
+                  </span>
+                  <Badge variant="default">
+                    Lote: {formatCurrency(calda.custoLote)}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground">
+                  <strong>Rendimento:</strong> {calda.rendimento} (Custo:{" "}
+                  <strong>{formatCurrency(calda.custoPorPorcao)}/porção</strong>)
+                </p>
+                <p className="text-muted-foreground">
+                  <strong>Ingredientes:</strong> {calda.ingredientes}
+                </p>
+                <p className="text-foreground/90">{calda.aplicacao}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Desembolso Inicial x Ingredientes em Estoque (7 cols) */}
+        <Card className="lg:col-span-7">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-amber-500" />
+              Desembolso Inicial no Caixa x Sobras em Estoque
+            </CardTitle>
+            <CardDescription>
+              Controle de aproveitamento das embalagens fechadas para as
+              próximas produções
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead>
+                  <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <th className="pb-2.5 pr-2">Insumo Comercial</th>
+                    <th className="pb-2.5 px-2">Embalagem Padrão</th>
+                    <th className="pb-2.5 px-2">Consumo por Receita</th>
+                    <th className="pb-2.5 pl-2">
+                      Sobra p/ Próximas Produções
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {SOBRAS_ESTOQUE_INSUMOS.map((item) => (
+                    <tr key={item.insumo} className="hover:bg-secondary/30">
+                      <td className="py-2.5 pr-2 font-bold text-foreground">
+                        {item.insumo}
+                      </td>
+                      <td className="py-2.5 px-2 text-muted-foreground">
+                        {item.embalagem_padrao}
+                      </td>
+                      <td className="py-2.5 px-2 font-medium text-rose-600 dark:text-rose-400">
+                        {item.consumo_por_receita}
+                      </td>
+                      <td className="py-2.5 pl-2">
+                        <Badge variant="success" className="text-[11px]">
+                          {item.sobra_estoque}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* TABELA DE COTAÇÃO DE INSUMOS (VAREJO / ATACADO / PREÇO DE 1G - PDF 5) */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Beaker className="h-5 w-5 text-rose-500" />
+                Tabela de Cotação de Insumos (Varejo, Atacado & Preço de 1g)
+              </CardTitle>
+              <CardDescription>
+                Base completa de referência de preços por unidade e por grama
+                (1g) para cálculo de fichas técnicas
+              </CardDescription>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative">
+                <Search className=" absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Buscar insumo ou marca..."
+                  value={insumoSearch}
+                  onChange={(e) => setInsumoSearch(e.target.value)}
+                  className="rounded-lg border border-input bg-background pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex gap-1">
+                {[
+                  "Todas",
+                  "Laticínios",
+                  "Chocolates & Recheios",
+                  "Frutas & Mercearia",
+                ].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setInsumoCat(cat)}
+                    className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${
+                      insumoCat === cat
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-[360px] overflow-y-auto rounded-xl border border-border/80">
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead className="sticky top-0 bg-secondary text-[11px] font-semibold uppercase text-muted-foreground shadow-sm">
+                <tr>
+                  <th className="py-2.5 pl-4 pr-2">Produto / Marca</th>
+                  <th className="py-2.5 px-2">Categoria</th>
+                  <th className="py-2.5 px-2 text-right">Preço Varejo</th>
+                  <th className="py-2.5 px-2 text-right">Preço Atacado</th>
+                  <th className="py-2.5 pl-2 pr-4 text-right">Preço de 1g</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/60">
+                {filteredQuotations.map((cot) => (
+                  <tr key={cot.id} className="hover:bg-secondary/35">
+                    <td className="py-2.5 pl-4 pr-2 font-semibold text-foreground">
+                      {cot.produto}
+                    </td>
+                    <td className="py-2.5 px-2">
+                      <Badge variant="outline" className="text-[10px]">
+                        {cot.categoria}
+                      </Badge>
+                    </td>
+                    <td className="py-2.5 px-2 text-right text-muted-foreground">
+                      {cot.preco_varejo}
+                    </td>
+                    <td className="py-2.5 px-2 text-right font-medium text-foreground">
+                      {cot.preco_atacado}
+                    </td>
+                    <td className="py-2.5 pl-2 pr-4 text-right font-bold text-rose-600 dark:text-rose-400">
+                      {cot.preco_por_grama}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
         </CardContent>

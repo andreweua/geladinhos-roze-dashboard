@@ -1,9 +1,9 @@
 -- ============================================================================
--- GELADINHOS GOURMET DA ROZE - SUPABASE SCHEMA & SEED DATA
+-- GELADINHOS GOURMET DA ROZE - SUPABASE SCHEMA & SEED DATA (150ML)
 -- Compatível com replicação White-Label para outros negócios de varejo/alimentação
 -- ============================================================================
 
--- 1. Products (Flavors)
+-- 1. Products (Flavors - Saquinhos de 150ml)
 create table if not exists produtos (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
@@ -53,25 +53,28 @@ create policy "Permitir acesso publico itens_venda" on itens_venda for all using
 create policy "Permitir acesso publico estoque_lotes" on estoque_lotes for all using (true) with check (true);
 
 -- ============================================================================
--- SEED INICIAL DE SABORES GOURMET E ESTOQUE
+-- SEED OFICIAL DE SABORES GOURMET (150ML) - FICHA TÉCNICA REAL DA ROZE
 -- ============================================================================
 insert into produtos (id, nome, preco_venda, custo_estimado, ativo) values
-  ('11111111-1111-4111-8111-111111111101', 'Ninho com Nutella', 8.50, 3.20, true),
-  ('11111111-1111-4111-8111-111111111102', 'Morango com Calda Artesanal', 8.00, 2.90, true),
-  ('11111111-1111-4111-8111-111111111103', 'Maracujá Trufado', 8.50, 3.10, true),
-  ('11111111-1111-4111-8111-111111111104', 'Pistache Real', 10.00, 4.50, true),
-  ('11111111-1111-4111-8111-111111111105', 'Oreo com Creme Branco', 8.50, 3.00, true),
-  ('11111111-1111-4111-8111-111111111106', 'Coco Queimado Cremoso', 7.50, 2.40, true),
-  ('11111111-1111-4111-8111-111111111107', 'Ferrero Rocher Gourmet', 10.00, 4.30, true),
-  ('11111111-1111-4111-8111-111111111108', 'Limão Siciliano com Suspiro', 8.00, 2.75, true)
-on conflict (id) do nothing;
+  ('11111111-1111-4111-8111-111111111101', 'Doce de Leite (Itambé)', 6.50, 3.10, true),
+  ('11111111-1111-4111-8111-111111111102', 'Ninho com Nutella', 7.00, 3.15, true),
+  ('11111111-1111-4111-8111-111111111103', 'Ninho com Brigadeiro 50%', 7.90, 2.15, true),
+  ('11111111-1111-4111-8111-111111111104', 'Mousse de Maracujá c/ Geleia', 7.50, 3.60, true),
+  ('11111111-1111-4111-8111-111111111105', 'Delícia de Ovomaltine', 6.00, 2.60, true),
+  ('11111111-1111-4111-8111-111111111106', 'Romeu e Julieta', 7.90, 2.67, true),
+  ('11111111-1111-4111-8111-111111111107', 'Cheesecake Frutas Vermelhas', 9.90, 3.77, true),
+  ('11111111-1111-4111-8111-111111111108', 'Ninho c/ Geleia de Morango', 7.50, 3.15, true)
+on conflict (id) do update set
+  nome = excluded.nome,
+  preco_venda = excluded.preco_venda,
+  custo_estimado = excluded.custo_estimado;
 
 insert into estoque_lotes (produto_id, quantidade_disponivel) values
-  ('11111111-1111-4111-8111-111111111101', 6),
-  ('11111111-1111-4111-8111-111111111102', 8),
-  ('11111111-1111-4111-8111-111111111103', 24),
-  ('11111111-1111-4111-8111-111111111104', 5),
-  ('11111111-1111-4111-8111-111111111105', 19),
-  ('11111111-1111-4111-8111-111111111106', 32),
-  ('11111111-1111-4111-8111-111111111107', 9),
-  ('11111111-1111-4111-8111-111111111108', 15);
+  ('11111111-1111-4111-8111-111111111101', 8),
+  ('11111111-1111-4111-8111-111111111102', 6),
+  ('11111111-1111-4111-8111-111111111103', 16),
+  ('11111111-1111-4111-8111-111111111104', 24),
+  ('11111111-1111-4111-8111-111111111105', 9),
+  ('11111111-1111-4111-8111-111111111106', 18),
+  ('11111111-1111-4111-8111-111111111107', 5),
+  ('11111111-1111-4111-8111-111111111108', 14);

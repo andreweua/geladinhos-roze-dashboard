@@ -410,10 +410,15 @@ export function computeDashboardAnalytics(
   // Compute DRE por Produto (Product Income Statement)
   const drePorProduto: DreProdutoItem[] = activeProducts.map((prod) => {
     const ficha = fichaMap.get(prod.id);
-    let custoInsumosUn = Number((prod.custo_estimado - 0.5).toFixed(2));
-    let custoEmbalagemUn = 0.35;
-    let custoOperacionalUn = 0.15;
+    let custoInsumosUn = Number((prod.custo_estimado - 0.35).toFixed(2));
+    let custoEmbalagemUn = 0.05; // R$ 0,05 saquinho 150ml
+    let custoOperacionalUn = 0.3;
     let custoTotalUn = prod.custo_estimado;
+    let rendimentoLote = 8;
+    let precoIfood = prod.preco_ifood || Number((prod.preco_venda * 1.35).toFixed(2));
+    let lucroLiquidoIfood = Number(
+      (precoIfood * (1 - 0.262) - custoTotalUn).toFixed(2)
+    );
 
     if (ficha) {
       const calc = calculateUnitCostFromFicha(ficha);
@@ -421,6 +426,9 @@ export function computeDashboardAnalytics(
       custoEmbalagemUn = Number(ficha.custo_embalagem_un.toFixed(2));
       custoOperacionalUn = Number(ficha.custo_operacional_un.toFixed(2));
       custoTotalUn = calc.custoTotalUn;
+      rendimentoLote = ficha.rendimento_unidades;
+      precoIfood = ficha.preco_ifood_sugerido;
+      lucroLiquidoIfood = ficha.lucro_ifood_estimado;
     }
 
     const st = flavorStats.get(prod.id) || {
@@ -452,6 +460,10 @@ export function computeDashboardAnalytics(
       custoTotalUn > 0
         ? Number((prod.preco_venda / custoTotalUn).toFixed(2))
         : 0;
+    const margemSobreCustoPct =
+      custoTotalUn > 0
+        ? Math.round((lucroBrutoUn / custoTotalUn) * 100)
+        : 0;
 
     const margemContribuicaoPct =
       receitaBruta > 0
@@ -464,6 +476,9 @@ export function computeDashboardAnalytics(
       produto_id: prod.id,
       nome: prod.nome,
       preco_venda: prod.preco_venda,
+      preco_ifood: precoIfood,
+      lucro_liquido_ifood: lucroLiquidoIfood,
+      rendimento_lote: rendimentoLote,
       unidades_vendidas: unidadesVendidas,
       custo_insumos_un: custoInsumosUn,
       custo_embalagem_un: custoEmbalagemUn,
@@ -471,6 +486,7 @@ export function computeDashboardAnalytics(
       custo_total_un: custoTotalUn,
       lucro_bruto_un: lucroBrutoUn,
       markup_multiplicador: markupMultiplicador,
+      margem_sobre_custo_pct: margemSobreCustoPct,
       receita_bruta: receitaBruta,
       taxas_pagamento: taxasPagamento,
       receita_liquida: receitaLiquida,
@@ -483,10 +499,8 @@ export function computeDashboardAnalytics(
     };
   });
 
-  // Sort DRE por Produto by lucro_liquido descending
   drePorProduto.sort((a, b) => b.lucro_liquido - a.lucro_liquido);
 
-  // Consolidated DRE across all products in the filtered period
   const totalUnidades = drePorProduto.reduce(
     (acc, d) => acc + d.unidades_vendidas,
     0
@@ -527,6 +541,9 @@ export function computeDashboardAnalytics(
       totalUnidades > 0
         ? Number((totalReceitaBruta / totalUnidades).toFixed(2))
         : 0,
+    preco_ifood: 9.8,
+    lucro_liquido_ifood: 4.2,
+    rendimento_lote: 69,
     unidades_vendidas: totalUnidades,
     custo_insumos_un:
       totalUnidades > 0
@@ -548,6 +565,8 @@ export function computeDashboardAnalytics(
         : 0,
     markup_multiplicador:
       totalCpv > 0 ? Number((totalReceitaBruta / totalCpv).toFixed(2)) : 0,
+    margem_sobre_custo_pct:
+      totalCpv > 0 ? Math.round((totalLucroLiquido / totalCpv) * 100) : 0,
     receita_bruta: totalReceitaBruta,
     taxas_pagamento: totalTaxas,
     receita_liquida: totalReceitaLiquida,

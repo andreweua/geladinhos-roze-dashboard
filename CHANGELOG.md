@@ -7,6 +7,28 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [1.3.0] - 2026-10-19
+
+### Adicionado & Atualizado
+- **Fichas Técnicas e Precificação Oficial do Caderno de Receitas (Saquinhos de 150ml)**:
+  - Substituição dos sabores de exemplo pelas **receitas reais de 150ml** extraídas dos PDFs oficiais:
+    1. *Doce de Leite (Itambé)* — Rendimento: 8 un | Custo: R$ 3,10 | Local: R$ 6,50 | iFood: R$ 8,90
+    2. *Ninho com Nutella (Base Ninho + 20g Nutella)* — Rendimento: 8 un | Custo: R$ 3,15 | Local: R$ 7,00 | iFood: R$ 9,50
+    3. *Ninho com Brigadeiro 50%* — Rendimento: 8 un | Custo: R$ 2,15 | Local: R$ 7,90 | iFood: R$ 9,90
+    4. *Mousse de Maracujá c/ Geleia Artesanal* — Rendimento: 14 un | Custo: R$ 3,60 | Local: R$ 7,50 | iFood: R$ 9,90
+    5. *Delícia de Ovomaltine* — Rendimento: 9 un | Custo: R$ 2,60 | Local: R$ 6,00 | iFood: R$ 8,50
+    6. *Romeu e Julieta (Creme de Queijo + Goiabada)* — Rendimento: 10 un | Custo: R$ 2,67 | Local: R$ 7,90 | iFood: R$ 9,90
+    7. *Cheesecake Frutas Vermelhas (Linha Premium)* — Rendimento: 12 un | Custo: R$ 3,77 | Local: R$ 9,90 | iFood: R$ 11,90
+    8. *Ninho c/ Geleia de Morango* — Rendimento: 8 un | Custo: R$ 3,15 | Local: R$ 7,50 | iFood: R$ 9,90
+- **Comparativo de DRE: Venda Local vs. iFood (Taxa 26,2%)**:
+  - Seletor na DRE permitindo simular o lucro líquido no **Período Filtrado**, **Venda Local (1 un)** e **Venda iFood com taxa de 26,2% (1 un)**.
+- **Caldas Artesanais Base, Controle de Sobras e Tabela de Cotação de 54 Insumos (`src/data/insumosCatalog.ts`)**:
+  - Card das Caldas Base (*Geleia de Morango — R$ 14,45/lote* e *Geleia de Maracujá — R$ 12,10/lote*).
+  - Tabela de *Desembolso Inicial no Caixa (R$ 201,10) vs. Consumo Efetivo (R$ 144,45) vs. Sobras em Estoque (R$ 56,65)*.
+  - Tabela pesquisável com os **54 insumos reais cotados (Varejo, Atacado e Preço de 1g)**.
+
+---
+
 ## [1.2.0] - 2026-10-19
 
 ### Adicionado

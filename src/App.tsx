@@ -74,7 +74,7 @@ export function App() {
     "completo" | "visao_geral" | "ficha_dre"
   >("completo");
   const [selectedProductId, setSelectedProductId] = useState<string>(
-    "prod-ninho-nutella"
+    "prod-doce-de-leite"
   );
 
   // Dashboard Data Snapshot

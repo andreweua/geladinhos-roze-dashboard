@@ -10,25 +10,46 @@ export interface IngredienteFicha {
   id: string;
   nome: string;
   quantidade_receita: number;
-  unidade: "g" | "ml" | "un" | "colher";
-  custo_receita: number; // R$ total deste insumo na receita/batelada
+  unidade: "g" | "ml" | "un" | "caixa" | "medida";
+  custo_receita: number; // R$ efetivo consumido na receita
+  observacao?: string;
 }
 
 export interface FichaTecnicaProduto {
   produto_id: string;
-  rendimento_unidades: number; // Quantos geladinhos rende 1 receita
-  volume_unitario_ml: number; // Ex: 130 ml por geladinho
-  tempo_preparo_min: number; // Ex: 35 min
-  custo_embalagem_un: number; // Saquinho gourmet + adesivo/fita por unidade
-  custo_operacional_un: number; // Energia/congelamento estimado por unidade
+  subtitulo_receita: string;
+  rendimento_unidades: number; // Ex: 8, 9, 10, 12, 14 saquinhos de 150ml
+  volume_unitario_ml: number; // 150 ml
+  tempo_preparo_min: number;
+  custo_embalagem_un: number; // R$ 0,05 por saquinho de 150ml
+  custo_operacional_un: number; // Proporcional de Gás/Energia/Água (15%)
+  preco_ifood_sugerido: number; // Preço sugerido no iFood (com taxa de 26,2%)
+  lucro_ifood_estimado: number; // Lucro líquido no iFood
   modo_preparo: string;
   ingredientes: IngredienteFicha[];
+}
+
+export interface CotacaoInsumo {
+  id: string;
+  categoria: "Laticínios" | "Chocolates & Recheios" | "Frutas & Mercearia";
+  produto: string;
+  preco_varejo: string;
+  preco_atacado: string;
+  preco_por_grama: string;
+}
+
+export interface SobraEstoqueInsumo {
+  insumo: string;
+  embalagem_padrao: string;
+  consumo_por_receita: string;
+  sobra_estoque: string;
 }
 
 export interface Produto {
   id: string;
   nome: string;
   preco_venda: number;
+  preco_ifood?: number;
   custo_estimado: number;
   ativo: boolean;
   created_at: string;
@@ -83,14 +104,18 @@ export interface DreProdutoItem {
   produto_id: string;
   nome: string;
   preco_venda: number;
+  preco_ifood: number;
+  lucro_liquido_ifood: number;
+  rendimento_lote: number;
   unidades_vendidas: number;
-  // Valores Unitários (por 1 geladinho)
+  // Valores Unitários (por 1 geladinho de 150ml)
   custo_insumos_un: number;
   custo_embalagem_un: number;
   custo_operacional_un: number;
   custo_total_un: number;
   lucro_bruto_un: number;
   markup_multiplicador: number;
+  margem_sobre_custo_pct: number;
   // DRE do Período Selecionado (R$)
   receita_bruta: number;
   taxas_pagamento: number;
