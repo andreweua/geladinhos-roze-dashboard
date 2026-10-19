@@ -1,10 +1,10 @@
 # 🍧 Geladinhos Gourmet da Roze — Dashboard Gerencial (PWA & White-Label)
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-1.4.0-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-1.5.0-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Vite%20%2B%20TypeScript%20%2B%20Supabase-f59e0b)
+![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Vite%20%2B%20TypeScript%20%2B%20Supabase%20%2B%20PereiraLabs%20IA-f59e0b)
 
-Dashboard financeiro e operacional desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase**, projetado para hospedagem no **GitHub Pages**, instalação nativa como **PWA (Android WebAPK, iOS Safari e Desktop)** e arquitetura **White-Label replicável** para novos clientes.
+Dashboard financeiro, operacional e de Inteligência Artificial desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase + PereiraLabs IA**, projetado para hospedagem no **GitHub Pages**, instalação nativa como **PWA (Android WebAPK, iOS Safari e Desktop)** e arquitetura **White-Label replicável** para novos clientes.
 
 - 🌐 **Acesse a Demonstração Online (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
 - 📋 **Histórico de Versões**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
@@ -19,9 +19,15 @@ Dashboard financeiro e operacional desenvolvido em **React + Vite + TypeScript +
    - **Total de Geladinhos Vendidos** (Unidades totais entregues)
    - **Ticket Médio** (Valor médio por venda concluída)
    - **Alerta de Estoque Baixo** (Sabores ativos com menos de 10 unidades)
-2. **Engenharia de Cardápio: Ficha Técnica & DRE por Produto (`v1.2.0`)**:
-   - **Ficha Técnica Completa e Editável**: Cadastro de insumos da receita, quantidades, custos por batelada, rendimento (unidades), volume (ml), tempo de preparo, embalagem e energia/freezer — calculando automaticamente o custo unitário e o markup.
-   - **DRE Gerencial por Produto (Período e Unitária)**: Apuração completa da Receita Bruta $\rightarrow$ (-) Taxas de Cartão $\rightarrow$ (=) Receita Líquida $\rightarrow$ (-) CMV Insumos $\rightarrow$ (-) Embalagens $\rightarrow$ (-) Custo Operacional $\rightarrow$ (=) Lucro Líquido e Margem de Contribuição (%).
+2. **Central de Inteligência PereiraLabs IA (`v1.5.0`)**:
+   - **Plano Inteligente de Produção ("O que produzir hoje?")**: Previsão anti-ruptura baseada no giro de 7 dias com botão `+Lote no Estoque`.
+   - **Lista de Compras Automática com Aproveitamento de Sobras**: Desconta automaticamente sobras da despensa (*Leite Ninho, Ovomaltine, Cacau 50%, Nutella, Morango*).
+   - **Matriz BCG de Cardápio & Radar de Otimização de Insumos (54 Cotações)**: Classifica os 8 sabores em *Estrelas, Geradores de Caixa, Joias Ocultas e Em Observação* e aponta economias no Atacado.
+   - **Simulador de Meta de Lucro Mensal & Gerador de Combos WhatsApp**: Calcula metas diárias/semanais e gera textos prontos para WhatsApp com 1 clique.
+   - **Consultor Chat PereiraLabs IA**: Motor híbrido (Analítico Local + integração opcional com Google Gemini `gemini-2.5-flash`).
+3. **Engenharia de Cardápio: Ficha Técnica & DRE por Produto (`v1.2.0`–`v1.4.0`)**:
+   - **Ficha Técnica Completa e Editável (150ml)**: Cadastro de insumos da receita, quantidades, custos por batelada, rendimento (unidades), volume (ml), tempo de preparo, embalagem e energia/freezer — calculando automaticamente o custo unitário e o markup.
+   - **DRE Gerencial por Produto + Precificação Dinâmica iFood (`Preço Local / (1 - Taxa/100)`)**: Simulação por período, unitária local e iFood com taxa editável em tempo real.
    - **Matriz Comparativa de DRE**: Tabela consolidada comparando a lucratividade líquida de todos os sabores lado a lado.
 3. **4 Gráficos Analíticos (Recharts)**:
    - **Evolução Diária de Vendas** (100% largura — comparativo Faturamento vs. Custo Estimado em Linha/Área ou Barras)

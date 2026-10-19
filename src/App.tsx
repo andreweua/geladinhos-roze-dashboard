@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutDashboard, ChefHat, Layers } from "lucide-react";
+import { LayoutDashboard, ChefHat, Layers, Sparkles } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Header } from "@/components/Header";
 import { DateFilterBar } from "@/components/DateFilterBar";
@@ -7,6 +7,7 @@ import { KpiCards } from "@/components/KpiCards";
 import { ChartsSection } from "@/components/ChartsSection";
 import { TablesSection } from "@/components/TablesSection";
 import { TechnicalSheetAndDreSection } from "@/components/TechnicalSheetAndDreSection";
+import { AiIntelligenceSection } from "@/components/AiIntelligenceSection";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import {
@@ -95,9 +96,9 @@ export function App() {
     getDateRangeForPreset("7dias")
   );
 
-  // Active View Tab ("completo" | "visao_geral" | "ficha_dre")
+  // Active View Tab ("completo" | "visao_geral" | "ficha_dre" | "pereiralabs_ia")
   const [activeSection, setActiveSection] = useState<
-    "completo" | "visao_geral" | "ficha_dre"
+    "completo" | "visao_geral" | "ficha_dre" | "pereiralabs_ia"
   >("completo");
   const [selectedProductId, setSelectedProductId] = useState<string>(
     "prod-doce-de-leite"
@@ -256,7 +257,7 @@ export function App() {
           }}
         />
 
-        {/* Navigation Switcher: Visão Completa | Visão Geral | Ficha Técnica & DRE */}
+        {/* Navigation Switcher: Visão Completa | PereiraLabs IA | Vendas & Estoque | Ficha Técnica & DRE */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
             <button
@@ -270,6 +271,19 @@ export function App() {
             >
               <Layers className="h-4 w-4" />
               Painel Completo
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection("pereiralabs_ia")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeSection === "pereiralabs_ia"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-primary bg-primary/10 hover:bg-primary/20"
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              PereiraLabs IA (Produção & Lucro)
             </button>
 
             <button
@@ -317,6 +331,16 @@ export function App() {
                 }, 50);
               }}
             />
+
+            {(activeSection === "completo" ||
+              activeSection === "pereiralabs_ia") && (
+              <AiIntelligenceSection
+                snapshot={snapshot}
+                analytics={analytics}
+                ifoodFeePct={ifoodFeePct}
+                onUpdateStock={handleUpdateStock}
+              />
+            )}
 
             {(activeSection === "completo" ||
               activeSection === "visao_geral") && (

@@ -7,6 +7,20 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [1.5.0] - 2026-10-19
+
+### Adicionado
+- **Central de Inteligência, Produção & Engenharia de Cardápio — PereiraLabs IA (`src/lib/aiEngine.ts` & `src/components/AiIntelligenceSection.tsx`)**:
+  1. **Módulo IA #1 — Plano Inteligente de Produção ("O que produzir hoje?")**: Cruza o giro diário dos últimos 7 dias com o estoque disponível e o rendimento exato de cada receita (8, 9, 10, 12 ou 14 un. de 150ml), classificando a urgência anti-ruptura e permitindo somar o lote produzido ao estoque com 1 clique (`+Lote no Estoque`).
+  2. **Módulo IA #2 — Lista de Compras Automática com Aproveitamento de Sobras**: Soma os ingredientes necessários para a fornada do dia e desconta automaticamente as sobras já disponíveis na despensa (*Leite Ninho 330g*, *Ovomaltine 540g*, *Chocolate 50% 960g*, *Nutella 120g*, *Morango 520g*), exibindo a economia real em R$.
+  3. **Módulo IA #3 — Matriz BCG de Engenharia de Cardápio**: Classifica os 8 sabores em ⭐ *Estrela do Cardápio*, 🐄 *Gerador de Caixa*, 💎 *Joia Oculta (Alta Margem)* e 🔍 *Em Observação*, com ação tática recomendada para cada sabor.
+  4. **Módulo IA #4 — Radar de Otimização de Custos e Marcas (54 Cotações)**: Compara o custo por grama (Varejo vs. Atacado) identificando oportunidades reais como *Nutella 650g Atacado (-38,4%/g)*, *Creme de Leite Atacado (-39,1%/g)* e *Leite Condensado Atacado (-32,5%/g)*.
+  5. **Módulo IA #5 — Simulador Interativo de Meta Financeira Mensal**: Calcula quantos geladinhos por dia, por semana e quantos lotes de 69 unidades são necessários para atingir a meta de lucro líquido escolhida (ex: R$ 3.500,00/mês) tanto na venda Local quanto no iFood.
+  6. **Módulo IA #6 — Gerador de Combos Inteligentes & Copy para WhatsApp**: Cria combos com margem protegida focados nos sabores de maior estoque e gera mensagens promocionais formatadas com botão **Copiar p/ WhatsApp**.
+  7. **Consultor PereiraLabs IA (Chat Híbrido: Motor Local + Google Gemini 2.5 Flash)**: Assistente conversacional integrado que responde perguntas em tempo real sobre produção, preços iFood, DRE e compras (funciona 100% grátis localmente e aceita chave opcional da API Google Gemini).
+
+---
+
 ## [1.4.0] - 2026-10-19
 
 ### Adicionado & Alterado
