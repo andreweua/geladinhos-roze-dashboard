@@ -1,42 +1,81 @@
-# Geladinhos Gourmet da Roze — Dashboard Gerencial (PWA & White-Label)
+# 🍧 Geladinhos Gourmet da Roze — Dashboard Gerencial (PWA & White-Label)
 
-Dashboard financeiro e operacional desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase**, projetado para hospedagem gratuita no **GitHub Pages**, instalação como **PWA (Progressive Web App)** e fácil **replicação (White-Label)** para futuros clientes.
+![Versão](https://img.shields.io/badge/vers%C3%A3o-1.1.0-e11d48)
+![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
+![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Vite%20%2B%20TypeScript%20%2B%20Supabase-f59e0b)
+
+Dashboard financeiro e operacional desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase**, projetado para hospedagem no **GitHub Pages**, instalação nativa como **PWA (Android WebAPK, iOS Safari e Desktop)** e arquitetura **White-Label replicável** para novos clientes.
+
+- 🌐 **Acesse a Demonstração Online (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
+- 📋 **Histórico de Versões**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
 
 ---
 
-## Como rodar localmente
+## 📊 Funcionalidades Principais
+
+1. **5 KPIs em Tempo Real**:
+   - **Faturamento Total** (R$ no período filtrado)
+   - **Lucro Bruto Estimado** (Receita menos custo estimado dos itens vendidos + margem %)
+   - **Total de Geladinhos Vendidos** (Unidades totais entregues)
+   - **Ticket Médio** (Valor médio por venda concluída)
+   - **Alerta de Estoque Baixo** (Sabores ativos com menos de 10 unidades)
+2. **4 Gráficos Analíticos (Recharts)**:
+   - **Evolução Diária de Vendas** (100% largura — comparativo Faturamento vs. Custo Estimado em Linha/Área ou Barras)
+   - **Top 5 Sabores Mais Vendidos** (Barras horizontais por quantidade)
+   - **Divisão por Forma de Pagamento** (Donut chart: Pix, Cartão de Crédito, Cartão de Débito e Dinheiro)
+   - **Nível de Estoque por Sabor** + **Catálogo Gourmet & Potencial Financeiro do Estoque**
+3. **2 Tabelas Operacionais + Central Rápida**:
+   - **Tabela de Últimas Vendas** e **Tabela de Reposição de Estoque** (com ajuste rápido `-1`, `+1`, `+10`)
+   - **Modal Central Rápida** para lançar novas vendas (abatendo estoque automaticamente) e cadastrar novos sabores.
+4. **Filtros Globais de Período**:
+   - *Hoje, Ontem, 7 dias, Este mês, Mês passado, 3 meses e Personalizado*.
+
+---
+
+## 📱 Suporte PWA (Android & iOS)
+
+- **Android (Chrome / Edge / Samsung Internet)**: Gera instalação nativa (**WebAPK**) via `manifest.webmanifest`, ícones PNG `192x192` e `512x512` (*maskable*) e botão **Instalar App** com suporte ao evento `beforeinstallprompt`.
+- **iOS (iPhone / iPad no Safari)**: Meta tags `apple-mobile-web-app-capable`, `apple-touch-icon.png` (`180x180`), suporte a `viewport-fit=cover` e guia interativo passo a passo (*Compartilhar -> Adicionar à Tela de Início*).
+- **Atalhos na Tela Inicial**: Segure o ícone do app instalado para acessar diretamente **Nova Venda** ou **Repor Estoque**.
+
+---
+
+## 🚀 Como Rodar Localmente
 
 ```bash
 npm install
 npm run dev
 ```
 
----
+Para gerar o pacote de produção ou regerar os ícones PNG do PWA:
 
-## Como replicar este Dashboard para outro negócio no futuro (White-Label)
-
-Toda a identidade da marca, nomenclatura dos produtos, limites de estoque e cores dos gráficos estão centralizados em **2 arquivos**:
-
-1. **`src/config/brand.config.ts`**:
-   - Altere `companyName`, `tagline`, `lowStockThreshold` (ex: `10`), `userProfile` e `labels` (ex: trocar `"Geladinhos"` / `"Sabores"` por `"Açaís"`, `"Bolos de Pote"`, `"Produtos"` etc.).
-2. **`src/index.css`**:
-   - Ajuste as variáveis CSS HSL (`--primary`, `--secondary`, `--accent`) para mudar instantaneamente o tema claro e escuro.
+```bash
+node scripts/generate-pwa-icons.mjs
+npm run build
+```
 
 ---
 
-## Modo Híbrido de Dados (Demo LocalStorage + Supabase)
+## 🔄 Como Replicar para Outro Cliente (Arquitetura White-Label)
 
-- **Sem `.env` configurado (Padrão)**: O dashboard funciona 100% interativo no navegador (inclusive no GitHub Pages!) usando dados realistas dos últimos 90 dias e salvando novas vendas e reposições de estoque no `localStorage`.
-- **Com Supabase conectado**:
-  1. Crie um projeto gratuito no [Supabase](https://supabase.com).
-  2. No **SQL Editor** do Supabase, execute o conteúdo do arquivo [`supabase/schema_and_seed.sql`](./supabase/schema_and_seed.sql).
-  3. Copie `.env.example` para `.env` e preencha `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
-  4. O badge no topo mudará automaticamente de **"Modo Demo Ativo"** para **"Supabase Online"**.
+Toda a configuração de marca, rótulos de produtos, limites de estoque e cores está centralizada em **2 arquivos**:
+
+1. **[`src/config/brand.config.ts`](./src/config/brand.config.ts)**:
+   - Altere `companyName`, `shortName`, `tagline`, `lowStockThreshold`, `userProfile`, `labels` e `chartColors`.
+2. **[`src/index.css`](./src/index.css)**:
+   - Ajuste as variáveis CSS HSL (`--primary`, `--secondary`, `--accent`) para alterar o tema claro e escuro.
 
 ---
 
-## Deploy Automático no GitHub Pages
+## 🗄️ Conexão com Supabase (Modo Híbrido)
 
-O projeto já possui:
-- `base: './'` configurado no [`vite.config.ts`](./vite.config.ts) (funciona em qualquer subdiretório `usuario.github.io/nome-do-repo/`).
-- Workflow pronto em [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml). Basta ativar **Settings > Pages > Build and deployment > Source: GitHub Actions** no seu repositório GitHub.
+- **Sem `.env` (Modo Demo Ativo)**: Funciona imediatamente com dados realistas de 90 dias e salva novas vendas e reposições no `localStorage`.
+- **Com Supabase Online**:
+  1. Execute o script [`supabase/schema_and_seed.sql`](./supabase/schema_and_seed.sql) no SQL Editor do seu projeto Supabase.
+  2. Copie `.env.example` para `.env` e preencha `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+
+---
+
+## ✒️ Créditos e Autoria
+
+**Desenvolvido por PereiraLabs - Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais**

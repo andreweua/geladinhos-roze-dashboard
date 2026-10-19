@@ -250,12 +250,17 @@ export function App() {
 
       <footer className="mt-10 border-t border-border/60 bg-card/60 py-6 text-center text-xs text-muted-foreground">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 sm:flex-row sm:px-6 lg:px-8">
-          <p>
-            <strong className="text-foreground">
-              {BRAND_CONFIG.companyName}
-            </strong>{" "}
-            — {BRAND_CONFIG.tagline}
-          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <p>
+              <strong className="text-foreground">
+                {BRAND_CONFIG.companyName}
+              </strong>{" "}
+              — {BRAND_CONFIG.tagline}
+            </p>
+            <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-semibold text-secondary-foreground">
+              v{BRAND_CONFIG.appVersion}
+            </span>
+          </div>
           <p className="font-medium text-foreground/90">
             Desenvolvido por{" "}
             <span className="font-bold text-primary">

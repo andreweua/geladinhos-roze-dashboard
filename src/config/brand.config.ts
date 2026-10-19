@@ -7,6 +7,7 @@
  */
 
 export interface BrandConfig {
+  appVersion: string;
   companyName: string;
   shortName: string;
   tagline: string;
@@ -50,6 +51,7 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
+  appVersion: "1.1.0",
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",
@@ -86,9 +88,9 @@ export const BRAND_CONFIG: BrandConfig = {
     },
   },
   developerCredit: {
-    studio: "PereiraLabs - Divisão de tecnologia e IA",
-    company: "Louzada & Pereira - soluções digitais",
+    studio: "PereiraLabs - Divisão de Tecnologia e IA",
+    company: "Louzada & Pereira - Soluções Digitais",
     fullText:
-      "Desenvolvido por PereiraLabs - Divisão de tecnologia e IA | Louzada & Pereira - soluções digitais",
+      "Desenvolvido por PereiraLabs - Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais",
   },
 };
