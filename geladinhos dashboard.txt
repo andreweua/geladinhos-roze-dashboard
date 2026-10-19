@@ -1,0 +1,72 @@
+Build a professional dashboard using:
+- Stack: React + Vite + TypeScript, Tailwind CSS, Shadcn/UI, Recharts (Shadcn Charts), Supabase (PostgreSQL + Auth).
+
+Context:
+- Company: Geladinhos Gourmet da Roze | Niche: Gourmet Popsicles / Dessert Confectionery
+
+Schema:
+-- Products (Flavors)
+create table produtos (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null,
+  preco_venda numeric(10,2) not null,
+  custo_estimado numeric(10,2) not null default 0.00,
+  ativo boolean default true,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+-- Sales transactions
+create table vendas (
+  id uuid primary key default gen_random_uuid(),
+  data_venda timestamp with time zone default timezone('utc'::text, now()),
+  forma_pagamento text check (forma_pagamento in ('Pix', 'Dinheiro', 'Cartao_Credito', 'Cartao_Debito')),
+  valor_total numeric(10,2) not null,
+  status text default 'concluida'
+);
+
+-- Sale items
+create table itens_venda (
+  id uuid primary key default gen_random_uuid(),
+  venda_id uuid references vendas(id) on delete cascade,
+  produto_id uuid references produtos(id),
+  quantidade int not null,
+  preco_unitario numeric(10,2) not null
+);
+
+-- Inventory / Stock batches
+create table estoque_lotes (
+  id uuid primary key default gen_random_uuid(),
+  produto_id uuid references produtos(id) on delete cascade,
+  quantidade_disponivel int not null default 0,
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+Components:
+- KPIs: 
+  1. Faturamento Total (Total revenue in R$ for filtered period)
+  2. Lucro Bruto Estimado (Revenue minus estimated product costs for items sold)
+  3. Total de Geladinhos Vendidos (Total popsicle units sold)
+  4. Ticket Médio (Average order value per completed sale)
+  5. Alerta de Estoque Baixo (Count of active products with stock < 10 units)
+- Charts:
+  - Chart 1 (100% width): Evolução Diária de Vendas (Line or Bar chart comparing Faturamento vs Custo Estimado over time)
+  - Chart 2 (Column 1 of 2): Top 5 Sabores Mais Vendidos (Horizontal bar chart ranked by quantity sold)
+  - Chart 3 (Column 2 of 2): Divisão por Forma de Pagamento (Donut/Pie chart for Pix, Dinheiro, Cartao_Credito, Cartao_Debito)
+  - Chart 4 (Column 1 of 2): Nível de Estoque por Sabor (Bar chart showing current available inventory per flavor)
+- Lists/Tables:
+  - Tabela de Últimas Vendas: Recent sales list displaying date/time, items/quantities, total value, payment method, and status badge.
+  - Tabela de Reposição de Estoque: Inventory table listing flavors with lowest stock levels and a visual alert tag for items under 10 units.
+- Refresh: On-load (data updates upon page refresh or when date filter changes).
+
+Layout Rules:
+- Single page, no routing.
+- Header: Company name "Geladinhos Gourmet da Roze" on left with a sweet/gourmet dessert vibe icon, theme toggle (light/dark) and logged user info on right (no sidebar).
+- Global date filters at top controlling all metrics: Hoje, Ontem, 7 dias, Este mês, Mês passado, 3 meses, Personalizado.
+- 1st chart: 100% width. Charts 2-3: 2-column grid. Chart 4: 2-column grid. Tables below charts in responsive cards.
+
+UI & Guidelines:
+- All interface copy in Brazilian Portuguese (pt-BR).
+- Palette matching the niche: Warm gourmet confectionery palette (rose/berry tones, soft peach, subtle amber/gold accents) paired with Shadcn neutral card styling.
+- Support both Light and Dark mode seamlessly.
+- Responsive design tailored for both Desktop and Mobile viewports.
+- Run locally with `npm run dev` and provide the localhost preview URL before deploying.
