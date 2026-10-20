@@ -6,6 +6,8 @@ import {
   Plus,
   Minus,
   PackageCheck,
+  MessageCircle,
+  Smartphone,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
@@ -37,6 +39,26 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
   onQuickStockChange,
   onOpenStockModal,
 }) => {
+  const handleOpenWhatsAppReceipt = (venda: VendaDetalhada) => {
+    const phone = venda.cliente_telefone ? venda.cliente_telefone.replace(/\D/g, "") : "";
+    const customerName = venda.cliente_nome ? venda.cliente_nome : "Cliente";
+    const itemsText = venda.itens
+      .map(
+        (i) =>
+          `• ${i.quantidade}x ${i.produto_nome} (${formatCurrency(i.preco_unitario)})`
+      )
+      .join("\n");
+    const text = `🍧 *GELADINHOS GOURMET DA ROZE — RECIBO DE COMPRA* 🍧\n\nOlá, *${customerName}*! Agradecemos pela preferência:\n\n${itemsText}\n\n💰 *Total: ${formatCurrency(
+      venda.valor_total
+    )}*\nForma de Pagamento: *${PAYMENT_METHOD_LABELS[venda.forma_pagamento]}*\nData: ${formatDateTime(
+      venda.data_venda
+    )}\n\nEsperamos que aprecie muito nossos geladinhos artesanais de 150ml! 🤤💖`;
+    const url = phone
+      ? `https://wa.me/55${phone}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
+  };
+
   return (
     <section
       id="tabelas-operacionais"
@@ -74,10 +96,11 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                 <thead>
                   <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     <th className="pb-3 pr-3">Data / Hora</th>
+                    <th className="pb-3 px-3">Cliente / Contato</th>
                     <th className="pb-3 px-3">Sabores & Qtd.</th>
                     <th className="pb-3 px-3">Pagamento</th>
                     <th className="pb-3 px-3 text-right">Valor Total</th>
-                    <th className="pb-3 pl-3 text-right">Status</th>
+                    <th className="pb-3 pl-3 text-right">Ação / WhatsApp</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -88,6 +111,18 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                     >
                       <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted-foreground">
                         {formatDateTime(venda.data_venda)}
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold text-foreground">
+                            {venda.cliente_nome || "Balcão / Presencial"}
+                          </span>
+                          {venda.cliente_telefone && (
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {venda.cliente_telefone}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-3">
                         <div className="flex flex-wrap gap-1">
@@ -110,20 +145,15 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                         {formatCurrency(venda.valor_total)}
                       </td>
                       <td className="whitespace-nowrap py-3 pl-3 text-right">
-                        <Badge
-                          variant={
-                            venda.status === "concluida"
-                              ? "success"
-                              : venda.status === "pendente"
-                                ? "warning"
-                                : "destructive"
-                          }
-                          className="capitalize text-[11px]"
+                        <button
+                          type="button"
+                          onClick={() => handleOpenWhatsAppReceipt(venda)}
+                          title="Enviar resumo do pedido pelo WhatsApp"
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
                         >
-                          {venda.status === "concluida"
-                            ? "Concluída"
-                            : venda.status}
-                        </Badge>
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          <span>WhatsApp</span>
+                        </button>
                       </td>
                     </tr>
                   ))}

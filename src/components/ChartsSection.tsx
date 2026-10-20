@@ -35,6 +35,7 @@ import {
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import {
   DailySalesPoint,
+  DreProdutoItem,
   EstoquePorProduto,
   PaymentMethodPoint,
   TopFlavorPoint,
@@ -45,6 +46,7 @@ interface ChartsSectionProps {
   topFlavors: TopFlavorPoint[];
   paymentDistribution: PaymentMethodPoint[];
   inventoryByFlavor: EstoquePorProduto[];
+  drePorProduto?: DreProdutoItem[];
 }
 
 export const ChartsSection: React.FC<ChartsSectionProps> = ({
@@ -52,8 +54,36 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
   topFlavors,
   paymentDistribution,
   inventoryByFlavor,
+  drePorProduto,
 }) => {
   const [dailyChartType, setDailyChartType] = useState<"area" | "bar">("area");
+  const [marginViewMode, setMarginViewMode] = useState<"grafico" | "lista">("grafico");
+
+  // Margin data for Chart 5 (Margem de Lucro % por Sabor)
+  const marginChartData = React.useMemo(() => {
+    return inventoryByFlavor
+      .map((prod) => {
+        const dre = drePorProduto?.find((d) => d.produto_id === prod.produto_id);
+        const lucroUnit = prod.preco_venda - prod.custo_estimado;
+        const margemPct =
+          prod.preco_venda > 0
+            ? Math.round((lucroUnit / prod.preco_venda) * 100)
+            : 0;
+        return {
+          produto_id: prod.produto_id,
+          nome: prod.nome,
+          margemPct,
+          lucroUnit: Number(lucroUnit.toFixed(2)),
+          preco_venda: prod.preco_venda,
+          custo_estimado: prod.custo_estimado,
+          markup:
+            prod.custo_estimado > 0
+              ? Number((prod.preco_venda / prod.custo_estimado).toFixed(2))
+              : 0,
+        };
+      })
+      .sort((a, b) => b.margemPct - a.margemPct);
+  }, [inventoryByFlavor, drePorProduto]);
 
   // Compute summary metrics for the profitability companion card alongside Chart 4
   const totalUnidadesEstoque = inventoryByFlavor.reduce(
@@ -543,78 +573,157 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
           </CardContent>
         </Card>
 
-        {/* Column 2 of 2: Rentabilidade & Potencial do Estoque Atual */}
+        {/* CHART 5 (2 COLS): Margem de Lucro % por Sabor (com switch para Lista) */}
         <Card className="flex flex-col justify-between">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-500" />
-              Catálogo Gourmet & Potencial de Estoque
-            </CardTitle>
-            <CardDescription>
-              Margem unitária por sabor e valor financeiro projetado do estoque
-              pronto
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Summary mini-cards */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-xl border border-border/70 bg-secondary/40 p-3">
-                <p className="text-[11px] font-medium text-muted-foreground">
-                  Total em Freezer
-                </p>
-                <p className="mt-1 text-lg font-extrabold text-foreground">
-                  {formatNumber(totalUnidadesEstoque)} un.
-                </p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-secondary/40 p-3">
-                <p className="text-[11px] font-medium text-muted-foreground">
-                  Venda Potencial
-                </p>
-                <p className="mt-1 text-lg font-extrabold text-rose-600 dark:text-rose-400">
-                  {formatCurrency(valorPotencialEstoque)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-secondary/40 p-3">
-                <p className="text-[11px] font-medium text-muted-foreground">
-                  Lucro Potencial
-                </p>
-                <p className="mt-1 text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
-                  {formatCurrency(lucroPotencialEstoque)}
-                </p>
-              </div>
+          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-500" />
+                Margem de Lucro % por Sabor
+              </CardTitle>
+              <CardDescription>
+                Lucratividade percentual sobre a venda e rentabilidade do estoque
+              </CardDescription>
             </div>
 
-            {/* Flavor unit margin breakdown */}
-            <div className="max-h-[195px] space-y-2 overflow-y-auto pr-1">
-              {inventoryByFlavor.map((prod) => {
-                const lucroUnit = prod.preco_venda - prod.custo_estimado;
-                const margem =
-                  prod.preco_venda > 0
-                    ? Math.round((lucroUnit / prod.preco_venda) * 100)
-                    : 0;
-                return (
-                  <div
-                    key={prod.produto_id}
-                    className="flex items-center justify-between rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-xs"
-                  >
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        {prod.nome}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        Venda: {formatCurrency(prod.preco_venda)} • Custo:{" "}
-                        {formatCurrency(prod.custo_estimado)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="success" className="text-[11px]">
-                        +{formatCurrency(lucroUnit)} ({margem}%)
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setMarginViewMode("grafico")}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                  marginViewMode === "grafico"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-secondary text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Gráfico
+              </button>
+              <button
+                type="button"
+                onClick={() => setMarginViewMode("lista")}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition-all ${
+                  marginViewMode === "lista"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "bg-secondary text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Métricas
+              </button>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {marginViewMode === "grafico" ? (
+              <div className="h-[280px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={marginChartData}
+                    layout="vertical"
+                    margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                      stroke="hsl(var(--border))"
+                    />
+                    <XAxis
+                      type="number"
+                      domain={[0, 80]}
+                      unit="%"
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      dataKey="nome"
+                      type="category"
+                      width={125}
+                      tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        borderColor: "hsl(var(--border))",
+                        borderRadius: "0.75rem",
+                        fontSize: "12px",
+                      }}
+                      formatter={(val: number, name: string, props: any) => [
+                        `${val}% (Lucro: ${formatCurrency(props.payload.lucroUnit)}/un | Markup: ${props.payload.markup}x)`,
+                        "Margem sobre Venda",
+                      ]}
+                    />
+                    <Bar
+                      dataKey="margemPct"
+                      name="Margem de Lucro %"
+                      radius={[0, 6, 6, 0]}
+                    >
+                      {marginChartData.map((entry) => (
+                        <Cell
+                          key={entry.produto_id}
+                          fill={entry.margemPct >= 65 ? "#059669" : "#10b981"}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <>
+                {/* Summary mini-cards */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-border/70 bg-secondary/40 p-3">
+                    <p className="text-[11px] font-medium text-muted-foreground">
+                      Total em Freezer
+                    </p>
+                    <p className="mt-1 text-lg font-extrabold text-foreground">
+                      {formatNumber(totalUnidadesEstoque)} un.
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-secondary/40 p-3">
+                    <p className="text-[11px] font-medium text-muted-foreground">
+                      Venda Potencial
+                    </p>
+                    <p className="mt-1 text-lg font-extrabold text-rose-600 dark:text-rose-400">
+                      {formatCurrency(valorPotencialEstoque)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-border/70 bg-secondary/40 p-3">
+                    <p className="text-[11px] font-medium text-muted-foreground">
+                      Lucro Potencial
+                    </p>
+                    <p className="mt-1 text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(lucroPotencialEstoque)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Flavor unit margin breakdown */}
+                <div className="max-h-[195px] space-y-2 overflow-y-auto pr-1">
+                  {marginChartData.map((prod) => (
+                    <div
+                      key={prod.produto_id}
+                      className="flex items-center justify-between rounded-lg border border-border/50 bg-background/60 px-3 py-2 text-xs"
+                    >
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {prod.nome}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Venda: {formatCurrency(prod.preco_venda)} • Custo:{" "}
+                          {formatCurrency(prod.custo_estimado)} • Markup: {prod.markup}x
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="success" className="text-[11px]">
+                          +{formatCurrency(prod.lucroUnit)} ({prod.margemPct}%)
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

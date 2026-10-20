@@ -596,8 +596,22 @@ function generateInitialDemoData(): DashboardDataSnapshot {
       const metodo =
         paymentMethods[Math.floor(rand() * paymentMethods.length)];
 
+      const sampleCustomers = [
+        { nome: "Mariana Silva", tel: "31991234567" },
+        { nome: "Lucas Santos", tel: "31998765432" },
+        { nome: "Beatriz Oliveira", tel: "31987654321" },
+        { nome: "Rodrigo Costa", tel: "31992345678" },
+        { nome: "Camila Ferreira", tel: "31993456789" },
+        { nome: "Ana Paula Souza", tel: "31994567890" },
+        { nome: "Thiago Mendes", tel: "31995678901" },
+        { nome: "Juliana Lima", tel: "31996789012" },
+      ];
+      const cust = daysAgo <= 14 && rand() > 0.25 ? sampleCustomers[Math.floor(rand() * sampleCustomers.length)] : undefined;
+
       vendas.push({
         id: vendaId,
+        cliente_nome: cust?.nome,
+        cliente_telefone: cust?.tel,
         data_venda: saleTimestamp.toISOString(),
         forma_pagamento: metodo,
         valor_total: valorTotal,
@@ -779,6 +793,8 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
 
 export interface NewSalePayload {
   forma_pagamento: PaymentMethod;
+  cliente_nome?: string;
+  cliente_telefone?: string;
   itens: Array<{
     produto_id: string;
     quantidade: number;
@@ -814,6 +830,8 @@ export async function createNewSale(
       .from("vendas")
       .insert({
         forma_pagamento: payload.forma_pagamento,
+        cliente_nome: payload.cliente_nome?.trim() || null,
+        cliente_telefone: payload.cliente_telefone?.trim() || null,
         valor_total: valorTotal,
         status: "concluida",
       })
@@ -857,6 +875,8 @@ export async function createNewSale(
 
   const novaVenda: Venda = {
     id: newVendaId,
+    cliente_nome: payload.cliente_nome?.trim() || undefined,
+    cliente_telefone: payload.cliente_telefone?.trim() || undefined,
     data_venda: nowIso,
     forma_pagamento: payload.forma_pagamento,
     valor_total: valorTotal,

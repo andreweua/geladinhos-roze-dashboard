@@ -36,6 +36,20 @@ export interface BrandConfig {
     Cartao_Debito: number;
     Cartao_Credito: number;
   };
+  tonConfig: {
+    pixKey: string;
+    pixKeyType: "telefone" | "email" | "cpf_cnpj" | "aleatoria";
+    merchantName: string;
+    merchantCity: string;
+    whatsappNumber: string; // ex: 5531999999999
+    txIdPrefix: string;
+    rates: {
+      Pix: number; // Ton Pix: 0.99%
+      Dinheiro: number; // 0.00%
+      Cartao_Debito: number; // Ton Débito: 1.99%
+      Cartao_Credito: number; // Ton Crédito: 3.50%
+    };
+  };
   chartColors: {
     revenue: string;
     cost: string;
@@ -58,7 +72,7 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "1.6.0",
+  appVersion: "1.7.0",
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",
@@ -81,25 +95,39 @@ export const BRAND_CONFIG: BrandConfig = {
     topProductsChartTitle: "Top 5 Sabores Mais Vendidos",
     stockChartTitle: "Nível de Estoque por Sabor",
   },
-  // Taxas médias de maquininha/meios de pagamento (%) para apuração da DRE por Produto
+  // Taxas médias por meio de pagamento (Ton Stone / Mercado Pago / Maquininha)
   paymentFeeRates: {
-    Pix: 0.0,
+    Pix: 0.99, // Taxa Ton Pix
     Dinheiro: 0.0,
-    Cartao_Debito: 1.99,
-    Cartao_Credito: 3.99,
+    Cartao_Debito: 1.99, // Taxa Ton Débito
+    Cartao_Credito: 3.5, // Taxa Ton Crédito à vista
+  },
+  tonConfig: {
+    pixKey: "31998765432", // Chave Pix TON do lojista (Telefone, CNPJ, Email ou Chave Aleatória)
+    pixKeyType: "telefone",
+    merchantName: "ROZANA PEREIRA",
+    merchantCity: "BELO HORIZONTE",
+    whatsappNumber: "5531998765432",
+    txIdPrefix: "ROZE",
+    rates: {
+      Pix: 0.99,
+      Dinheiro: 0.0,
+      Cartao_Debito: 1.99,
+      Cartao_Credito: 3.5,
+    },
   },
   chartColors: {
-    revenue: "#2563eb", // Royal Indigo / Blue 600
-    cost: "#64748b", // Neutral Slate 500
-    profit: "#10b981", // Clean Emerald 500
-    primaryBar: "#3b82f6", // Blue 500
-    stockNormal: "#0284c7", // Sky 600
-    stockLow: "#d97706", // Amber 600 (Alert)
+    revenue: "#be123c", // Berry Rose 700
+    cost: "#64748b", // Slate 500
+    profit: "#059669", // Emerald 600
+    primaryBar: "#e11d48", // Rose 600
+    stockNormal: "#be123c", // Berry Rose
+    stockLow: "#d97706", // Amber 600 (Alerta)
     paymentMethods: {
-      Pix: "#2563eb", // Indigo
-      Cartao_Credito: "#0ea5e9", // Sky Blue
-      Cartao_Debito: "#6366f1", // Indigo Violet
-      Dinheiro: "#10b981", // Clean Emerald
+      Pix: "#be123c", // Berry Pix
+      Cartao_Credito: "#ea580c", // Warm Peach / Coral
+      Cartao_Debito: "#d97706", // Amber Gold
+      Dinheiro: "#059669", // Mint Emerald
     },
   },
   developerCredit: {

@@ -45,18 +45,38 @@ export interface SobraEstoqueInsumo {
   sobra_estoque: string;
 }
 
+export interface Insumo {
+  id: string;
+  nome: string;
+  tipo: "ingrediente" | "embalagem" | "outro";
+  unidade_medida: string;
+  custo_unitario: number;
+  created_at?: string;
+}
+
+export interface FichaTecnicaRelational {
+  id: string;
+  produto_id: string;
+  insumo_id: string;
+  quantidade: number;
+  created_at?: string;
+}
+
 export interface Produto {
   id: string;
   nome: string;
   preco_venda: number;
   preco_ifood?: number;
   custo_estimado: number;
+  rendimento_receita?: number;
   ativo: boolean;
   created_at: string;
 }
 
 export interface Venda {
   id: string;
+  cliente_nome?: string;
+  cliente_telefone?: string;
   data_venda: string;
   forma_pagamento: PaymentMethod;
   valor_total: number;

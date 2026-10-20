@@ -10,6 +10,7 @@ import {
   Sparkles,
   Smartphone,
   Receipt,
+  QrCode,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
@@ -81,10 +82,10 @@ export const Header: React.FC<HeaderProps> = ({
             variant="default"
             size="sm"
             onClick={onOpenNewSale}
-            className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+            className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 flex items-center gap-1.5 font-bold"
           >
-            <PlusCircle className="h-4 w-4" />
-            <span>Nova Venda</span>
+            <QrCode className="h-4 w-4" />
+            <span>Novo Pedido / PDV</span>
           </Button>
 
           <Button

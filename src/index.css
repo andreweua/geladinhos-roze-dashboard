@@ -4,70 +4,71 @@
 
 @layer base {
   :root {
-    /* Executive & Clean Slate / Indigo Light Theme */
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* Confectionery Gourmet Palette (Berry Rose / Soft Peach / Subtle Amber Gold) */
+    --background: 30 25% 98%;
+    --foreground: 345 25% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 345 25% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 345 25% 15%;
 
-    /* Corporate Indigo / Deep Blue Primary */
-    --primary: 224 76% 48%;
-    --primary-foreground: 210 40% 98%;
+    /* Gourmet Berry Rose Primary */
+    --primary: 346 77% 46%;
+    --primary-foreground: 355 100% 98%;
 
-    /* Neutral Slate Secondary */
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 15%;
+    /* Soft Peach / Creamy Secondary */
+    --secondary: 25 75% 96%;
+    --secondary-foreground: 345 30% 20%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 25 35% 95%;
+    --muted-foreground: 345 12% 45%;
 
-    --accent: 214 32% 91%;
-    --accent-foreground: 224 76% 40%;
+    /* Subtle Amber Gold Accent */
+    --accent: 38 92% 94%;
+    --accent-foreground: 38 90% 32%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 224 76% 48%;
+    --border: 25 20% 90%;
+    --input: 25 20% 90%;
+    --ring: 346 77% 46%;
 
     --radius: 0.75rem;
   }
 
   .dark {
-    /* Sleek Charcoal Slate Dark Theme */
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    /* Rich Dark Chocolate & Cocoa Velvet Dark Theme */
+    --background: 345 20% 9%;
+    --foreground: 30 30% 96%;
 
-    --card: 217 33% 16%;
-    --card-foreground: 210 40% 98%;
+    --card: 345 18% 13%;
+    --card-foreground: 30 30% 96%;
 
-    --popover: 217 33% 16%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 345 18% 13%;
+    --popover-foreground: 30 30% 96%;
 
-    /* Crisp Indigo Primary in Dark Mode */
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    /* Vibrant Berry Rose in Dark Mode */
+    --primary: 346 78% 58%;
+    --primary-foreground: 355 100% 98%;
 
-    --secondary: 217 19% 24%;
-    --secondary-foreground: 210 40% 95%;
+    --secondary: 345 15% 18%;
+    --secondary-foreground: 30 25% 92%;
 
-    --muted: 217 19% 22%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 345 15% 16%;
+    --muted-foreground: 345 10% 65%;
 
-    --accent: 217 19% 26%;
-    --accent-foreground: 221 83% 65%;
+    --accent: 38 50% 18%;
+    --accent-foreground: 38 90% 70%;
 
     --destructive: 0 62% 45%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217 19% 25%;
-    --input: 217 19% 25%;
-    --ring: 221 83% 53%;
+    --border: 345 15% 20%;
+    --input: 345 15% 20%;
+    --ring: 346 78% 58%;
   }
 }
 

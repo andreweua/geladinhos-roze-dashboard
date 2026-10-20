@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutDashboard, ChefHat, Layers, Sparkles } from "lucide-react";
+import { LayoutDashboard, ChefHat, Layers, Sparkles, QrCode } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Header } from "@/components/Header";
 import { DateFilterBar } from "@/components/DateFilterBar";
@@ -9,6 +9,7 @@ import { TablesSection } from "@/components/TablesSection";
 import { TechnicalSheetAndDreSection } from "@/components/TechnicalSheetAndDreSection";
 import { AiIntelligenceSection } from "@/components/AiIntelligenceSection";
 import { InvoicePriceUpdaterModal } from "@/components/InvoicePriceUpdaterModal";
+import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import {
@@ -113,6 +114,7 @@ export function App() {
   // Modal state
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [modalTab, setModalTab] = useState<"venda" | "estoque">("venda");
+  const [posModalOpen, setPosModalOpen] = useState<boolean>(false);
   const [installModalOpen, setInstallModalOpen] = useState<boolean>(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState<boolean>(false);
 
@@ -144,9 +146,8 @@ export function App() {
 
     const params = new URLSearchParams(window.location.search);
     const action = params.get("action");
-    if (action === "nova-venda") {
-      setModalTab("venda");
-      setModalOpen(true);
+    if (action === "nova-venda" || action === "pdv") {
+      setPosModalOpen(true);
     } else if (action === "estoque") {
       setModalTab("estoque");
       setModalOpen(true);
@@ -240,10 +241,7 @@ export function App() {
       <Header
         isDark={isDark}
         onToggleTheme={() => setIsDark((prev) => !prev)}
-        onOpenNewSale={() => {
-          setModalTab("venda");
-          setModalOpen(true);
-        }}
+        onOpenNewSale={() => setPosModalOpen(true)}
         onOpenStockModal={() => {
           setModalTab("estoque");
           setModalOpen(true);
@@ -268,20 +266,33 @@ export function App() {
           }}
         />
 
-        {/* Navigation Switcher: Visão Completa | PereiraLabs IA | Vendas & Estoque | Ficha Técnica & DRE */}
+        {/* Navigation Switcher: 2 Abas Principais + Botão PDV Ton + Abas Complementares */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
             <button
               type="button"
-              onClick={() => setActiveSection("completo")}
+              onClick={() => setActiveSection("visao_geral")}
               className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeSection === "completo"
+                activeSection === "visao_geral"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >
-              <Layers className="h-4 w-4" />
-              Painel Completo
+              <LayoutDashboard className="h-4 w-4" />
+              1. Visão Geral de Vendas
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection("ficha_dre")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeSection === "ficha_dre"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <ChefHat className="h-4 w-4" />
+              2. Ficha Técnica & DRE por Produto
             </button>
 
             <button
@@ -299,28 +310,26 @@ export function App() {
 
             <button
               type="button"
-              onClick={() => setActiveSection("visao_geral")}
+              onClick={() => setActiveSection("completo")}
               className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeSection === "visao_geral"
+                activeSection === "completo"
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >
-              <LayoutDashboard className="h-4 w-4" />
-              Vendas & Estoque
+              <Layers className="h-4 w-4" />
+              Painel Completo
             </button>
+          </div>
 
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setActiveSection("ficha_dre")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeSection === "ficha_dre"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
+              onClick={() => setPosModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md hover:opacity-90 transition-all hover:scale-[1.02]"
             >
-              <ChefHat className="h-4 w-4" />
-              Ficha Técnica & DRE por Produto
+              <QrCode className="h-4 w-4" />
+              <span>Novo Pedido / Frente de Caixa (PDV)</span>
             </button>
           </div>
         </div>
@@ -357,12 +366,13 @@ export function App() {
             {(activeSection === "completo" ||
               activeSection === "visao_geral") && (
               <>
-                {/* 4 Charts */}
+                {/* 5 Charts */}
                 <ChartsSection
                   dailySales={analytics.dailySales}
                   topFlavors={analytics.topFlavors}
                   paymentDistribution={analytics.paymentDistribution}
                   inventoryByFlavor={analytics.inventoryByFlavor}
+                  drePorProduto={analytics.drePorProduto}
                 />
 
                 {/* 2 Operational Tables */}
@@ -422,6 +432,15 @@ export function App() {
           </p>
         </div>
       </footer>
+
+      {analytics && (
+        <PointOfSaleModal
+          isOpen={posModalOpen}
+          onClose={() => setPosModalOpen(false)}
+          inventoryByFlavor={analytics.inventoryByFlavor}
+          onSubmitSale={handleSubmitSale}
+        />
+      )}
 
       {analytics && (
         <QuickOperationsModal

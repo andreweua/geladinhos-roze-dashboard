@@ -7,6 +7,37 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [1.7.0] - 2026-10-20
+
+### Adicionado & Aprimorado
+- **Frente de Caixa (PDV) com Geração de QR Code Pix Ton (BR Code BACEN EMV)**:
+  - Integração do gerador oficial de payload Pix EMV (`src/lib/pix.ts`) com padrão TLV e cálculo CRC16 CCITT (0xFFFF, 0x1021) dinâmico com valor em centavos.
+  - Componente modal de Frente de Caixa (`src/components/PointOfSaleModal.tsx`) com fluxo em 2 etapas:
+    1. Seleção de produtos/sabores, cálculo automático de quantidade, subtotal e campo opcional de nome e WhatsApp do cliente.
+    2. Escolha da forma de pagamento (Pix Ton 0,99%, Dinheiro 0%, Débito 1,99%, Crédito 3,50%).
+  - Exibição de QR Code oficial via `qrcode.react` para leitura presencial pelo cliente.
+  - Botão com 1 clique para "Copiar Código Pix Copia e Cola" com feedback visual de confirmação na área de transferência.
+  - Botão direto para "Enviar pelo WhatsApp" (`https://wa.me/55...`) com mensagem pré-formatada contendo resumo detalhado do pedido, valor total e chave Pix Copia e Cola para pagamento à distância.
+  - Calculadora de troco inteligente para pagamento em dinheiro com botões rápidos de cédulas (R$ 10, R$ 20, R$ 50, R$ 100).
+  - Dedução automática e imediata das unidades vendidas no estoque de lotes prontos.
+- **Integração Relacional Supabase / PostgreSQL (`supabase/migrations/20261020_initial_schema.sql`)**:
+  - Script DDL completo criando tabelas relacionais com chaves primárias UUID e integridade referencial:
+    - `insumos`: catálogo de ingredientes, embalagens e custos unitários.
+    - `produtos`: catálogo de sabores com preço de venda e rendimento da receita.
+    - `ficha_tecnica`: relação N:N entre produtos e insumos com quantidades exatas.
+    - `taxas_pagamento`: taxas por meio de pagamento (Ton Pix 0.99%, Ton Débito 1.99%, Ton Crédito 3.50%, Dinheiro 0.00%).
+    - `vendas`: registro de pedidos com `cliente_nome`, `cliente_telefone`, `forma_pagamento`, `valor_total` e `status`.
+    - `itens_venda`: itens de cada venda com quantidade e preço praticado.
+    - `estoque_lotes`: controle de saldo disponível por sabor.
+- **Gráficos e KPIs da Visão Geral de Vendas (`src/components/ChartsSection.tsx`)**:
+  - Inclusão do **Gráfico 5: Margem de Lucro % por Sabor** com gráfico de barras horizontais Recharts e alternância de visualização de métricas detalhadas.
+  - Botão de contato rápido por WhatsApp adicionado à tabela de "Últimas Vendas Realizadas" para pós-venda e comprovante imediato.
+- **Paleta de Cores Confeitaria Gourmet Executiva (Berry Rose & Soft Peach)**:
+  - Harmonização sutil de tons confeitaria sofisticados (Framboesa/Bordeaux `hsl(346, 77%, 46%)`, pêssego suave `hsl(25, 75%, 96%)` e toques em ouro âmbar) em sintonia com a identidade visual refinada de doceria gourmet.
+  - Preservação da clareza contábil, gráficos Shadcn e suporte completo a temas Claro e Escuro (*Dark Mode*).
+
+---
+
 ## [1.6.0] - 2026-10-19
 
 ### Adicionado & Aprimorado
