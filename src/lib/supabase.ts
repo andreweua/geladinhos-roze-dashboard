@@ -40,6 +40,19 @@ export function getSupabaseCredentials(): { url: string; key: string } | null {
     return { url: envUrl.trim(), key: envKey.trim() };
   }
 
+  // 3. Check BRAND_CONFIG fallback (for GitHub Pages & automated production builds)
+  if (
+    BRAND_CONFIG.supabaseConfig?.supabaseUrl &&
+    BRAND_CONFIG.supabaseConfig?.supabaseAnonKey &&
+    BRAND_CONFIG.supabaseConfig.supabaseUrl.startsWith("http") &&
+    !BRAND_CONFIG.supabaseConfig.supabaseUrl.includes("seu-projeto.supabase.co")
+  ) {
+    return {
+      url: BRAND_CONFIG.supabaseConfig.supabaseUrl.trim(),
+      key: BRAND_CONFIG.supabaseConfig.supabaseAnonKey.trim(),
+    };
+  }
+
   return null;
 }
 

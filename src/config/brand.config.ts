@@ -103,7 +103,7 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "2.8.1",
+  appVersion: "2.8.2",
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",
@@ -155,6 +155,10 @@ export const BRAND_CONFIG: BrandConfig = {
     accountId: "",
     webhookSecret: "",
   },
+  supabaseConfig: {
+    supabaseUrl: "https://ssmuooziktbhndhqstnl.supabase.co",
+    supabaseAnonKey: "sb_publishable_2piRGU4-f_xZj8_dq05Taw_wqBI3y1p",
+  },
   basesOperacionais: {
     jau: {
       responsavel: "Rozana Helena Miguel",
@@ -193,10 +197,6 @@ export const BRAND_CONFIG: BrandConfig = {
     company: "Louzada & Pereira - Soluções Digitais",
     fullText:
       "Desenvolvido por PereiraLabs - Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais",
-  },
-  supabaseConfig: {
-    supabaseUrl: "",
-    supabaseAnonKey: "",
   },
 };
 
