@@ -1,0 +1,432 @@
+import { BRAND_CONFIG } from "@/config/brand.config";
+import { ListaCompras, ListaComprasItem, PesquisaPrecoLocal } from "@/types/dashboard";
+import { addPesquisaPreco, calculateNormalizedPrice } from "@/services/marketSurveyService";
+import { parsePackagingFromTitle } from "@/services/gtinService";
+
+const STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_listas_compras_v1`;
+
+export const SHOPPING_LIST_TEMPLATES: Array<{
+  id: string;
+  titulo: string;
+  descricao: string;
+  itens: Array<Omit<ListaComprasItem, "id" | "comprado">>;
+}> = [
+  {
+    id: "template-lote-69",
+    titulo: "Fornada Completa: 69 Geladinhos (9 Receitas Oficiais)",
+    descricao: "Lista calculada para produção integral do cardápio expandido de 69 saquinhos de 150ml.",
+    itens: [
+      {
+        insumo_nome: "Leite Condensado (395g)",
+        marca: "Piracanjuba / Itambé / Moça",
+        quantidade_necessaria: 10,
+        unidade_medida: "un",
+        quantidade_embalagem: 395,
+        preco_estimado: 5.29,
+        gtin: "7898215150018",
+      },
+      {
+        insumo_nome: "Creme de Leite (200g)",
+        marca: "Piracanjuba / Itambé / Nestlé",
+        quantidade_necessaria: 8,
+        unidade_medida: "un",
+        quantidade_embalagem: 200,
+        preco_estimado: 2.79,
+        gtin: "7898215150162",
+      },
+      {
+        insumo_nome: "Leite Integral UHT (1L)",
+        marca: "Itambé / Piracanjuba",
+        quantidade_necessaria: 4,
+        unidade_medida: "l",
+        quantidade_embalagem: 1000,
+        preco_estimado: 4.89,
+        gtin: "7896051110101",
+      },
+      {
+        insumo_nome: "Liga Neutra Especial para Sorvete (100g ou 1kg)",
+        marca: "Selecta",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 100,
+        preco_estimado: 4.5,
+        gtin: "7896011100104",
+      },
+      {
+        insumo_nome: "Creme de Avelã Nutella Pote Econômico (650g)",
+        marca: "Ferrero",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 650,
+        preco_estimado: 38.9,
+        gtin: "7898024394139",
+      },
+      {
+        insumo_nome: "Leite Ninho em Pó Integral (380g)",
+        marca: "Nestlé",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 380,
+        preco_estimado: 17.9,
+        gtin: "7891000053508",
+      },
+      {
+        insumo_nome: "Doce de Leite Tradicional Pote (400g)",
+        marca: "Itambé",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 400,
+        preco_estimado: 9.8,
+        gtin: "7896051110019",
+      },
+      {
+        insumo_nome: "Morangos Congelados / Frescos para Geleia (1kg)",
+        marca: "Original Food / Fruta Natural",
+        quantidade_necessaria: 1,
+        unidade_medida: "kg",
+        quantidade_embalagem: 1000,
+        preco_estimado: 24.9,
+      },
+      {
+        insumo_nome: "Polpa Pura de Maracujá com Sementes (1kg)",
+        marca: "Brasfrut / De Marchi",
+        quantidade_necessaria: 1,
+        unidade_medida: "kg",
+        quantidade_embalagem: 1000,
+        preco_estimado: 23.8,
+      },
+      {
+        insumo_nome: "Paçoca Rolha de Amendoim (Pote 50un)",
+        marca: "Santa Helena",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 1000,
+        preco_estimado: 19.9,
+        gtin: "7896001250260",
+      },
+      {
+        insumo_nome: "Chocolate em Pó 50% Cacau (200g)",
+        marca: "Nestlé Dois Frades",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 200,
+        preco_estimado: 11.5,
+        gtin: "7891149103003",
+      },
+      {
+        insumo_nome: "Achocolatado em Flocos Crocantes Ovomaltine (750g)",
+        marca: "Ovomaltine",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 750,
+        preco_estimado: 26.9,
+        gtin: "7891095000623",
+      },
+      {
+        insumo_nome: "Bombom Ouro Branco (Pacote 1kg)",
+        marca: "Lacta",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 1000,
+        preco_estimado: 42.9,
+        gtin: "7891008120028",
+      },
+      {
+        insumo_nome: "Bombom Sonho de Valsa (Pacote 1kg)",
+        marca: "Lacta",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 1000,
+        preco_estimado: 42.9,
+        gtin: "7891008120011",
+      },
+      {
+        insumo_nome: "Saquinhos Plásticos para Geladinho Gourmet 150ml (Pct 100un)",
+        marca: "Embalagens Confeiteiro",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 100,
+        preco_estimado: 5.0,
+        gtin: "7898910123456",
+      },
+    ],
+  },
+  {
+    id: "template-quarteto-campeao",
+    titulo: "Quarteto Campeão: 32 Geladinhos (Mais Vendidos)",
+    descricao: "Produção rápida dos 4 sabores de maior giro: Ninho com Nutella, Morango, Maracujá e Doce de Leite.",
+    itens: [
+      {
+        insumo_nome: "Leite Condensado (395g)",
+        marca: "Piracanjuba / Itambé",
+        quantidade_necessaria: 4,
+        unidade_medida: "un",
+        quantidade_embalagem: 395,
+        preco_estimado: 5.29,
+        gtin: "7898215150018",
+      },
+      {
+        insumo_nome: "Creme de Leite (200g)",
+        marca: "Piracanjuba / Itambé",
+        quantidade_necessaria: 4,
+        unidade_medida: "un",
+        quantidade_embalagem: 200,
+        preco_estimado: 2.79,
+        gtin: "7898215150162",
+      },
+      {
+        insumo_nome: "Leite Integral UHT (1L)",
+        marca: "Itambé / Piracanjuba",
+        quantidade_necessaria: 2,
+        unidade_medida: "l",
+        quantidade_embalagem: 1000,
+        preco_estimado: 4.89,
+        gtin: "7896051110101",
+      },
+      {
+        insumo_nome: "Nutella Pote (350g ou 650g)",
+        marca: "Ferrero",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 350,
+        preco_estimado: 24.9,
+        gtin: "7898024394122",
+      },
+      {
+        insumo_nome: "Leite Ninho em Pó (380g)",
+        marca: "Nestlé",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 380,
+        preco_estimado: 17.9,
+        gtin: "7891000053508",
+      },
+      {
+        insumo_nome: "Doce de Leite Itambé (400g)",
+        marca: "Itambé",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 400,
+        preco_estimado: 9.8,
+        gtin: "7896051110019",
+      },
+      {
+        insumo_nome: "Morangos Frescos / Congelados (500g)",
+        marca: "Hortifrúti / Original Food",
+        quantidade_necessaria: 1,
+        unidade_medida: "g",
+        quantidade_embalagem: 500,
+        preco_estimado: 14.5,
+      },
+      {
+        insumo_nome: "Polpa de Maracujá com Sementes (500g)",
+        marca: "Brasfrut",
+        quantidade_necessaria: 1,
+        unidade_medida: "g",
+        quantidade_embalagem: 500,
+        preco_estimado: 12.0,
+      },
+      {
+        insumo_nome: "Liga Neutra (100g)",
+        marca: "Selecta",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 100,
+        preco_estimado: 4.5,
+        gtin: "7896011100104",
+      },
+      {
+        insumo_nome: "Saquinhos Geladinho 150ml (Pct 100un)",
+        marca: "Gourmet",
+        quantidade_necessaria: 1,
+        unidade_medida: "un",
+        quantidade_embalagem: 100,
+        preco_estimado: 5.0,
+        gtin: "7898910123456",
+      },
+    ],
+  },
+];
+
+export function loadShoppingLists(): ListaCompras[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.warn("Erro ao ler listas de compras locais:", err);
+  }
+
+  // Se não houver nenhuma, cria a lista padrão da semana baseada no template 1
+  const defaultList: ListaCompras = {
+    id: `lista-${Date.now()}`,
+    titulo: "Lista de Compras da Semana — Produção Roze",
+    descricao: "Insumos prioritários para a fornada semanal no Atacado/Varejo.",
+    cidade: "Jaú - SP",
+    itens: SHOPPING_LIST_TEMPLATES[0].itens.map((it, idx) => ({
+      ...it,
+      id: `item-list-${idx + 1}`,
+      comprado: false,
+    })),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  saveShoppingLists([defaultList]);
+  return [defaultList];
+}
+
+export function saveShoppingLists(lists: ListaCompras[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
+  } catch (err) {
+    console.warn("Erro ao salvar listas de compras no LocalStorage:", err);
+  }
+}
+
+export function addOrUpdateShoppingList(list: ListaCompras): ListaCompras[] {
+  const all = loadShoppingLists();
+  const idx = all.findIndex((l) => l.id === list.id);
+  let updated: ListaCompras[];
+  if (idx >= 0) {
+    updated = [...all];
+    updated[idx] = { ...list, updated_at: new Date().toISOString() };
+  } else {
+    updated = [
+      {
+        ...list,
+        id: list.id || `lista-${Date.now()}`,
+        created_at: list.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      ...all,
+    ];
+  }
+  saveShoppingLists(updated);
+  return updated;
+}
+
+export function deleteShoppingList(listId: string): ListaCompras[] {
+  const all = loadShoppingLists();
+  const updated = all.filter((l) => l.id !== listId);
+  saveShoppingLists(updated);
+  return updated;
+}
+
+/**
+ * Parser inteligente de lista em texto livre (copiado do WhatsApp, notas ou mensagens)
+ * Formatos suportados:
+ * - "2x Leite Condensado 395g R$ 5,49"
+ * - "Nutella 650g - R$ 34,90"
+ * - "10 Saquinhos 150ml"
+ * - "3 caixas de creme de leite piracanjuba"
+ */
+export function parseShoppingListFromText(rawText: string): ListaComprasItem[] {
+  const lines = rawText
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith("#") && !l.startsWith("---"));
+
+  const items: ListaComprasItem[] = [];
+
+  for (let idx = 0; idx < lines.length; idx++) {
+    const line = lines[idx];
+
+    // Ignora cabeçalhos tipo "LISTA DE COMPRAS"
+    if (line.toLowerCase().includes("lista de compras") || line.toLowerCase().includes("total estimado")) {
+      continue;
+    }
+
+    // Limpa marcadores tipo bullet "•", "-", "*", "[ ]"
+    const cleanLine = line.replace(/^[•\-\*\d+\.\)\[\]\s]+/, "").trim();
+    if (!cleanLine) continue;
+
+    // Detecta preço se existir (ex: "R$ 5,49" ou "5.49")
+    let preco: number | undefined;
+    const priceMatch = cleanLine.match(/R\$\s*(\d+(?:[.,]\d{2})?)|(?:\b(\d+[.,]\d{2})\b)/i);
+    if (priceMatch) {
+      const valStr = (priceMatch[1] || priceMatch[2]).replace(",", ".");
+      preco = parseFloat(valStr);
+    }
+
+    // Detecta quantidade (ex: "2x", "3 caixas", "10 un")
+    let qtd = 1;
+    const qtdMatch = cleanLine.match(/^(\d+(?:[.,]\d+)?)\s*(?:x|cx|caixas?|pct|pacotes?|un|latas?)?\b/i);
+    if (qtdMatch) {
+      qtd = parseFloat(qtdMatch[1].replace(",", "."));
+    }
+
+    // Extrai embalagem e unidade (ex: 395g, 1kg, 200ml)
+    const packaging = parsePackagingFromTitle(cleanLine);
+
+    // Remove termos de preço da descrição do insumo
+    let nomeInsumo = cleanLine
+      .replace(/R\$\s*(\d+(?:[.,]\d{2})?)/gi, "")
+      .replace(/^(\d+(?:[.,]\d+)?)\s*(?:x|cx|caixas?|pct|pacotes?|un|latas?)\s*/i, "")
+      .replace(/[-–—:]\s*$/, "")
+      .trim();
+
+    if (!nomeInsumo) nomeInsumo = cleanLine;
+
+    items.push({
+      id: `imported-${Date.now()}-${idx}`,
+      insumo_nome: nomeInsumo,
+      quantidade_necessaria: qtd,
+      unidade_medida: packaging.unidade,
+      quantidade_embalagem: packaging.quantidade,
+      preco_estimado: preco,
+      preco_cotado: preco,
+      comprado: false,
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Salva em lote as cotações com preços da Lista de Compras na tabela de Pesquisas de Preço do Mercado
+ */
+export function saveBatchQuotationsFromShoppingList(
+  list: ListaCompras,
+  estabelecimentoId: string,
+  estabelecimentoNome: string,
+  cidade: string,
+  dataValidade?: string
+): number {
+  const hoje = new Date().toISOString().split("T")[0];
+  let salvos = 0;
+
+  for (const item of list.itens) {
+    const preco = item.preco_cotado || item.preco_estimado;
+    if (preco && preco > 0) {
+      const qtdEmb = item.quantidade_embalagem || item.quantidade_necessaria || 1;
+      const unMed = item.unidade_medida || "un";
+      const precoNormalizado = calculateNormalizedPrice(preco, qtdEmb, unMed);
+
+      const novaCotacao: PesquisaPrecoLocal = {
+        id: `pesq-batch-${Date.now()}-${salvos}`,
+        estabelecimento_id: estabelecimentoId,
+        estabelecimento_nome: estabelecimentoNome,
+        cidade: cidade || "Jaú - SP",
+        insumo_nome: item.insumo_nome,
+        marca: item.marca || "Marca Padrão",
+        quantidade_embalagem: qtdEmb,
+        unidade_medida: unMed,
+        preco_pesquisado: preco,
+        preco_por_kg_ou_l: precoNormalizado,
+        data_pesquisa: hoje,
+        data_validade: dataValidade || item.data_validade,
+        em_promocao: Boolean(item.em_promocao),
+        gtin: item.gtin,
+        observacoes: `Importado da lista: ${list.titulo}`,
+      };
+
+      addPesquisaPreco(novaCotacao);
+      salvos++;
+    }
+  }
+
+  return salvos;
+}

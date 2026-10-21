@@ -1,0 +1,422 @@
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import {
+  X,
+  Camera,
+  Flashlight,
+  RefreshCw,
+  Barcode,
+  CheckCircle2,
+  AlertTriangle,
+  Search,
+} from "lucide-react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { Button } from "@/components/ui/primitives";
+
+interface BarcodeScannerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onScanSuccess: (barcode: string) => void;
+  title?: string;
+}
+
+export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
+  isOpen,
+  onClose,
+  onScanSuccess,
+  title = "Leitor de Código de Barras GTIN / EAN",
+}) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
+  const [torchAvailable, setTorchAvailable] = useState<boolean>(false);
+  const [torchOn, setTorchOn] = useState<boolean>(false);
+  const [manualCode, setManualCode] = useState<string>("");
+  const [scannedCode, setScannedCode] = useState<string | null>(null);
+
+  // Play audio beep on barcode detection
+  const playBeep = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime); // 880 Hz (A5)
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Handle successful scan
+  const handleDetectedCode = useCallback(
+    (code: string) => {
+      const clean = code.replace(/\D/g, "").trim();
+      if (!clean || clean.length < 6) return;
+
+      setScannedCode(clean);
+      playBeep();
+
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate([80, 40, 80]);
+        } catch {
+          // ignore
+        }
+      }
+
+      // Small delay to show success UI then close
+      setTimeout(() => {
+        onScanSuccess(clean);
+        onClose();
+      }, 400);
+    },
+    [onClose, onScanSuccess, playBeep]
+  );
+
+  // Stop camera tracks cleanly
+  const stopCamera = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (codeReaderRef.current) {
+      try {
+        // Stop any active decoding
+      } catch {
+        // ignore
+      }
+      codeReaderRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setTorchOn(false);
+  }, []);
+
+  // Start camera and barcode listener
+  const startCamera = useCallback(async () => {
+    stopCamera();
+    setErrorMessage(null);
+    setScannedCode(null);
+
+    try {
+      // 1. Request camera stream with continuous autofocus & high quality
+      const constraints: MediaStreamConstraints = {
+        audio: false,
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute("playsinline", "true");
+        await videoRef.current.play();
+      }
+
+      setHasPermission(true);
+
+      // Check track capabilities for Autofocus and Torch
+      const track = stream.getVideoTracks()[0];
+      if (track) {
+        const capabilities = (track.getCapabilities ? track.getCapabilities() : {}) as {
+          focusMode?: string[];
+          torch?: boolean;
+        };
+
+        // Enable Continuous Autofocus on Android/iOS if supported
+        if (capabilities?.focusMode && capabilities.focusMode.includes("continuous")) {
+          try {
+            await (track as unknown as { applyConstraints: (c: unknown) => Promise<void> }).applyConstraints({
+              advanced: [{ focusMode: "continuous" }],
+            });
+          } catch {
+            // ignore
+          }
+        }
+
+        // Check Torch support
+        if (capabilities?.torch) {
+          setTorchAvailable(true);
+        } else {
+          setTorchAvailable(false);
+        }
+      }
+
+      // 2. Barcode Detection Strategy:
+      // If native BarcodeDetector API is present in browser, use hardware acceleration
+      let nativeScannerActive = false;
+      const BarcodeDetectorClass = (window as unknown as { BarcodeDetector?: new (options?: { formats: string[] }) => { detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
+
+      if (typeof BarcodeDetectorClass === "function") {
+        try {
+          const detector = new BarcodeDetectorClass({
+            formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"],
+          });
+
+          nativeScannerActive = true;
+          let isDetecting = false;
+
+          const scanLoop = async () => {
+            if (!videoRef.current || videoRef.current.readyState < 2) {
+              animationFrameRef.current = requestAnimationFrame(scanLoop);
+              return;
+            }
+
+            if (!isDetecting) {
+              isDetecting = true;
+              try {
+                const barcodes = await detector.detect(videoRef.current);
+                if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                  handleDetectedCode(barcodes[0].rawValue);
+                  return; // Stop scan loop once detected
+                }
+              } catch {
+                // ignore frame detect error
+              } finally {
+                isDetecting = false;
+              }
+            }
+
+            animationFrameRef.current = requestAnimationFrame(scanLoop);
+          };
+
+          animationFrameRef.current = requestAnimationFrame(scanLoop);
+        } catch {
+          nativeScannerActive = false;
+        }
+      }
+
+      // If native BarcodeDetector was not used or failed, use ZXing MultiFormat Reader
+      if (!nativeScannerActive && videoRef.current) {
+        const reader = new BrowserMultiFormatReader();
+        codeReaderRef.current = reader;
+
+        reader.decodeFromVideoElement(videoRef.current, (result, error) => {
+          if (result) {
+            handleDetectedCode(result.getText());
+          }
+          if (error && !(error.name === "NotFoundException")) {
+            // normal frame without barcode
+          }
+        });
+      }
+    } catch (err: unknown) {
+      console.error("Camera access error:", err);
+      setHasPermission(false);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("Permission") || msg.includes("NotAllowedError")) {
+        setErrorMessage("Permissão da câmera negada. Habilite o acesso à câmera nas configurações do navegador ou digite o código manualmente.");
+      } else {
+        setErrorMessage("Não foi possível acessar a câmera. Verifique se outro app está usando a câmera ou digite o código abaixo.");
+      }
+    }
+  }, [facingMode, handleDetectedCode, stopCamera]);
+
+  // Toggle Torch / Flashlight
+  const handleToggleTorch = async () => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    if (track) {
+      try {
+        const newTorch = !torchOn;
+        await (track as unknown as { applyConstraints: (c: unknown) => Promise<void> }).applyConstraints({
+          advanced: [{ torch: newTorch }],
+        });
+        setTorchOn(newTorch);
+      } catch (err) {
+        console.warn("Failed to toggle torch:", err);
+      }
+    }
+  };
+
+  // Flip Camera (environment <-> user)
+  const handleFlipCamera = () => {
+    setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
+  };
+
+  // Lifecycle
+  useEffect(() => {
+    if (isOpen) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => {
+      stopCamera();
+    };
+  }, [isOpen, startCamera, stopCamera]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 backdrop-blur-md">
+      <div className="relative flex w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/20 bg-card shadow-2xl">
+        {/* Header Bar */}
+        <div className="flex items-center justify-between border-b border-border bg-card/90 px-4 py-3 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Barcode className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-foreground">{title}</h3>
+              <p className="text-[10px] text-muted-foreground">
+                Câmera com Autofoco Nativo (Android / iOS)
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full bg-secondary p-1.5 text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Viewfinder Area */}
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-black flex items-center justify-center">
+          <video
+            ref={videoRef}
+            className="h-full w-full object-cover"
+            playsInline
+            muted
+          />
+
+          {/* Native Target Viewfinder Overlay */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+            <div className="relative h-44 w-64 rounded-2xl border-2 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]">
+              {/* Corner brackets */}
+              <div className="absolute -top-1 -left-1 h-5 w-5 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+              <div className="absolute -top-1 -right-1 h-5 w-5 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+              <div className="absolute -bottom-1 -left-1 h-5 w-5 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+              <div className="absolute -bottom-1 -right-1 h-5 w-5 border-b-4 border-r-4 border-primary rounded-br-lg" />
+
+              {/* Animated Red Laser Scan Line */}
+              <div className="absolute inset-x-2 top-0 h-0.5 bg-red-500 shadow-[0_0_12px_2px_rgba(239,68,68,0.9)] animate-pulse"
+                style={{
+                  animation: "scanLaser 2s ease-in-out infinite alternate",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Feedback Detected Overlay */}
+          {scannedCode && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm text-center">
+              <CheckCircle2 className="h-12 w-12 text-emerald-400 animate-bounce" />
+              <span className="mt-2 text-sm font-extrabold text-white">
+                Código Capturado!
+              </span>
+              <span className="font-mono text-xs font-bold text-emerald-300">
+                {scannedCode}
+              </span>
+            </div>
+          )}
+
+          {/* Camera Controls on top of video */}
+          <div className="absolute top-3 right-3 flex items-center gap-2">
+            {torchAvailable && (
+              <button
+                type="button"
+                onClick={handleToggleTorch}
+                className={`rounded-full p-2 text-xs font-bold shadow-md transition-colors ${
+                  torchOn ? "bg-amber-400 text-black" : "bg-black/60 text-white hover:bg-black/80"
+                }`}
+                title="Lanterna / Flash"
+              >
+                <Flashlight className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleFlipCamera}
+              className="rounded-full bg-black/60 p-2 text-xs text-white shadow-md hover:bg-black/80"
+              title="Trocar Câmera Frontal/Traseira"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Target Hint Badge */}
+          <div className="pointer-events-none absolute bottom-3 inset-x-0 flex justify-center px-4">
+            <span className="rounded-full bg-black/75 px-3 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-md">
+              Aponte a câmera para o código de barras da embalagem
+            </span>
+          </div>
+        </div>
+
+        {/* Error message if camera is blocked */}
+        {errorMessage && (
+          <div className="border-t border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {/* Manual GTIN Input Fallback */}
+        <div className="border-t border-border bg-card p-4 space-y-2">
+          <label className="block text-[11px] font-bold text-foreground">
+            Ou digite o código de barras (GTIN/EAN) manualmente:
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={manualCode}
+              onChange={(e) => setManualCode(e.target.value)}
+              placeholder="Ex: 7891000100103"
+              className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-xs font-mono text-foreground focus:border-primary focus:outline-none"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && manualCode.trim()) {
+                  e.preventDefault();
+                  handleDetectedCode(manualCode);
+                }
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              disabled={!manualCode.trim()}
+              onClick={() => handleDetectedCode(manualCode)}
+              className="bg-primary text-primary-foreground font-bold text-xs"
+            >
+              <Search className="h-3.5 w-3.5 mr-1" />
+              Aplicar
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes scanLaser {
+          0% { top: 6%; }
+          100% { top: 92%; }
+        }
+      `}</style>
+    </div>
+  );
+};

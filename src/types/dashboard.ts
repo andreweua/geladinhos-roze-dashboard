@@ -242,7 +242,43 @@ export interface PesquisaPrecoLocal {
   data_pesquisa: string; // YYYY-MM-DD (data da consulta)
   data_validade?: string; // YYYY-MM-DD (data de expiração da oferta/cotação)
   em_promocao: boolean;
+  gtin?: string; // Código de barras GTIN / EAN-13
+  foto_url?: string; // Foto oficial do produto (API RSC Sistemas / GTIN)
   observacoes?: string;
+}
+
+/**
+ * Item de Lista de Compras com Cotações & Comparativo de Estabelecimentos
+ */
+export interface ListaComprasItem {
+  id: string;
+  gtin?: string;
+  insumo_nome: string;
+  marca?: string;
+  quantidade_necessaria: number;
+  unidade_medida: "g" | "kg" | "ml" | "l" | "un";
+  quantidade_embalagem?: number; // ex: 395g
+  preco_estimado?: number;
+  preco_cotado?: number;
+  estabelecimento_id?: string;
+  estabelecimento_nome?: string;
+  data_validade?: string;
+  em_promocao?: boolean;
+  comprado: boolean;
+  observacoes?: string;
+}
+
+/**
+ * Lista de Compras para Produção e Reposição de Insumos
+ */
+export interface ListaCompras {
+  id: string;
+  titulo: string;
+  descricao?: string;
+  cidade?: string;
+  itens: ListaComprasItem[];
+  created_at: string;
+  updated_at: string;
 }
 
 /**

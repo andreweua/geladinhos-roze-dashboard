@@ -23,6 +23,11 @@ import {
   HelpCircle,
   Calculator,
   AlertTriangle,
+  Barcode,
+  Camera,
+  ShoppingCart,
+  Upload,
+  Key,
 } from "lucide-react";
 import {
   Card,
@@ -54,6 +59,13 @@ import {
   analyzeHistoricalPrices,
   calculateWeightedAverageCost,
 } from "@/services/marketSurveyService";
+import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
+import { ShoppingListSection } from "@/components/ShoppingListSection";
+import {
+  consultarProdutoPorGtin,
+  getRscGtinToken,
+  saveRscGtinToken,
+} from "@/services/gtinService";
 
 interface LocalMarketAndInvoicesSectionProps {
   onOpenInvoiceModal: () => void;
@@ -68,7 +80,7 @@ export const LocalMarketAndInvoicesSection: React.FC<
   LocalMarketAndInvoicesSectionProps
 > = ({ onOpenInvoiceModal, fichasTecnicas, onApplyPaidPriceToRecipes }) => {
   const [activeTab, setActiveTab] = useState<
-    "estabelecimentos" | "pesquisas" | "historico_inflacao" | "compras"
+    "estabelecimentos" | "pesquisas" | "historico_inflacao" | "compras" | "lista_compras"
   >("pesquisas");
 
   // Live state
@@ -109,6 +121,8 @@ export const LocalMarketAndInvoicesSection: React.FC<
     cidade: "Jaú - SP",
     insumo_nome: "Leite Condensado",
     marca: "",
+    gtin: "",
+    foto_url: "",
     quantidade_embalagem: 395,
     unidade_medida: "g" as PesquisaPrecoLocal["unidade_medida"],
     preco_pesquisado: 4.89,
@@ -117,6 +131,13 @@ export const LocalMarketAndInvoicesSection: React.FC<
     em_promocao: true,
     observacoes: "",
   });
+
+  // Native Barcode Scanner & RSC Sistemas GTIN state
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isSearchingGtin, setIsSearchingGtin] = useState(false);
+  const [gtinSearchFeedback, setGtinSearchFeedback] = useState<string | null>(null);
+  const [rscTokenModalOpen, setRscTokenModalOpen] = useState(false);
+  const [rscTokenInput, setRscTokenInput] = useState(() => getRscGtinToken());
 
   const [selectedInsumoAnalysis, setSelectedInsumoAnalysis] = useState<string>("Leite Condensado");
   const [appliedFeedback, setAppliedFeedback] = useState<string | null>(null);
@@ -212,7 +233,49 @@ export const LocalMarketAndInvoicesSection: React.FC<
     }
   };
 
-  // Handlers for Pesquisa de Preço
+  // Handlers for Pesquisa de Preço & GTIN Barcode
+  const handleConsultarGtin = async (code: string) => {
+    const clean = code.replace(/\D/g, "").trim();
+    if (!clean) return;
+    setIsSearchingGtin(true);
+    setGtinSearchFeedback(null);
+    try {
+      const info = await consultarProdutoPorGtin(clean);
+      if (info) {
+        setPesquisaForm((prev) => ({
+          ...prev,
+          gtin: clean,
+          insumo_nome: info.nome || prev.insumo_nome,
+          marca: info.marca || prev.marca,
+          quantidade_embalagem: info.quantidade_embalagem || prev.quantidade_embalagem,
+          unidade_medida: info.unidade_medida || prev.unidade_medida,
+          foto_url: info.foto_url || prev.foto_url,
+        }));
+        setGtinSearchFeedback(
+          `Identificado (${info.fonte === "rsc_sistemas" ? "API RSC Sistemas" : "Catálogo Oficial"}): ${info.nome}`
+        );
+      } else {
+        setGtinSearchFeedback("Código GTIN não localizado. Preencha os campos abaixo.");
+      }
+    } catch {
+      setGtinSearchFeedback("Erro ao consultar GTIN.");
+    } finally {
+      setIsSearchingGtin(false);
+    }
+  };
+
+  const handleBarcodeScanned = (scannedGtin: string) => {
+    setPesquisaForm((prev) => ({ ...prev, gtin: scannedGtin }));
+    handleConsultarGtin(scannedGtin);
+  };
+
+  const handleSaveRscToken = () => {
+    saveRscGtinToken(rscTokenInput);
+    setRscTokenModalOpen(false);
+    setGtinSearchFeedback("Token RSC Sistemas salvo com sucesso!");
+    setTimeout(() => setGtinSearchFeedback(null), 3500);
+  };
+
   const handleOpenNewPesquisa = () => {
     const firstEstab = estabelecimentos[0];
     setPesquisaForm({
@@ -220,6 +283,8 @@ export const LocalMarketAndInvoicesSection: React.FC<
       cidade: firstEstab?.cidade || "Jaú - SP",
       insumo_nome: commonIngredients[0] || "Leite Condensado",
       marca: "",
+      gtin: "",
+      foto_url: "",
       quantidade_embalagem: 395,
       unidade_medida: "g",
       preco_pesquisado: 4.89,
@@ -228,6 +293,7 @@ export const LocalMarketAndInvoicesSection: React.FC<
       em_promocao: true,
       observacoes: "",
     });
+    setGtinSearchFeedback(null);
     setPesquisaModalOpen(true);
   };
 
@@ -249,6 +315,8 @@ export const LocalMarketAndInvoicesSection: React.FC<
       data_pesquisa: pesquisaForm.data_pesquisa,
       data_validade: pesquisaForm.data_validade || undefined,
       em_promocao: pesquisaForm.em_promocao,
+      gtin: pesquisaForm.gtin?.trim() || undefined,
+      foto_url: pesquisaForm.foto_url?.trim() || undefined,
       observacoes: pesquisaForm.observacoes.trim() || undefined,
     });
 
@@ -405,8 +473,18 @@ export const LocalMarketAndInvoicesSection: React.FC<
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setActiveTab("lista_compras")}
+                className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10 text-xs font-semibold"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                <span>Listas de Compras</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={onOpenInvoiceModal}
-                className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+                className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10 text-xs"
               >
                 <Receipt className="h-4 w-4" />
                 <span>Importar Cupom / NF-e</span>
@@ -417,24 +495,22 @@ export const LocalMarketAndInvoicesSection: React.FC<
                   variant="default"
                   size="sm"
                   onClick={handleOpenNewEstab}
-                  className="gap-1.5 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 font-bold"
+                  className="gap-1.5 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 font-bold text-xs"
                 >
                   <Plus className="h-4 w-4" />
                   <span>Novo Estabelecimento</span>
                 </Button>
               )}
 
-              {activeTab === "pesquisas" && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleOpenNewPesquisa}
-                  className="gap-1.5 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 font-bold"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Nova Cotação c/ Validade</span>
-                </Button>
-              )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleOpenNewPesquisa}
+                className="gap-1.5 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 font-bold text-xs"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Nova Cotação c/ Validade</span>
+              </Button>
             </div>
           </div>
 
@@ -545,6 +621,19 @@ export const LocalMarketAndInvoicesSection: React.FC<
             >
               <FileText className="h-4 w-4" />
               4. Preços Efetivamente Pagos (Cupons & NF-e)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("lista_compras")}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                activeTab === "lista_compras"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <ShoppingCart className="h-4 w-4" />
+              5. Listas de Compras & Importação
             </button>
           </div>
         </CardContent>
@@ -1264,6 +1353,14 @@ export const LocalMarketAndInvoicesSection: React.FC<
         </div>
       )}
 
+      {/* SUB-ABA 5: LISTAS DE COMPRAS & IMPORTAÇÃO */}
+      {activeTab === "lista_compras" && (
+        <ShoppingListSection
+          estabelecimentos={estabelecimentos}
+          onQuotationsSaved={() => setPesquisas(loadPesquisasPreco())}
+        />
+      )}
+
       {/* MODAL EXPLICATIVO: CUSTO DE REPOSIÇÃO VS CUSTO MÉDIO PONDERADO (CMP) */}
       {showCostMethodModal && pendingRecipeApply && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -1602,6 +1699,112 @@ export const LocalMarketAndInvoicesSection: React.FC<
                 </div>
               </div>
 
+              {/* Pesquisa por Código de Barras GTIN / EAN com Câmera */}
+              <div className="rounded-xl border border-primary/25 bg-primary/5 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                    <Barcode className="h-4 w-4 text-primary" />
+                    Código de Barras GTIN / EAN-13 (Opcional):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setRscTokenModalOpen(true)}
+                    className="text-[11px] text-primary hover:underline font-semibold flex items-center gap-1"
+                  >
+                    <Key className="h-3 w-3" />
+                    {getRscGtinToken() ? "Token RSC Sistemas Ativo" : "Configurar Token RSC Sistemas"}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={pesquisaForm.gtin}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPesquisaForm((prev) => ({ ...prev, gtin: val }));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && pesquisaForm.gtin.trim()) {
+                          e.preventDefault();
+                          handleConsultarGtin(pesquisaForm.gtin);
+                        }
+                      }}
+                      placeholder="Ex: 7891000100103 ou escaneie com a câmera"
+                      className="w-full rounded-xl border border-input bg-background pl-3 pr-8 py-2 text-xs font-mono text-foreground focus:border-primary focus:outline-none"
+                    />
+                    {pesquisaForm.gtin && (
+                      <button
+                        type="button"
+                        onClick={() => setPesquisaForm((prev) => ({ ...prev, gtin: "", foto_url: "" }))}
+                        className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isSearchingGtin || !pesquisaForm.gtin.trim()}
+                    onClick={() => handleConsultarGtin(pesquisaForm.gtin)}
+                    className="gap-1 text-xs font-semibold"
+                  >
+                    <Search className="h-3.5 w-3.5" />
+                    <span>{isSearchingGtin ? "Buscando..." : "Buscar"}</span>
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={() => setIsScannerOpen(true)}
+                    className="gap-1.5 bg-primary text-primary-foreground font-bold text-xs shadow-sm"
+                  >
+                    <Camera className="h-3.5 w-3.5" />
+                    <span>Câmera</span>
+                  </Button>
+                </div>
+
+                {gtinSearchFeedback && (
+                  <div className="rounded-lg bg-background/90 p-2 text-[11px] font-medium text-foreground flex items-center justify-between border border-border">
+                    <span className="truncate">{gtinSearchFeedback}</span>
+                    {pesquisaForm.gtin && (
+                      <a
+                        href={`https://www.gtin.rscsistemas.com.br/?gtin=${pesquisaForm.gtin}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline font-bold inline-flex items-center gap-1 shrink-0 ml-2"
+                      >
+                        Ver no RSC Sistemas
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {pesquisaForm.foto_url && (
+                  <div className="flex items-center gap-3 pt-1 border-t border-border/60">
+                    <img
+                      src={pesquisaForm.foto_url}
+                      alt={pesquisaForm.insumo_nome}
+                      className="h-12 w-12 rounded-lg border border-border object-contain bg-white p-1"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                    <div className="text-[11px] text-muted-foreground">
+                      <strong className="text-foreground">{pesquisaForm.insumo_nome}</strong>
+                      <span className="block">{pesquisaForm.marca} • {pesquisaForm.quantidade_embalagem}{pesquisaForm.unidade_medida}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block font-semibold text-foreground">
                   Insumo / Ingrediente *:
@@ -1806,6 +2009,85 @@ export const LocalMarketAndInvoicesSection: React.FC<
           </div>
         </div>
       )}
+      {/* MODAL CONFIGURAR TOKEN RSC SISTEMAS */}
+      {rscTokenModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Key className="h-4 w-4 text-primary" />
+                Token da API GTIN RSC Sistemas
+              </h3>
+              <button
+                type="button"
+                onClick={() => setRscTokenModalOpen(false)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-muted-foreground leading-relaxed">
+                Insira abaixo o seu Token de Acesso da plataforma <strong>RSC Sistemas / GTIN OSCBR</strong> (
+                <a
+                  href="https://www.gtin.rscsistemas.com.br/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary hover:underline font-bold"
+                >
+                  gtin.rscsistemas.com.br
+                </a>
+                ).
+              </p>
+
+              <div>
+                <label className="block font-bold text-foreground mb-1">
+                  Bearer Token da API RSC Sistemas:
+                </label>
+                <textarea
+                  rows={3}
+                  value={rscTokenInput}
+                  onChange={(e) => setRscTokenInput(e.target.value)}
+                  placeholder="Cole aqui seu token de acesso da RSC Sistemas..."
+                  className="w-full rounded-xl border border-input bg-background p-2.5 font-mono text-xs focus:border-primary focus:outline-none"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  💡 Salvo no seu navegador com segurança. Permite consultar automaticamente nome, marca, foto e dados fiscais de qualquer código de barras no Brasil.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRscTokenModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={handleSaveRscToken}
+                className="bg-primary text-primary-foreground font-bold"
+              >
+                Salvar Token
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Barcode Scanner Modal with Native Camera */}
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleBarcodeScanned}
+        title="Escanear Código GTIN / EAN do Produto"
+      />
     </section>
   );
 };
