@@ -204,7 +204,8 @@ export interface DashboardDataSnapshot {
 export interface EstabelecimentoLocal {
   id: string;
   nome: string;
-  tipo: "Atacado" | "Supermercado" | "Distribuidora" | "Empório" | "Internet" | "Outro";
+  tipo: "Atacado" | "Atacado e Varejo" | "Supermercado" | "Distribuidora" | "Empório" | "Internet" | "Outro";
+  cidade?: string; // ex: "Jaú - SP" | "Três Pontas - MG"
   endereco_fisico: string; // Rua, número, bairro, cidade, CEP
   endereco_eletronico: string; // Site, e-commerce, Google Maps, WhatsApp ou Instagram
   telefone?: string;
@@ -221,13 +222,15 @@ export interface PesquisaPrecoLocal {
   id: string;
   estabelecimento_id: string;
   estabelecimento_nome: string;
+  cidade?: string; // ex: "Jaú - SP" | "Três Pontas - MG"
   insumo_nome: string; // ex: Leite Condensado, Creme de Leite, Nutella, etc.
   marca: string; // ex: Moça, Italac, Piracanjuba, Ferrero
   quantidade_embalagem: number; // ex: 395, 1000, 200, 650
   unidade_medida: "g" | "kg" | "ml" | "l" | "un";
   preco_pesquisado: number; // R$
   preco_por_kg_ou_l: number; // Preço normalizado em R$/kg ou R$/L para comparação
-  data_pesquisa: string; // YYYY-MM-DD
+  data_pesquisa: string; // YYYY-MM-DD (data da consulta)
+  data_validade?: string; // YYYY-MM-DD (data de expiração da oferta/cotação)
   em_promocao: boolean;
   observacoes?: string;
 }

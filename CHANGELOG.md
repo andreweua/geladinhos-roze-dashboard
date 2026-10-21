@@ -7,6 +7,27 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [1.9.0] - 2026-10-20
+
+### Adicionado & Aprimorado
+- **Pré-Cadastro Regional: Jaú (SP) e Três Pontas (MG)**:
+  - Estabelecimentos pré-cadastrados com endereços físicos completos, canais eletrônicos oficiais (sites, e-commerce, WhatsApp) e telefones de contato:
+    - **Jaú - SP**: *Jaú Serve Supermercados (Loja Centro)*, *Atacadão Jaú*, *Tenda Atacado Jaú* e *Jaú Embalagens & Confeitaria*.
+    - **Três Pontas - MG**: *Mart Minas Atacado & Varejo (Sul de Minas)*, *Supermercado Moacyr (Centro)* e *Alvorada Supermercados*.
+- **Novo Tipo de Estabelecimento: "Atacado e Varejo" (Atacarejos)**:
+  - Inclusão do tipo oficial **"Atacado e Varejo"** no seletor de estabelecimentos, contemplando grandes atacarejos como o *Mart Minas*, *Atacadão* e *Tenda Atacado*.
+- **Controle de Validade de Ofertas & Radar Histórico Anti-Inflação**:
+  - Campo obrigatório **"Validade da Oferta"** em todas as cotações de preços.
+  - **Bloqueio de Preços Expirados na Data Atual**: Se a validade já passou, o sistema não deixa a oferta aparecer como o preço real de hoje e impede que ela vença como o menor preço vigente.
+  - **Histórico Completo & Radar de Inflação**: Ofertas expiradas são preservadas no banco para traçar a evolução histórica de preços ($\Delta\%$ inflação acumulada ao longo dos meses e anos).
+  - **Inteligência de Compra ("Oportunidade de Estocar")**: Quando uma cotação vigente está $\ge 12\%$ a $15\%$ mais barata que a média histórica, o sistema aciona automaticamente o alerta: `🔥 Oportunidade de Estocar: O preço atual está X% abaixo da média histórica! Excelente momento para abastecer o estoque e blindar o lucro.`
+- **Gestão Contábil de Insumos: Custo de Reposição vs. Custo Médio Ponderado (CMP)**:
+  - Adicionado modal interativo e didático ao aplicar os preços pagos de cupons/notas fiscais:
+    - **Opção 1 — Custo de Reposição Atual (Recomendado para Precificação)**: Aplica o valor da última compra real para garantir que o faturamento de cada geladinho cubra o valor que o supermercado cobrará amanhã para repor os insumos, evitando descapitalização.
+    - **Opção 2 — Custo Médio Ponderado (CMP)**: Pondera o saldo de insumos antigos em estoque com o novo lote que acabou de entrar, diluindo custos de compras volumosas em promoção.
+
+---
+
 ## [1.8.0] - 2026-10-20
 
 ### Adicionado & Aprimorado

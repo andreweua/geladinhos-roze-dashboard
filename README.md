@@ -1,13 +1,12 @@
 # 🍧 Geladinhos Gourmet da Roze — Dashboard Gerencial (PWA & White-Label)
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-1.8.0-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-1.9.0-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Dados](https://img.shields.io/badge/Dados-100%25%20Reais-10b981)
-![Pagamento](https://img.shields.io/badge/Ton%20Pix-BACEN%20EMV%20QR%20Code-2563eb)
-![WhatsApp](https://img.shields.io/badge/WhatsApp-Checkout%20%26%20Recibo-22c55e)
-![Mercados](https://img.shields.io/badge/Pesquisa%20de%20Pre%C3%A7o-Mercados%20Locais-f59e0b)
+![Praças](https://img.shields.io/badge/Pra%C3%A7as-Ja%C3%BA%20(SP)%20%7C%20Tr%C3%AAs%20Pontas%20(MG)-2563eb)
+![Atacado & Varejo](https://img.shields.io/badge/Atacado%20%26%20Varejo-Mart%20Minas%20%7C%20Atacad%C3%A3o-f59e0b)
+![Anti-Inflação](https://img.shields.io/badge/Validade%20%26%20Radar-Anti--Infla%C3%A7%C3%A3o-10b981)
 
-Dashboard financeiro, operacional, de Frente de Caixa (PDV) e Inteligência Artificial desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase (PostgreSQL) + PereiraLabs IA**, com suporte a **Pix QR Code Ton (BR Code EMV dinâmico)**, integração com **WhatsApp**, **Pesquisa de Mercados Locais (endereço físico e eletrônico)**, **Preços Pagos Reais via Cupom/NF-e**, instalação como **PWA** e hospedagem no **GitHub Pages**.
+Dashboard financeiro, operacional, de Frente de Caixa (PDV) e Inteligência Artificial desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase (PostgreSQL) + PereiraLabs IA**, com suporte a **Pix QR Code Ton (BR Code EMV dinâmico)**, integração com **WhatsApp**, **Pesquisa de Mercados em Jaú (SP) e Três Pontas (MG)**, **Controle de Validade de Ofertas**, **Radar de Inflação & Oportunidade de Estocar**, **Preços Pagos Reais via Cupom/NF-e** e instalação como **PWA**.
 
 - 🌐 **Acesse a Demonstração Online (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
 - 📋 **Histórico de Versões**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
@@ -16,18 +15,19 @@ Dashboard financeiro, operacional, de Frente de Caixa (PDV) e Inteligência Arti
 
 ## 📊 Funcionalidades Principais
 
-1. **100% Dados Reais (`v1.8.0`)**:
-   - Eliminação de qualquer venda fictícia ou sintética. O painel opera exclusivamente com as 8 receitas reais cadastradas dos PDFs e vendas reais lançadas pela Rozana no Frente de Caixa (PDV).
-2. **Pesquisa de Mercados Locais & Preços Pagos (`v1.8.0`)**:
-   - **Cadastro de Estabelecimentos**: Registro de Mercados, Atacados e Distribuidoras locais com **Endereço Físico Completo** (Rua, bairro, cidade, CEP), **Endereço Eletrônico Oficial** (Site, e-commerce, Google Maps, WhatsApp ou Instagram), telefone e observações.
-   - **Pesquisa de Preços nos Mercados (Cotações)**: Registro de cotações com cálculo automático do **Preço Normalizado (R$ por Kg ou R$ por Litro)** e selo de **"Menor Preço Local"**.
-   - **Preços Efetivamente Pagos (Cupons & NF-e)**: Histórico de notas fiscais reais importadas com botão de 1 clique para atualizar a Ficha Técnica oficial.
-3. **Frente de Caixa (PDV) com Pix Ton Dinâmico & WhatsApp (`v1.7.0`)**:
-   - **QR Code Pix Dinâmico**: Geração oficial BACEN BR Code EMV Payload (`TLV + CRC16 CCITT`) com valor da venda em tempo real para a chave Ton da titular `ROZANA HELENA MIGUEL` (`+5514988183327`).
-   - **Copiar Pix Copia e Cola**: 1 toque com feedback visual.
-   - **Enviar pelo WhatsApp**: Link direto `wa.me/55...` com resumo completo do pedido e chave Pix para pagamento à distância.
-   - **Calculadora de Troco para Dinheiro**: Atalhos de cédulas (R$ 10, R$ 20, R$ 50, R$ 100).
-   - **Dedução Imediata de Estoque**: Baixa automática das unidades no estoque.
+1. **Pré-Cadastro Regional Jaú (SP) e Três Pontas (MG) + Atacado e Varejo (`v1.9.0`)**:
+   - Estabelecimentos pré-cadastrados com endereços físicos completos e canais eletrônicos: *Mart Minas Atacado & Varejo (Sul de Minas)*, *Atacadão Jaú*, *Jaú Serve Supermercados*, *Tenda Atacado*, *Supermercado Moacyr*, *Alvorada Supermercados* e *Jaú Embalagens*.
+   - Suporte oficial ao tipo **"Atacado e Varejo"** (Atacarejos).
+2. **Validade de Ofertas & Radar Anti-Inflação (`v1.9.0`)**:
+   - Bloqueio automático: cotações expiradas não concorrem ao "Menor Preço Vigente Hoje".
+   - Histórico permanente com cálculo de inflação acumulada ao longo dos meses e anos.
+   - Alerta inteligente: `🔥 Oportunidade de Estocar` acionado quando o preço vigente está $\ge 12\%$ a $15\%$ mais barato que a média histórica.
+3. **Gestão de Custos de Insumos: Custo de Reposição vs. Custo Médio Ponderado (CMP)**:
+   - Permite escolher entre precificar pelo custo da última reposição (recomendado para proteger a margem contra a inflação) ou pelo CMP (para compras em grande escala).
+4. **100% Dados Reais**:
+   - Sem vendas fictícias. O painel opera exclusivamente com as 8 receitas reais dos PDFs e vendas reais lançadas pela Rozana no Frente de Caixa (PDV).
+5. **Frente de Caixa (PDV) com Pix Ton Dinâmico & WhatsApp**:
+   - QR Code Pix BACEN EMV Payload oficial com chave Ton da titular `ROZANA HELENA MIGUEL` (`+5514988183327`), botão Copiar Pix e envio direto para WhatsApp.
 4. **Arquitetura de Navegação**:
    - **1. Visão Geral de Vendas**: 5 KPIs, 5 Gráficos Analíticos, Tabelas de Últimas Vendas e Reposição.
    - **2. Ficha Técnica & DRE por Produto**: Matriz comparativa dos 8 sabores, precificação iFood dinâmica (`Preço Local / 0,738`) e editor de receitas.

@@ -6,9 +6,9 @@ import {
 } from "@/types/dashboard";
 
 const STORAGE_KEYS = {
-  estabelecimentos: `${BRAND_CONFIG.storagePrefix}_estabelecimentos_v1`,
-  pesquisas: `${BRAND_CONFIG.storagePrefix}_pesquisas_precos_v1`,
-  compras: `${BRAND_CONFIG.storagePrefix}_compras_reais_v1`,
+  estabelecimentos: `${BRAND_CONFIG.storagePrefix}_estabelecimentos_v2_jau_trespontas`,
+  pesquisas: `${BRAND_CONFIG.storagePrefix}_pesquisas_precos_v2_validade`,
+  compras: `${BRAND_CONFIG.storagePrefix}_compras_reais_v2`,
 };
 
 /**
@@ -35,215 +35,441 @@ export function calculateNormalizedPrice(
 }
 
 /**
- * Estabelecimentos Reais Iniciais (Região DDD 14 / Marília / SP)
+ * Verifica se a cotação/oferta ainda é válida na data atual
+ * Se a data de validade já passou, ela NÃO é considerada o preço ativo vigente de hoje!
+ */
+export function isQuotationValid(
+  quotation: PesquisaPrecoLocal,
+  referenceDate: Date = new Date()
+): boolean {
+  if (!quotation.data_validade) {
+    // Se não tiver validade cadastrada, considera válida por 7 dias a partir da data da pesquisa
+    const searchDate = new Date(quotation.data_pesquisa);
+    const maxDate = new Date(searchDate.getTime() + 7 * 86400000);
+    return referenceDate.getTime() <= maxDate.getTime();
+  }
+
+  const validUntil = new Date(`${quotation.data_validade}T23:59:59`);
+  return referenceDate.getTime() <= validUntil.getTime();
+}
+
+/**
+ * Análise Histórica de Preços & Tendência de Inflação por Insumo
+ */
+export interface HistoricalPriceAnalysis {
+  insumo_nome: string;
+  totalCotacoes: number;
+  cotacoesVigentes: number;
+  cotacoesExpiradas: number;
+  menorPrecoVigente: number | null;
+  estabelecimentoMenorPreco: string | null;
+  mediaHistorica: number;
+  menorHistorico: number;
+  maiorHistorico: number;
+  inflacaoAcumuladaPct: number;
+  sugestaoEstocar: boolean;
+  motivoEstoque: string | null;
+}
+
+export function analyzeHistoricalPrices(
+  allQuotations: PesquisaPrecoLocal[],
+  insumoNome: string
+): HistoricalPriceAnalysis {
+  const normTarget = insumoNome.toLowerCase().trim();
+  const related = allQuotations.filter((q) => {
+    const qName = q.insumo_nome.toLowerCase().trim();
+    return qName.includes(normTarget) || normTarget.includes(qName);
+  });
+
+  if (related.length === 0) {
+    return {
+      insumo_nome: insumoNome,
+      totalCotacoes: 0,
+      cotacoesVigentes: 0,
+      cotacoesExpiradas: 0,
+      menorPrecoVigente: null,
+      estabelecimentoMenorPreco: null,
+      mediaHistorica: 0,
+      menorHistorico: 0,
+      maiorHistorico: 0,
+      inflacaoAcumuladaPct: 0,
+      sugestaoEstocar: false,
+      motivoEstoque: null,
+    };
+  }
+
+  const validQuotes = related.filter((q) => isQuotationValid(q));
+  const expiredQuotes = related.filter((q) => !isQuotationValid(q));
+
+  const allNormalizedPrices = related.map((q) => q.preco_por_kg_ou_l);
+  const mediaHistorica = Number(
+    (
+      allNormalizedPrices.reduce((a, b) => a + b, 0) /
+      allNormalizedPrices.length
+    ).toFixed(2)
+  );
+  const menorHistorico = Math.min(...allNormalizedPrices);
+  const maiorHistorico = Math.max(...allNormalizedPrices);
+
+  // Menor preço entre as ofertas VIGENTES (que não expiraram)
+  let menorPrecoVigente: number | null = null;
+  let estabelecimentoMenorPreco: string | null = null;
+
+  if (validQuotes.length > 0) {
+    validQuotes.sort((a, b) => a.preco_por_kg_ou_l - b.preco_por_kg_ou_l);
+    menorPrecoVigente = validQuotes[0].preco_por_kg_ou_l;
+    estabelecimentoMenorPreco = `${validQuotes[0].estabelecimento_nome} (${validQuotes[0].marca})`;
+  }
+
+  // Variação percentual entre a primeira cotação histórica e a mais recente
+  const sortedByDate = [...related].sort(
+    (a, b) =>
+      new Date(a.data_pesquisa).getTime() - new Date(b.data_pesquisa).getTime()
+  );
+  const precoAntigo = sortedByDate[0].preco_por_kg_ou_l;
+  const precoRecente =
+    sortedByDate[sortedByDate.length - 1].preco_por_kg_ou_l;
+  const inflacaoAcumuladaPct =
+    precoAntigo > 0
+      ? Number((((precoRecente - precoAntigo) / precoAntigo) * 100).toFixed(1))
+      : 0;
+
+  // Sugestão de Estoque inteligente:
+  // Se o menor preço vigente estiver pelo menos 12% abaixo da média histórica, vale muito a pena estocar!
+  let sugestaoEstocar = false;
+  let motivoEstoque: string | null = null;
+
+  if (menorPrecoVigente !== null && mediaHistorica > 0) {
+    const descontoEmRelacaoAMedia =
+      ((mediaHistorica - menorPrecoVigente) / mediaHistorica) * 100;
+    if (descontoEmRelacaoAMedia >= 12) {
+      sugestaoEstocar = true;
+      motivoEstoque = `Preço vigente está ${descontoEmRelacaoAMedia.toFixed(
+        0
+      )}% abaixo da média histórica (${BRAND_CONFIG.currency} ${mediaHistorica.toFixed(
+        2
+      )}). Excelente oportunidade para abastecer o estoque e proteger a margem!`;
+    }
+  }
+
+  return {
+    insumo_nome: insumoNome,
+    totalCotacoes: related.length,
+    cotacoesVigentes: validQuotes.length,
+    cotacoesExpiradas: expiredQuotes.length,
+    menorPrecoVigente,
+    estabelecimentoMenorPreco,
+    mediaHistorica,
+    menorHistorico,
+    maiorHistorico,
+    inflacaoAcumuladaPct,
+    sugestaoEstocar,
+    motivoEstoque,
+  };
+}
+
+/**
+ * Cálculo de Custo Médio Ponderado (CMP) para Insumos de Estoque
+ * Fórmula: ((Estoque Atual * Custo Médio Atual) + (Qtd Nova * Custo Novo)) / (Estoque Atual + Qtd Nova)
+ */
+export function calculateWeightedAverageCost(
+  estoqueAtual: number,
+  custoAtual: number,
+  qtdNova: number,
+  custoNovo: number
+): {
+  custoMedioPonderado: number;
+  quantidadeTotal: number;
+  diferencaPercentual: number;
+} {
+  const qtdTotal = Math.max(0, estoqueAtual) + Math.max(0, qtdNova);
+  if (qtdTotal <= 0) {
+    return {
+      custoMedioPonderado: custoNovo || custoAtual,
+      quantidadeTotal: 0,
+      diferencaPercentual: 0,
+    };
+  }
+
+  const valorTotal =
+    Math.max(0, estoqueAtual) * Math.max(0, custoAtual) +
+    Math.max(0, qtdNova) * Math.max(0, custoNovo);
+  const cmp = Number((valorTotal / qtdTotal).toFixed(2));
+  const diffPct =
+    custoAtual > 0
+      ? Number((((cmp - custoAtual) / custoAtual) * 100).toFixed(1))
+      : 0;
+
+  return {
+    custoMedioPonderado: cmp,
+    quantidadeTotal: qtdTotal,
+    diferencaPercentual: diffPct,
+  };
+}
+
+/**
+ * Estabelecimentos Reais Iniciais — Jaú (SP) e Três Pontas (MG)
+ * Inclui "Atacado e Varejo" (Atacarejos como Mart Minas, Atacadão, Tenda)
  */
 const DEFAULT_ESTABELECIMENTOS: EstabelecimentoLocal[] = [
+  // --- JAÚ - SP ---
   {
-    id: "est-atacadao-marilia",
-    nome: "Atacadão - Unidade Marília",
-    tipo: "Atacado",
-    endereco_fisico: "Rod. Comandante João Ribeiro de Barros, km 448 - Marília/SP - CEP 17512-000",
+    id: "est-jau-serve-matriz",
+    nome: "Jaú Serve Supermercados - Loja Centro",
+    tipo: "Supermercado",
+    cidade: "Jaú - SP",
+    endereco_fisico: "Rua Floriano Peixoto, 575 - Centro, Jaú/SP - CEP 17201-100",
+    endereco_eletronico: "https://www.jauserve.com.br",
+    telefone: "(14) 3602-1500",
+    contato_responsavel: "Gerência Loja Centro",
+    observacoes: "Rede tradicional de Jaú. Ofertas fortes em laticínios nas terças e quartas-feiras.",
+    created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "est-atacadao-jau",
+    nome: "Atacadão - Unidade Jaú",
+    tipo: "Atacado e Varejo",
+    cidade: "Jaú - SP",
+    endereco_fisico: "Av. Deputado Zien Nassif, 1400 - Chácara Peccioli, Jaú/SP - CEP 17210-630",
     endereco_eletronico: "https://www.atacadao.com.br",
-    telefone: "(14) 3402-1200",
-    contato_responsavel: "Televendas Atacado",
-    observacoes: "Melhores preços em caixas fechadas de Leite Condensado e Creme de Leite.",
+    telefone: "(14) 3601-2000",
+    contato_responsavel: "Televendas Atacado e Varejo",
+    observacoes: "Preço especial a partir de fardos com 27 caixas de Leite Condensado e Creme de Leite.",
     created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
-    id: "est-assai-marilia",
-    nome: "Assaí Atacadista - Marília",
-    tipo: "Atacado",
-    endereco_fisico: "Av. Tiradentes, 1200 - Bairro Fragata, Marília/SP - CEP 17519-000",
-    endereco_eletronico: "https://www.assai.com.br",
-    telefone: "(14) 3401-4400",
+    id: "est-tenda-jau",
+    nome: "Tenda Atacado - Jaú",
+    tipo: "Atacado e Varejo",
+    cidade: "Jaú - SP",
+    endereco_fisico: "Av. Antônio Paschoal, 850 - Jaú/SP - CEP 17208-000",
+    endereco_eletronico: "https://www.tendaatacado.com.br",
+    telefone: "(14) 3602-3000",
     contato_responsavel: "Balcão Atacado",
-    observacoes: "Ótima cotação para Nutella 650g e Chocolate em Pó 50%.",
-    created_at: new Date(Date.now() - 28 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "est-tauste-tiradentes",
-    nome: "Tauste Supermercados - Tiradentes",
-    tipo: "Supermercado",
-    endereco_fisico: "Av. Tiradentes, 1131 - Fragata, Marília/SP - CEP 17519-000",
-    endereco_eletronico: "https://www.tauste.com.br",
-    telefone: "(14) 3402-2200",
-    contato_responsavel: "Atendimento ao Cliente",
-    observacoes: "Varejo ágil para compras de emergência e frutas frescas para geleias.",
+    observacoes: "Atacado e Varejo com desconto automático no cartão da loja e no app.",
     created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
-    id: "est-confianca-marilia",
-    nome: "Confiança Supermercados - Aquarius",
-    tipo: "Supermercado",
-    endereco_fisico: "Av. Vicente Ferreira, 990 - Cascata, Marília/SP - CEP 17515-000",
-    endereco_eletronico: "https://www.clienteconfianca.com.br",
-    telefone: "(14) 3402-9000",
-    contato_responsavel: "SAC Loja",
-    observacoes: "Encarte semanal com promoções em Leite Ninho e Leite Condensado Moça.",
+    id: "est-jau-embalagens",
+    nome: "Jaú Embalagens & Confeitaria",
+    tipo: "Distribuidora",
+    cidade: "Jaú - SP",
+    endereco_fisico: "Rua Major Prado, 420 - Centro, Jaú/SP - CEP 17201-070",
+    endereco_eletronico: "https://wa.me/5514988183327",
+    telefone: "(14) 3622-4545",
+    contato_responsavel: "Setor de Embalagens",
+    observacoes: "Distribuidora oficial dos saquinhos de 150ml cristal polietileno e fitilhos.",
     created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
+
+  // --- TRÊS PONTAS - MG ---
   {
-    id: "est-doce-festa-embalagens",
-    nome: "Doce & Festa Embalagens e Confeitaria",
-    tipo: "Distribuidora",
-    endereco_fisico: "R. Nove de Julho, 715 - Centro, Marília/SP - CEP 17500-120",
-    endereco_eletronico: "https://wa.me/5514988183327",
-    telefone: "(14) 3433-8899",
-    contato_responsavel: "Setor de Embalagens",
-    observacoes: "Fornecedor oficial dos saquinhos de 150ml, fitas adesivas e caixas térmicas.",
+    id: "est-mart-minas-trespontas",
+    nome: "Mart Minas Atacado & Varejo - Sul de Minas",
+    tipo: "Atacado e Varejo",
+    cidade: "Três Pontas - MG",
+    endereco_fisico: "Rodovia MG-167, km 32 (Acesso Três Pontas / Varginha) - Três Pontas/MG - CEP 37190-000",
+    endereco_eletronico: "https://www.martminas.com.br",
+    telefone: "(35) 3266-9000",
+    contato_responsavel: "Televendas Atacado e Varejo Mart Minas",
+    observacoes: "Principal atacarejo do Sul de Minas (Atacado e Varejo). Preços imbatíveis em Leite Moça, Itambé e Nutella 650g.",
+    created_at: new Date(Date.now() - 28 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "est-moacyr-trespontas",
+    nome: "Supermercado Moacyr - Três Pontas",
+    tipo: "Supermercado",
+    cidade: "Três Pontas - MG",
+    endereco_fisico: "Praça Cônego Victor, 150 - Centro, Três Pontas/MG - CEP 37190-000",
+    endereco_eletronico: "https://www.supermercadomoacyr.com.br",
+    telefone: "(35) 3265-1020",
+    contato_responsavel: "SAC Loja Centro",
+    observacoes: "Supermercado tradicional no centro de Três Pontas para compras de urgência e frutas frescas.",
+    created_at: new Date(Date.now() - 22 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "est-alvorada-trespontas",
+    nome: "Alvorada Supermercados - Três Pontas",
+    tipo: "Supermercado",
+    cidade: "Três Pontas - MG",
+    endereco_fisico: "Rua Nossa Senhora d'Ajuda, 310 - Três Pontas/MG - CEP 37190-000",
+    endereco_eletronico: "https://www.alvoradasupermercados.com.br",
+    telefone: "(35) 3265-4400",
+    contato_responsavel: "Gerente Operacional",
+    observacoes: "Encarte semanal com promoções fortes na linha Itambé e Piracanjuba.",
     created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
 ];
 
 /**
- * Pesquisas Reais Iniciais vinculadas aos preços cotados reais
+ * Pesquisas Reais Iniciais (Jaú - SP e Três Pontas - MG)
+ * Contendo cotações vigentes (com validade no futuro) e cotações históricas/expiradas (para histórico de inflação)
  */
 const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
+  // Cotação 1: Vigente (Mart Minas Atacado e Varejo)
   {
-    id: "pesq-1",
-    estabelecimento_id: "est-atacadao-marilia",
-    estabelecimento_nome: "Atacadão - Unidade Marília",
+    id: "pesq-mm-1",
+    estabelecimento_id: "est-mart-minas-trespontas",
+    estabelecimento_nome: "Mart Minas Atacado & Varejo - Sul de Minas",
+    cidade: "Três Pontas - MG",
     insumo_nome: "Leite Condensado",
-    marca: "Piracanjuba (Caixa 395g)",
+    marca: "Piracanjuba TP 395g",
     quantidade_embalagem: 395,
     unidade_medida: "g",
-    preco_pesquisado: 4.99,
-    preco_por_kg_ou_l: 12.63,
+    preco_pesquisado: 4.89,
+    preco_por_kg_ou_l: 12.38,
     data_pesquisa: "2026-10-18",
+    data_validade: "2026-10-31", // Vigente!
     em_promocao: true,
-    observacoes: "Preço para fardo com 27 caixinhas (R$ 134,73 total).",
+    observacoes: "Preço de Atacado a partir de 12 caixinhas no Mart Minas.",
   },
+
+  // Cotação 2: Vigente (Atacadão Jaú)
   {
-    id: "pesq-2",
-    estabelecimento_id: "est-tauste-tiradentes",
-    estabelecimento_nome: "Tauste Supermercados - Tiradentes",
+    id: "pesq-atc-jau-1",
+    estabelecimento_id: "est-atacadao-jau",
+    estabelecimento_nome: "Atacadão - Unidade Jaú",
+    cidade: "Jaú - SP",
     insumo_nome: "Leite Condensado",
-    marca: "Moça Nestlé (Lata 395g)",
+    marca: "Piracanjuba TP 395g",
     quantidade_embalagem: 395,
     unidade_medida: "g",
-    preco_pesquisado: 6.89,
-    preco_por_kg_ou_l: 17.44,
+    preco_pesquisado: 4.95,
+    preco_por_kg_ou_l: 12.53,
     data_pesquisa: "2026-10-19",
-    em_promocao: false,
-    observacoes: "Preço no varejo comum.",
-  },
-  {
-    id: "pesq-3",
-    estabelecimento_id: "est-atacadao-marilia",
-    estabelecimento_nome: "Atacadão - Unidade Marília",
-    insumo_nome: "Creme de Leite",
-    marca: "Itambé (Caixinha 200g)",
-    quantidade_embalagem: 200,
-    unidade_medida: "g",
-    preco_pesquisado: 2.49,
-    preco_por_kg_ou_l: 12.45,
-    data_pesquisa: "2026-10-18",
+    data_validade: "2026-10-26", // Vigente!
     em_promocao: true,
-    observacoes: "Preço de atacado a partir de 12 unidades.",
+    observacoes: "Fardo fechado com 27 caixas no Atacado e Varejo Jaú.",
   },
+
+  // Cotação 3: Histórica / Expirada de 2 meses atrás (para cálculo de inflação)
   {
-    id: "pesq-4",
-    estabelecimento_id: "est-confianca-marilia",
-    estabelecimento_nome: "Confiança Supermercados - Aquarius",
-    insumo_nome: "Creme de Leite",
-    marca: "Piracanjuba (Caixinha 200g)",
-    quantidade_embalagem: 200,
+    id: "pesq-hist-cond-1",
+    estabelecimento_id: "est-jau-serve-matriz",
+    estabelecimento_nome: "Jaú Serve Supermercados - Loja Centro",
+    cidade: "Jaú - SP",
+    insumo_nome: "Leite Condensado",
+    marca: "Moça Nestlé Lata 395g",
+    quantidade_embalagem: 395,
     unidade_medida: "g",
-    preco_pesquisado: 2.79,
-    preco_por_kg_ou_l: 13.95,
-    data_pesquisa: "2026-10-19",
+    preco_pesquisado: 5.99,
+    preco_por_kg_ou_l: 15.16,
+    data_pesquisa: "2026-08-10",
+    data_validade: "2026-08-18", // Expirada! Guarda histórico
     em_promocao: false,
-    observacoes: "Creme de leite 17% gordura.",
+    observacoes: "Registro histórico de agosto/2026 para acompanhar a inflação.",
   },
+
+  // Cotação 4: Vigente (Jaú Serve Supermercados)
   {
-    id: "pesq-5",
-    estabelecimento_id: "est-assai-marilia",
-    estabelecimento_nome: "Assaí Atacadista - Marília",
+    id: "pesq-js-1",
+    estabelecimento_id: "est-jau-serve-matriz",
+    estabelecimento_nome: "Jaú Serve Supermercados - Loja Centro",
+    cidade: "Jaú - SP",
+    insumo_nome: "Leite Condensado",
+    marca: "Moça Nestlé Lata 395g",
+    quantidade_embalagem: 395,
+    unidade_medida: "g",
+    preco_pesquisado: 6.79,
+    preco_por_kg_ou_l: 17.19,
+    data_pesquisa: "2026-10-19",
+    data_validade: "2026-10-25", // Vigente!
+    em_promocao: false,
+    observacoes: "Preço no varejo de Jaú. Subiu em relação a agosto (+13,4% de inflação).",
+  },
+
+  // Cotação 5: Vigente (Mart Minas) - Oportunidade de Estocar Nutella
+  {
+    id: "pesq-mm-nutella",
+    estabelecimento_id: "est-mart-minas-trespontas",
+    estabelecimento_nome: "Mart Minas Atacado & Varejo - Sul de Minas",
+    cidade: "Três Pontas - MG",
     insumo_nome: "Nutella Original",
-    marca: "Ferrero (Pote Econômico 650g)",
+    marca: "Ferrero Pote 650g",
     quantidade_embalagem: 650,
     unidade_medida: "g",
-    preco_pesquisado: 28.9,
-    preco_por_kg_ou_l: 44.46,
+    preco_pesquisado: 27.9,
+    preco_por_kg_ou_l: 42.92,
     data_pesquisa: "2026-10-17",
+    data_validade: "2026-10-28", // Vigente!
     em_promocao: true,
-    observacoes: "Economia de 38,4% por grama comparado ao pote de 350g!",
+    observacoes: "Preço excelente de atacado! 21% abaixo do histórico de pote pequeno.",
   },
+
+  // Cotação 6: Expirada (Tauste / Moacyr Nutella 350g)
   {
-    id: "pesq-6",
-    estabelecimento_id: "est-tauste-tiradentes",
-    estabelecimento_nome: "Tauste Supermercados - Tiradentes",
+    id: "pesq-hist-nutella",
+    estabelecimento_id: "est-moacyr-trespontas",
+    estabelecimento_nome: "Supermercado Moacyr - Três Pontas",
+    cidade: "Três Pontas - MG",
     insumo_nome: "Nutella Original",
-    marca: "Ferrero (Pote Tradicional 350g)",
+    marca: "Ferrero Pote 350g",
     quantidade_embalagem: 350,
     unidade_medida: "g",
-    preco_pesquisado: 22.5,
-    preco_por_kg_ou_l: 64.29,
-    data_pesquisa: "2026-10-19",
+    preco_pesquisado: 22.9,
+    preco_por_kg_ou_l: 65.43,
+    data_pesquisa: "2026-09-05",
+    data_validade: "2026-09-12", // Expirada!
     em_promocao: false,
-    observacoes: "Pote pequeno varejo.",
+    observacoes: "Pote pequeno no varejo de Três Pontas.",
   },
+
+  // Cotação 7: Vigente (Atacadão Jaú - Creme de Leite)
   {
-    id: "pesq-7",
-    estabelecimento_id: "est-atacadao-marilia",
-    estabelecimento_nome: "Atacadão - Unidade Marília",
-    insumo_nome: "Doce de Leite",
-    marca: "Itambé Tradicional (Pote 350g)",
-    quantidade_embalagem: 350,
+    id: "pesq-atc-creme",
+    estabelecimento_id: "est-atacadao-jau",
+    estabelecimento_nome: "Atacadão - Unidade Jaú",
+    cidade: "Jaú - SP",
+    insumo_nome: "Creme de Leite",
+    marca: "Itambé TP 200g",
+    quantidade_embalagem: 200,
     unidade_medida: "g",
-    preco_pesquisado: 9.5,
-    preco_por_kg_ou_l: 27.14,
+    preco_pesquisado: 2.39,
+    preco_por_kg_ou_l: 11.95,
     data_pesquisa: "2026-10-18",
-    em_promocao: false,
-    observacoes: "Ponto cremoso ideal para bico de confeitar.",
+    data_validade: "2026-10-26", // Vigente!
+    em_promocao: true,
+    observacoes: "Preço de atacarejo em Jaú.",
   },
+
+  // Cotação 8: Vigente (Jaú Embalagens - Saquinhos 150ml)
   {
-    id: "pesq-8",
-    estabelecimento_id: "est-confianca-marilia",
-    estabelecimento_nome: "Confiança Supermercados - Aquarius",
-    insumo_nome: "Leite Ninho em Pó",
-    marca: "Nestlé Integral (Lata 380g)",
-    quantidade_embalagem: 380,
-    unidade_medida: "g",
-    preco_pesquisado: 16.9,
-    preco_por_kg_ou_l: 44.47,
-    data_pesquisa: "2026-10-19",
-    em_promocao: false,
-    observacoes: "Garante o sabor e textura premium da linha Ninho.",
-  },
-  {
-    id: "pesq-9",
-    estabelecimento_id: "est-doce-festa-embalagens",
-    estabelecimento_nome: "Doce & Festa Embalagens e Confeitaria",
+    id: "pesq-jau-saquinho",
+    estabelecimento_id: "est-jau-embalagens",
+    estabelecimento_nome: "Jaú Embalagens & Confeitaria",
+    cidade: "Jaú - SP",
     insumo_nome: "Saquinhos para Geladinho",
-    marca: "Cristal Polietileno 150ml (Pacote c/ 100un)",
+    marca: "Cristal 150ml (Cento c/ 100un)",
     quantidade_embalagem: 100,
     unidade_medida: "un",
     preco_pesquisado: 5.0,
     preco_por_kg_ou_l: 0.05,
     data_pesquisa: "2026-10-15",
+    data_validade: "2026-11-30", // Vigente!
     em_promocao: false,
-    observacoes: "Custo unitário exato de R$ 0,05 por saquinho.",
+    observacoes: "R$ 0,05 por saquinho oficial de 150ml.",
   },
 ];
 
 /**
- * Preços Pagos Reais Iniciais (Cupom Fiscal Real de Compra no Atacadão)
+ * Preços Pagos Reais Iniciais (Cupom Fiscal Real no Mart Minas - Três Pontas / Varginha)
  */
 const DEFAULT_COMPRAS: CompraNotaFiscalReal[] = [
   {
     id: "compra-nf-1",
-    estabelecimento_id: "est-atacadao-marilia",
-    estabelecimento_nome: "Atacadão - Unidade Marília",
+    estabelecimento_id: "est-mart-minas-trespontas",
+    estabelecimento_nome: "Mart Minas Atacado & Varejo - Sul de Minas",
     data_compra: "2026-10-18",
-    numero_cupom_ou_nfe: "NFC-e 049812",
-    chave_acesso: "35261045382900018865001000049812109876543210",
-    valor_total: 198.5,
+    numero_cupom_ou_nfe: "NFC-e 081923",
+    chave_acesso: "31261045382900018865001000081923109876543210",
+    valor_total: 184.2,
     origem: "nfc_chave",
     created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
     itens: [
@@ -253,8 +479,8 @@ const DEFAULT_COMPRAS: CompraNotaFiscalReal[] = [
         insumo_correspondente: "Leite Condensado",
         quantidade: 12,
         unidade: "un",
-        preco_unitario_pago: 4.99,
-        preco_total: 59.88,
+        preco_unitario_pago: 4.89,
+        preco_total: 58.68,
         aplicado_ficha_tecnica: true,
       },
       {
@@ -263,8 +489,8 @@ const DEFAULT_COMPRAS: CompraNotaFiscalReal[] = [
         insumo_correspondente: "Creme de Leite",
         quantidade: 10,
         unidade: "un",
-        preco_unitario_pago: 2.49,
-        preco_total: 24.9,
+        preco_unitario_pago: 2.39,
+        preco_total: 23.9,
         aplicado_ficha_tecnica: true,
       },
       {
@@ -273,8 +499,8 @@ const DEFAULT_COMPRAS: CompraNotaFiscalReal[] = [
         insumo_correspondente: "Doce de Leite",
         quantidade: 4,
         unidade: "un",
-        preco_unitario_pago: 9.5,
-        preco_total: 38.0,
+        preco_unitario_pago: 9.4,
+        preco_total: 37.6,
         aplicado_ficha_tecnica: true,
       },
       {
@@ -283,18 +509,18 @@ const DEFAULT_COMPRAS: CompraNotaFiscalReal[] = [
         insumo_correspondente: "Leite Ninho em Pó",
         quantidade: 3,
         unidade: "un",
-        preco_unitario_pago: 16.49,
-        preco_total: 49.47,
+        preco_unitario_pago: 15.99,
+        preco_total: 47.97,
         aplicado_ficha_tecnica: true,
       },
       {
         id: "item-nf-5",
         descricao: "LEITE INTEGRAL ITAMBE 1L TETRA",
         insumo_correspondente: "Leite Integral Líquido",
-        quantidade: 6,
+        quantidade: 4,
         unidade: "un",
-        preco_unitario_pago: 4.37,
-        preco_total: 26.25,
+        preco_unitario_pago: 4.01,
+        preco_total: 16.05,
         aplicado_ficha_tecnica: true,
       },
     ],
