@@ -50,6 +50,25 @@ export interface BrandConfig {
       Cartao_Credito: number; // Ton Crédito: 3.50%
     };
   };
+  basesOperacionais: {
+    jau: {
+      responsavel: string;
+      cidade: string;
+      cep: string;
+      logradouro: string;
+      bairro: string;
+      tipoPolo: string;
+      telefone: string;
+    };
+    tresPontas: {
+      responsavel: string;
+      cidade: string;
+      cep: string;
+      logradouro: string;
+      bairro: string;
+      tipoPolo: string;
+    };
+  };
   chartColors: {
     revenue: string;
     cost: string;
@@ -72,7 +91,7 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "1.9.0",
+  appVersion: "1.9.1",
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",
@@ -106,7 +125,7 @@ export const BRAND_CONFIG: BrandConfig = {
     pixKey: "+5514988183327", // Chave Pix TON oficial da lojista (Telefone formato internacional BACEN)
     pixKeyType: "telefone",
     merchantName: "ROZANA HELENA MIGUEL",
-    merchantCity: "MARILIA",
+    merchantCity: "JAU",
     whatsappNumber: "5514988183327",
     txIdPrefix: "ROZE",
     rates: {
@@ -114,6 +133,25 @@ export const BRAND_CONFIG: BrandConfig = {
       Dinheiro: 0.0,
       Cartao_Debito: 1.99,
       Cartao_Credito: 3.5,
+    },
+  },
+  basesOperacionais: {
+    jau: {
+      responsavel: "Rozana Helena Miguel",
+      cidade: "Jaú - SP",
+      cep: "17205-210",
+      logradouro: "Rua Ângelo Perlatti, Jardim São Caetano",
+      bairro: "Jardim São Caetano",
+      tipoPolo: "Matriz de Produção Artesanal & Confeitaria Gelada",
+      telefone: "(14) 98818-3327",
+    },
+    tresPontas: {
+      responsavel: "Andrew Pereira",
+      cidade: "Três Pontas - MG",
+      cep: "37187-016",
+      logradouro: "Rua Aristides Botrel de Figueiredo, Bairro Santana",
+      bairro: "Santana",
+      tipoPolo: "Polo de Pesquisa de Mercado, Inteligência & Suporte Operacional",
     },
   },
   chartColors: {

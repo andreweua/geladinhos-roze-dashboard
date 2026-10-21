@@ -33,6 +33,7 @@ import {
   Button,
 } from "@/components/ui/primitives";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
+import { BRAND_CONFIG } from "@/config/brand.config";
 import {
   EstabelecimentoLocal,
   PesquisaPrecoLocal,
@@ -444,6 +445,53 @@ export const LocalMarketAndInvoicesSection: React.FC<
               <span>{appliedFeedback}</span>
             </div>
           )}
+
+          {/* Polos Operacionais Cadastrados */}
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3 pt-4 border-t border-border/50">
+            <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-background/70 p-3 text-xs shadow-xs">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold">
+                <MapPin className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-foreground">
+                    {BRAND_CONFIG.basesOperacionais.jau.cidade}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary font-semibold">
+                    CEP {BRAND_CONFIG.basesOperacionais.jau.cep}
+                  </Badge>
+                </div>
+                <p className="truncate text-muted-foreground text-[11px] mt-0.5">
+                  <strong className="text-foreground">{BRAND_CONFIG.basesOperacionais.jau.responsavel}</strong> • {BRAND_CONFIG.basesOperacionais.jau.logradouro}
+                </p>
+                <p className="text-[10px] text-primary/80 font-medium">
+                  {BRAND_CONFIG.basesOperacionais.jau.tipoPolo}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-background/70 p-3 text-xs shadow-xs">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary font-bold">
+                <MapPin className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-foreground">
+                    {BRAND_CONFIG.basesOperacionais.tresPontas.cidade}
+                  </span>
+                  <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary font-semibold">
+                    CEP {BRAND_CONFIG.basesOperacionais.tresPontas.cep}
+                  </Badge>
+                </div>
+                <p className="truncate text-muted-foreground text-[11px] mt-0.5">
+                  <strong className="text-foreground">{BRAND_CONFIG.basesOperacionais.tresPontas.responsavel}</strong> • {BRAND_CONFIG.basesOperacionais.tresPontas.logradouro}
+                </p>
+                <p className="text-[10px] text-primary/80 font-medium">
+                  {BRAND_CONFIG.basesOperacionais.tresPontas.tipoPolo}
+                </p>
+              </div>
+            </div>
+          </div>
 
           {/* Sub Navigation Tabs */}
           <div className="mt-6 flex flex-wrap gap-2 border-t border-border/60 pt-4">

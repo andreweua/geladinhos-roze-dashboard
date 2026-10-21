@@ -6,9 +6,9 @@ import {
 } from "@/types/dashboard";
 
 const STORAGE_KEYS = {
-  estabelecimentos: `${BRAND_CONFIG.storagePrefix}_estabelecimentos_v2_jau_trespontas`,
-  pesquisas: `${BRAND_CONFIG.storagePrefix}_pesquisas_precos_v2_validade`,
-  compras: `${BRAND_CONFIG.storagePrefix}_compras_reais_v2`,
+  estabelecimentos: `${BRAND_CONFIG.storagePrefix}_estabelecimentos_v3_simao_jau_trespontas`,
+  pesquisas: `${BRAND_CONFIG.storagePrefix}_pesquisas_precos_v3_validade`,
+  compras: `${BRAND_CONFIG.storagePrefix}_compras_reais_v3`,
 };
 
 /**
@@ -212,7 +212,33 @@ export function calculateWeightedAverageCost(
  * Inclui "Atacado e Varejo" (Atacarejos como Mart Minas, Atacadão, Tenda)
  */
 const DEFAULT_ESTABELECIMENTOS: EstabelecimentoLocal[] = [
-  // --- JAÚ - SP ---
+  // --- JAÚ - SP (Polo de Produção & Confeitaria da Rozana - CEP 17205-210) ---
+  {
+    id: "est-simao-doces-matriz",
+    nome: "Simão Doces & Embalagens (Loja Matriz)",
+    tipo: "Distribuidora",
+    cidade: "Jaú - SP",
+    endereco_fisico: "Rua Rui Barbosa, 1477 - Jardim Ferreira Dias, Jaú/SP - CEP 17205-000",
+    endereco_eletronico: "https://www.simaodoces.com.br",
+    telefone: "(14) 99676-0014 / (14) 3621-7733",
+    contato_responsavel: "Televendas Simão Doces",
+    observacoes: "Referência máxima em Jaú para doces, saquinhos 150ml, coberturas, Nutella, Ovomaltine, chocolates e confeitos para confeitaria artesanal.",
+    created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "est-simao-doces-centro",
+    nome: "Simão Doces (Loja Centro)",
+    tipo: "Distribuidora",
+    cidade: "Jaú - SP",
+    endereco_fisico: "Rua Dr. João Leite, 894 - Centro, Jaú/SP - CEP 17201-440",
+    endereco_eletronico: "https://www.simaodoces.com.br",
+    telefone: "(14) 3622-7106",
+    contato_responsavel: "Atendimento Balcão Centro",
+    observacoes: "Loja no centro de Jaú com variedade completa de descartáveis, formas e embalagens.",
+    created_at: new Date(Date.now() - 32 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
   {
     id: "est-jau-serve-matriz",
     nome: "Jaú Serve Supermercados - Loja Centro",
@@ -223,19 +249,6 @@ const DEFAULT_ESTABELECIMENTOS: EstabelecimentoLocal[] = [
     telefone: "(14) 3602-1500",
     contato_responsavel: "Gerência Loja Centro",
     observacoes: "Rede tradicional de Jaú. Ofertas fortes em laticínios nas terças e quartas-feiras.",
-    created_at: new Date(Date.now() - 35 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "est-atacadao-jau",
-    nome: "Atacadão - Unidade Jaú",
-    tipo: "Atacado e Varejo",
-    cidade: "Jaú - SP",
-    endereco_fisico: "Av. Deputado Zien Nassif, 1400 - Chácara Peccioli, Jaú/SP - CEP 17210-630",
-    endereco_eletronico: "https://www.atacadao.com.br",
-    telefone: "(14) 3601-2000",
-    contato_responsavel: "Televendas Atacado e Varejo",
-    observacoes: "Preço especial a partir de fardos com 27 caixas de Leite Condensado e Creme de Leite.",
     created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
@@ -247,63 +260,50 @@ const DEFAULT_ESTABELECIMENTOS: EstabelecimentoLocal[] = [
     endereco_fisico: "Av. Antônio Paschoal, 850 - Jaú/SP - CEP 17208-000",
     endereco_eletronico: "https://www.tendaatacado.com.br",
     telefone: "(14) 3602-3000",
-    contato_responsavel: "Balcão Atacado",
-    observacoes: "Atacado e Varejo com desconto automático no cartão da loja e no app.",
+    contato_responsavel: "Balcão Atacado e Varejo",
+    observacoes: "Atacado e Varejo oficial de Jaú. Ótimos preços escalonados para fardos de leite condensado e creme de leite.",
     created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
-  {
-    id: "est-jau-embalagens",
-    nome: "Jaú Embalagens & Confeitaria",
-    tipo: "Distribuidora",
-    cidade: "Jaú - SP",
-    endereco_fisico: "Rua Major Prado, 420 - Centro, Jaú/SP - CEP 17201-070",
-    endereco_eletronico: "https://wa.me/5514988183327",
-    telefone: "(14) 3622-4545",
-    contato_responsavel: "Setor de Embalagens",
-    observacoes: "Distribuidora oficial dos saquinhos de 150ml cristal polietileno e fitilhos.",
-    created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
 
-  // --- TRÊS PONTAS - MG ---
+  // --- TRÊS PONTAS - MG (Polo de Gestão do Andrew - CEP 37187-016) ---
   {
     id: "est-mart-minas-trespontas",
-    nome: "Mart Minas Atacado & Varejo - Sul de Minas",
+    nome: "Mart Minas Atacado & Varejo",
     tipo: "Atacado e Varejo",
     cidade: "Três Pontas - MG",
-    endereco_fisico: "Rodovia MG-167, km 32 (Acesso Três Pontas / Varginha) - Três Pontas/MG - CEP 37190-000",
+    endereco_fisico: "Av. Prefeito Nilson Vilela, 350 - Bairro Esperança, Três Pontas/MG - CEP 37187-000",
     endereco_eletronico: "https://www.martminas.com.br",
     telefone: "(35) 3266-9000",
     contato_responsavel: "Televendas Atacado e Varejo Mart Minas",
-    observacoes: "Principal atacarejo do Sul de Minas (Atacado e Varejo). Preços imbatíveis em Leite Moça, Itambé e Nutella 650g.",
+    observacoes: "Maior atacarejo de Três Pontas (Atacado e Varejo). Preços imbatíveis em fardos de Leite Moça, Piracanjuba, Itambé e Nutella 650g.",
     created_at: new Date(Date.now() - 28 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
+    id: "est-abc-trespontas",
+    nome: "Supermercados ABC - Três Pontas",
+    tipo: "Atacado e Varejo",
+    cidade: "Três Pontas - MG",
+    endereco_fisico: "Av. Prefeito Nilson Vilela, 1008 - Bairro Esperança, Três Pontas/MG - CEP 37187-000",
+    endereco_eletronico: "https://www.superabc.com.br",
+    telefone: "(35) 3265-8000",
+    contato_responsavel: "Atendimento ao Cliente ABC",
+    observacoes: "Grande rede de Atacado e Varejo na Av. Nilson Vilela com ofertas semanais no app e televendas.",
+    created_at: new Date(Date.now() - 24 * 86400000).toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
     id: "est-moacyr-trespontas",
-    nome: "Supermercado Moacyr - Três Pontas",
+    nome: "Supermercado Moacyr (Centro)",
     tipo: "Supermercado",
     cidade: "Três Pontas - MG",
     endereco_fisico: "Praça Cônego Victor, 150 - Centro, Três Pontas/MG - CEP 37190-000",
     endereco_eletronico: "https://www.supermercadomoacyr.com.br",
     telefone: "(35) 3265-1020",
     contato_responsavel: "SAC Loja Centro",
-    observacoes: "Supermercado tradicional no centro de Três Pontas para compras de urgência e frutas frescas.",
+    observacoes: "Supermercado tradicional no centro de Três Pontas para compras de urgência e reposições de frutas frescas.",
     created_at: new Date(Date.now() - 22 * 86400000).toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: "est-alvorada-trespontas",
-    nome: "Alvorada Supermercados - Três Pontas",
-    tipo: "Supermercado",
-    cidade: "Três Pontas - MG",
-    endereco_fisico: "Rua Nossa Senhora d'Ajuda, 310 - Três Pontas/MG - CEP 37190-000",
-    endereco_eletronico: "https://www.alvoradasupermercados.com.br",
-    telefone: "(35) 3265-4400",
-    contato_responsavel: "Gerente Operacional",
-    observacoes: "Encarte semanal com promoções fortes na linha Itambé e Piracanjuba.",
-    created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
     updated_at: new Date().toISOString(),
   },
 ];
@@ -313,11 +313,11 @@ const DEFAULT_ESTABELECIMENTOS: EstabelecimentoLocal[] = [
  * Contendo cotações vigentes (com validade no futuro) e cotações históricas/expiradas (para histórico de inflação)
  */
 const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
-  // Cotação 1: Vigente (Mart Minas Atacado e Varejo)
+  // Cotação 1: Vigente (Mart Minas Atacado e Varejo - Três Pontas)
   {
     id: "pesq-mm-1",
     estabelecimento_id: "est-mart-minas-trespontas",
-    estabelecimento_nome: "Mart Minas Atacado & Varejo - Sul de Minas",
+    estabelecimento_nome: "Mart Minas Atacado & Varejo",
     cidade: "Três Pontas - MG",
     insumo_nome: "Leite Condensado",
     marca: "Piracanjuba TP 395g",
@@ -328,14 +328,14 @@ const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
     data_pesquisa: "2026-10-18",
     data_validade: "2026-10-31", // Vigente!
     em_promocao: true,
-    observacoes: "Preço de Atacado a partir de 12 caixinhas no Mart Minas.",
+    observacoes: "Preço de Atacado e Varejo a partir de 12 caixinhas no Mart Minas Três Pontas.",
   },
 
-  // Cotação 2: Vigente (Atacadão Jaú)
+  // Cotação 2: Vigente (Tenda Atacado - Jaú)
   {
-    id: "pesq-atc-jau-1",
-    estabelecimento_id: "est-atacadao-jau",
-    estabelecimento_nome: "Atacadão - Unidade Jaú",
+    id: "pesq-tenda-jau-1",
+    estabelecimento_id: "est-tenda-jau",
+    estabelecimento_nome: "Tenda Atacado - Jaú",
     cidade: "Jaú - SP",
     insumo_nome: "Leite Condensado",
     marca: "Piracanjuba TP 395g",
@@ -346,7 +346,7 @@ const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
     data_pesquisa: "2026-10-19",
     data_validade: "2026-10-26", // Vigente!
     em_promocao: true,
-    observacoes: "Fardo fechado com 27 caixas no Atacado e Varejo Jaú.",
+    observacoes: "Fardo fechado com 27 caixas no Tenda Atacado e Varejo em Jaú.",
   },
 
   // Cotação 3: Histórica / Expirada de 2 meses atrás (para cálculo de inflação)
@@ -367,7 +367,7 @@ const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
     observacoes: "Registro histórico de agosto/2026 para acompanhar a inflação.",
   },
 
-  // Cotação 4: Vigente (Jaú Serve Supermercados)
+  // Cotação 4: Vigente (Jaú Serve Supermercados - Jaú)
   {
     id: "pesq-js-1",
     estabelecimento_id: "est-jau-serve-matriz",
@@ -385,11 +385,47 @@ const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
     observacoes: "Preço no varejo de Jaú. Subiu em relação a agosto (+13,4% de inflação).",
   },
 
-  // Cotação 5: Vigente (Mart Minas) - Oportunidade de Estocar Nutella
+  // Cotação 5: Vigente (Simão Doces Matriz - Jaú)
+  {
+    id: "pesq-simao-saquinhos",
+    estabelecimento_id: "est-simao-doces-matriz",
+    estabelecimento_nome: "Simão Doces & Embalagens (Loja Matriz)",
+    cidade: "Jaú - SP",
+    insumo_nome: "Saquinhos para Geladinho",
+    marca: "Cristal 150ml (Cento c/ 100un)",
+    quantidade_embalagem: 100,
+    unidade_medida: "un",
+    preco_pesquisado: 4.8,
+    preco_por_kg_ou_l: 0.048,
+    data_pesquisa: "2026-10-18",
+    data_validade: "2026-11-30", // Vigente!
+    em_promocao: true,
+    observacoes: "Preço especial de atacado na Simão Doces (R$ 0,048 por saquinho na Rua Rui Barbosa).",
+  },
+
+  // Cotação 6: Vigente (Simão Doces Matriz - Nutella 650g)
+  {
+    id: "pesq-simao-nutella",
+    estabelecimento_id: "est-simao-doces-matriz",
+    estabelecimento_nome: "Simão Doces & Embalagens (Loja Matriz)",
+    cidade: "Jaú - SP",
+    insumo_nome: "Nutella Original",
+    marca: "Ferrero Pote Econômico 650g",
+    quantidade_embalagem: 650,
+    unidade_medida: "g",
+    preco_pesquisado: 28.5,
+    preco_por_kg_ou_l: 43.85,
+    data_pesquisa: "2026-10-18",
+    data_validade: "2026-11-15", // Vigente!
+    em_promocao: true,
+    observacoes: "Excelente cotação para confeitaria na Simão Doces em Jaú.",
+  },
+
+  // Cotação 7: Vigente (Mart Minas Três Pontas - Nutella 650g) - Oportunidade de Estocar
   {
     id: "pesq-mm-nutella",
     estabelecimento_id: "est-mart-minas-trespontas",
-    estabelecimento_nome: "Mart Minas Atacado & Varejo - Sul de Minas",
+    estabelecimento_nome: "Mart Minas Atacado & Varejo",
     cidade: "Três Pontas - MG",
     insumo_nome: "Nutella Original",
     marca: "Ferrero Pote 650g",
@@ -400,14 +436,14 @@ const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
     data_pesquisa: "2026-10-17",
     data_validade: "2026-10-28", // Vigente!
     em_promocao: true,
-    observacoes: "Preço excelente de atacado! 21% abaixo do histórico de pote pequeno.",
+    observacoes: "Preço excelente de atacado e varejo no Mart Minas Três Pontas!",
   },
 
-  // Cotação 6: Expirada (Tauste / Moacyr Nutella 350g)
+  // Cotação 8: Expirada (Moacyr Três Pontas - Nutella 350g)
   {
     id: "pesq-hist-nutella",
     estabelecimento_id: "est-moacyr-trespontas",
-    estabelecimento_nome: "Supermercado Moacyr - Três Pontas",
+    estabelecimento_nome: "Supermercado Moacyr (Centro)",
     cidade: "Três Pontas - MG",
     insumo_nome: "Nutella Original",
     marca: "Ferrero Pote 350g",
@@ -418,14 +454,14 @@ const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
     data_pesquisa: "2026-09-05",
     data_validade: "2026-09-12", // Expirada!
     em_promocao: false,
-    observacoes: "Pote pequeno no varejo de Três Pontas.",
+    observacoes: "Pote pequeno no varejo central de Três Pontas.",
   },
 
-  // Cotação 7: Vigente (Atacadão Jaú - Creme de Leite)
+  // Cotação 9: Vigente (Tenda Atacado Jaú - Creme de Leite)
   {
-    id: "pesq-atc-creme",
-    estabelecimento_id: "est-atacadao-jau",
-    estabelecimento_nome: "Atacadão - Unidade Jaú",
+    id: "pesq-tenda-creme",
+    estabelecimento_id: "est-tenda-jau",
+    estabelecimento_nome: "Tenda Atacado - Jaú",
     cidade: "Jaú - SP",
     insumo_nome: "Creme de Leite",
     marca: "Itambé TP 200g",
@@ -439,6 +475,23 @@ const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
     observacoes: "Preço de atacarejo em Jaú.",
   },
 
+  // Cotação 10: Vigente (Supermercados ABC - Três Pontas)
+  {
+    id: "pesq-abc-creme",
+    estabelecimento_id: "est-abc-trespontas",
+    estabelecimento_nome: "Supermercados ABC - Três Pontas",
+    cidade: "Três Pontas - MG",
+    insumo_nome: "Creme de Leite",
+    marca: "Piracanjuba TP 200g",
+    quantidade_embalagem: 200,
+    unidade_medida: "g",
+    preco_pesquisado: 2.45,
+    preco_por_kg_ou_l: 12.25,
+    data_pesquisa: "2026-10-18",
+    data_validade: "2026-10-27", // Vigente!
+    em_promocao: false,
+    observacoes: "Cotação no Supermercados ABC em Três Pontas.",
+  },
   // Cotação 8: Vigente (Jaú Embalagens - Saquinhos 150ml)
   {
     id: "pesq-jau-saquinho",
