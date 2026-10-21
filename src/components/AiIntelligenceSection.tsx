@@ -18,6 +18,8 @@ import {
   Layers,
   Bot,
   Receipt,
+  Share2,
+  ExternalLink,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
@@ -180,6 +182,60 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
     setTimeout(() => {
       setProducedIds((prev) => ({ ...prev, [item.produto_id]: false }));
     }, 3000);
+  };
+
+  const [copiedList, setCopiedList] = useState(false);
+  const handleCopyShoppingList = () => {
+    const itemsText = report.shoppingList.items
+      .map((item) => {
+        const statusLabel =
+          item.status_compra === "em_estoque_sobra"
+            ? "✓ (Já tem na despensa)"
+            : item.status_compra === "compra_parcial"
+            ? "⚠️ (Comprar + Usar sobra)"
+            : "🛒 (Comprar)";
+        return `• ${item.insumo}: ${item.quantidade_necessaria_label} ${statusLabel}\n  Dica: ${item.recomendacao_embalagem}`;
+      })
+      .join("\n");
+
+    const text =
+      `🛒 LISTA DE COMPRAS — GELADINHOS GOURMET DA ROZE\n` +
+      `Data: ${new Date().toLocaleDateString("pt-BR")}\n` +
+      `Fornada Hoje: ${report.productionPlan.totalLotesHoje} lote(s) (${report.productionPlan.totalUnidadesProduzir} un.)\n` +
+      `Desembolso Estimado: ${formatCurrency(report.shoppingList.desembolsoLiquidoEstimado)}\n` +
+      `Economia c/ Sobras: -${formatCurrency(report.shoppingList.economiaComSobras)}\n\n` +
+      `${itemsText}`;
+
+    navigator.clipboard.writeText(text);
+    setCopiedList(true);
+    setTimeout(() => setCopiedList(false), 2200);
+  };
+
+  const handleShareShoppingListWhatsApp = () => {
+    const itemsText = report.shoppingList.items
+      .map((item) => {
+        const statusLabel =
+          item.status_compra === "em_estoque_sobra"
+            ? "✅ *(Já tem na despensa)*"
+            : item.status_compra === "compra_parcial"
+            ? "⚠️ *(Comprar + Usar sobra)*"
+            : "🛒 *(Comprar)*";
+        return `• *${item.insumo}*: ${item.quantidade_necessaria_label} ${statusLabel}\n  💡 _${item.recomendacao_embalagem}_`;
+      })
+      .join("\n\n");
+
+    const text =
+      `🛒 *LISTA DE COMPRAS — GELADINHOS GOURMET DA ROZE* 🛒\n` +
+      `📅 *Data:* ${new Date().toLocaleDateString("pt-BR")}\n` +
+      `🥣 *Produção de Hoje:* ${report.productionPlan.totalLotesHoje} lote(s) (${report.productionPlan.totalUnidadesProduzir} unidades de 150ml)\n` +
+      `💰 *Custo Bruto das Receitas:* ${formatCurrency(report.shoppingList.custoBrutoReceitas)}\n` +
+      `🎉 *Economia com Sobras na Despensa:* -${formatCurrency(report.shoppingList.economiaComSobras)}\n` +
+      `💵 *Desembolso Estimado no Mercado:* *${formatCurrency(report.shoppingList.desembolsoLiquidoEstimado)}*\n\n` +
+      `*ITENS DA LISTA:*\n${itemsText}\n\n` +
+      `✨ _Gerado automaticamente pela Central PereiraLabs IA_`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, "_blank");
   };
 
   const handleSaveApiKey = () => {
@@ -545,16 +601,47 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
                     Lista de Compras Inteligente (Desconta Sobras)
                   </h3>
                 </div>
-                {onOpenInvoiceModal && (
+                <div className="flex flex-wrap items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={onOpenInvoiceModal}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
+                    onClick={handleCopyShoppingList}
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-all"
+                    title="Copiar lista de compras para a área de transferência"
                   >
-                    <Receipt className="h-3.5 w-3.5" />
-                    Atualizar por NF-e
+                    {copiedList ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                        <span className="text-emerald-500 font-bold">Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>Copiar</span>
+                      </>
+                    )}
                   </button>
-                )}
+
+                  <button
+                    type="button"
+                    onClick={handleShareShoppingListWhatsApp}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-all shadow-sm"
+                    title="Enviar lista formatada diretamente para o WhatsApp da Rozana"
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                    <span>WhatsApp</span>
+                  </button>
+
+                  {onOpenInvoiceModal && (
+                    <button
+                      type="button"
+                      onClick={onOpenInvoiceModal}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
+                    >
+                      <Receipt className="h-3.5 w-3.5" />
+                      <span>Importar NF-e</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Savings highlight box */}

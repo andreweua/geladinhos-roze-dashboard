@@ -13,6 +13,8 @@ import {
   Calendar,
   AlertCircle,
   Sparkles,
+  Trash2,
+  Edit2,
 } from "lucide-react";
 import { CotacaoInsumo, FichaTecnicaProduto } from "@/types/dashboard";
 import {
@@ -26,7 +28,7 @@ import {
   saveQuotations,
 } from "@/services/quotationService";
 import { formatCurrency } from "@/lib/utils";
-import { addCompraNotaFiscal } from "@/services/marketSurveyService";
+import { addCompraNotaFiscal, loadEstabelecimentos } from "@/services/marketSurveyService";
 
 interface InvoicePriceUpdaterModalProps {
   isOpen: boolean;
@@ -51,6 +53,9 @@ export const InvoicePriceUpdaterModal: React.FC<InvoicePriceUpdaterModalProps> =
   const [catalog, setCatalog] = useState<CotacaoInsumo[]>(() =>
     loadCurrentQuotations()
   );
+
+  // Estabelecimentos locais
+  const estabelecimentos = useMemo(() => loadEstabelecimentos(), []);
 
   // Input states
   const [keyInput, setKeyInput] = useState<string>("");
@@ -197,6 +202,32 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
 
   const handleSelectAll = (select: boolean) => {
     setSelectedItems((prev) => prev.map((item) => ({ ...item, selected: select })));
+  };
+
+  const handleDeleteItem = (id: string) => {
+    setSelectedItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handlePriceChange = (id: string, newPrice: number) => {
+    setSelectedItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              unitPrice: Math.max(0, newPrice),
+              totalPrice: Number((Math.max(0, newPrice) * item.quantity).toFixed(2)),
+            }
+          : item
+      )
+    );
+  };
+
+  const handleStoreNameChange = (name: string) => {
+    if (!parsedReceipt) return;
+    setParsedReceipt({
+      ...parsedReceipt,
+      storeName: name,
+    });
   };
 
   const handleChangeMatch = (itemId: string, newQuotationId: string) => {
@@ -536,14 +567,47 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
           {/* PARSED RECEIPT CONCILIATION TABLE */}
           {parsedReceipt && (
             <div className="space-y-3 pt-2">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-secondary/40 p-3 text-xs">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-secondary/40 p-3 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="flex items-center gap-1.5 font-bold text-foreground">
-                    <Store className="h-4 w-4 text-primary" />
-                    {parsedReceipt.storeName}
+                    <Store className="h-4 w-4 text-primary shrink-0" />
+                    Onde comprou:
                   </span>
+                  <input
+                    type="text"
+                    value={parsedReceipt.storeName}
+                    onChange={(e) => handleStoreNameChange(e.target.value)}
+                    placeholder="Nome do Supermercado..."
+                    className="rounded-lg border border-input bg-background px-2.5 py-1 text-xs font-semibold text-foreground focus:border-primary focus:outline-none w-44 sm:w-56"
+                    title="Edite o nome do estabelecimento onde comprou"
+                  />
+                  {estabelecimentos.length > 0 && (
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) handleStoreNameChange(e.target.value);
+                      }}
+                      defaultValue=""
+                      className="rounded-lg border border-input bg-background px-2 py-1 text-xs text-muted-foreground focus:border-primary focus:outline-none"
+                      title="Escolha um dos mercados cadastrados"
+                    >
+                      <option value="" disabled>
+                        Ou selecione cadastrado...
+                      </option>
+                      {estabelecimentos.map((e) => {
+                        const cityLabel = e.cidade ? ` (${e.cidade.split(" - ")[0]})` : "";
+                        return (
+                          <option
+                            key={e.id}
+                            value={`${e.nome}${cityLabel}`}
+                          >
+                            {e.nome}{cityLabel}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
                   {parsedReceipt.issueDate && (
-                    <span className="flex items-center gap-1 text-muted-foreground">
+                    <span className="flex items-center gap-1 text-muted-foreground ml-2">
                       <Calendar className="h-3.5 w-3.5" />
                       {new Date(parsedReceipt.issueDate).toLocaleDateString(
                         "pt-BR"
@@ -587,9 +651,10 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
                       <th className="py-2.5 px-3 w-8"></th>
                       <th className="py-2.5 px-3">Item da Nota / Cupom</th>
                       <th className="py-2.5 px-3">Qtd</th>
-                      <th className="py-2.5 px-3">Novo Preço</th>
+                      <th className="py-2.5 px-3">Preço Unit. Pago</th>
                       <th className="py-2.5 px-3">Vincular ao Insumo do Cardápio</th>
                       <th className="py-2.5 px-3 text-right">Comparativo (Δ)</th>
+                      <th className="py-2.5 px-2 text-center w-10">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -616,16 +681,30 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
                               checked={item.selected}
                               onChange={() => handleToggleSelectItem(item.id)}
                               className="accent-primary h-4 w-4 rounded cursor-pointer"
+                              title={item.selected ? "Desmarcar para não importar" : "Marcar para importar"}
                             />
                           </td>
                           <td className="py-2.5 px-3 font-medium text-foreground">
                             {item.rawDescription}
                           </td>
-                          <td className="py-2.5 px-3 text-muted-foreground">
+                          <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
                             {item.quantity} {item.unit}
                           </td>
-                          <td className="py-2.5 px-3 font-bold text-foreground">
-                            {formatCurrency(item.unitPrice)}
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground text-[11px] font-mono">R$</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={item.unitPrice}
+                                onChange={(e) =>
+                                  handlePriceChange(item.id, parseFloat(e.target.value) || 0)
+                                }
+                                className="w-20 rounded-md border border-input bg-background px-1.5 py-1 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
+                                title="Edite o preço unitário se necessário"
+                              />
+                            </div>
                           </td>
                           <td className="py-2.5 px-3">
                             <select
@@ -666,6 +745,16 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
                                 Novo item
                               </span>
                             )}
+                          </td>
+                          <td className="py-2.5 px-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="rounded p-1 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
+                              title="Excluir este item da importação"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </td>
                         </tr>
                       );
