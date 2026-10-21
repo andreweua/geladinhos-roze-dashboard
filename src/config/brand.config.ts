@@ -83,9 +83,9 @@ export const BRAND_CONFIG: BrandConfig = {
   defaultIfoodFeePct: 26.2, // Taxa padrão iFood (23% + 3,2% = 26,2% -> Fator divisor 0,738)
   storagePrefix: "roze_gourmet_v1",
   userProfile: {
-    name: "Rozana",
+    name: "Rozana Helena Miguel",
     role: "Administradora",
-    avatarInitials: "RZ",
+    avatarInitials: "RH",
   },
   labels: {
     productSingular: "Sabor",
@@ -103,11 +103,11 @@ export const BRAND_CONFIG: BrandConfig = {
     Cartao_Credito: 3.5, // Taxa Ton Crédito à vista
   },
   tonConfig: {
-    pixKey: "31998765432", // Chave Pix TON do lojista (Telefone, CNPJ, Email ou Chave Aleatória)
+    pixKey: "+5514988183327", // Chave Pix TON oficial da lojista (Telefone formato internacional BACEN)
     pixKeyType: "telefone",
-    merchantName: "ROZANA PEREIRA",
-    merchantCity: "BELO HORIZONTE",
-    whatsappNumber: "5531998765432",
+    merchantName: "ROZANA HELENA MIGUEL",
+    merchantCity: "MARILIA",
+    whatsappNumber: "5514988183327",
     txIdPrefix: "ROZE",
     rates: {
       Pix: 0.99,

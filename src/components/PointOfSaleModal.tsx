@@ -290,7 +290,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                     type="tel"
                     value={clienteTelefone}
                     onChange={(e) => setClienteTelefone(e.target.value)}
-                    placeholder="Ex: 31998765432"
+                    placeholder="Ex: 14988183327"
                     className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
                   />
                 </div>
