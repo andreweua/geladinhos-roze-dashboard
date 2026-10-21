@@ -864,37 +864,49 @@ DADOS REAIS DO PAINEL NO PERÍODO SELECIONADO:
 - Resumo Lote 69 Unidades (9 Receitas): Custo R$ ${RESUMO_LOTES_PRODUCAO.loteCardapioExpandido9Receitas.custoTotalProducao.toFixed(2)}, Faturamento Local R$ ${RESUMO_LOTES_PRODUCAO.loteCardapioExpandido9Receitas.faturamentoBrutoLocal.toFixed(2)}, Lucro Líquido R$ ${RESUMO_LOTES_PRODUCAO.loteCardapioExpandido9Receitas.lucroLiquidoEstimadoLocal.toFixed(2)}.
 - Cotações no Catálogo: ${TABELA_COTACAO_INSUMOS.length} itens monitorados (Varejo vs Atacado).`;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(
-          cleanKey
-        )}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            system_instruction: {
-              parts: [{ text: systemContext }],
-            },
-            contents: [
-              {
-                role: "user",
-                parts: [{ text: question }],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.35,
-              maxOutputTokens: 900,
-            },
-          }),
-        }
-      );
+      const modelsToTry = [
+        "gemini-2.5-flash",
+        "gemini-1.5-flash",
+        "gemini-2.0-flash",
+      ];
 
-      if (response.ok) {
-        const data = await response.json();
-        const text =
-          data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        if (text.trim()) {
-          return { answer: text.trim(), mode: "gemini_cloud" };
+      for (const model of modelsToTry) {
+        try {
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
+              cleanKey
+            )}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                system_instruction: {
+                  parts: [{ text: systemContext }],
+                },
+                contents: [
+                  {
+                    role: "user",
+                    parts: [{ text: question }],
+                  },
+                ],
+                generationConfig: {
+                  temperature: 0.35,
+                  maxOutputTokens: 900,
+                },
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            const text =
+              data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (text.trim()) {
+              return { answer: text.trim(), mode: "gemini_cloud" };
+            }
+          }
+        } catch {
+          // try next model candidate
         }
       }
     } catch {
