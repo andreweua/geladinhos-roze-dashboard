@@ -18,6 +18,7 @@ import { TablesSection } from "@/components/TablesSection";
 import { TechnicalSheetAndDreSection } from "@/components/TechnicalSheetAndDreSection";
 import { AiIntelligenceSection } from "@/components/AiIntelligenceSection";
 import { LocalMarketAndInvoicesSection } from "@/components/LocalMarketAndInvoicesSection";
+import { StockAuditSection } from "@/components/StockAuditSection";
 import { InvoicePriceUpdaterModal } from "@/components/InvoicePriceUpdaterModal";
 import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
@@ -112,9 +113,9 @@ export function App() {
     getDateRangeForPreset("7dias")
   );
 
-  // Active View Tab ("completo" | "visao_geral" | "ficha_dre" | "mercados_precos" | "pereiralabs_ia")
+  // Active View Tab ("completo" | "visao_geral" | "ficha_dre" | "mercados_precos" | "pereiralabs_ia" | "auditoria_estoque")
   const [activeSection, setActiveSection] = useState<
-    "completo" | "visao_geral" | "ficha_dre" | "mercados_precos" | "pereiralabs_ia"
+    "completo" | "visao_geral" | "ficha_dre" | "mercados_precos" | "pereiralabs_ia" | "auditoria_estoque"
   >("completo");
   const [selectedProductId, setSelectedProductId] = useState<string>(
     "prod-doce-de-leite"
@@ -255,8 +256,16 @@ export function App() {
     setSnapshot(updated);
   };
 
-  const handleUpdateStock = async (produtoId: string, newQty: number) => {
-    const updated = await updateProductStock(produtoId, newQty);
+  const handleUpdateStock = async (
+    produtoId: string,
+    newQty: number,
+    auditInfo?: {
+      adminNome?: string;
+      motivo?: string;
+      observacoes?: string;
+    }
+  ) => {
+    const updated = await updateProductStock(produtoId, newQty, auditInfo);
     setSnapshot(updated);
   };
 
@@ -393,6 +402,19 @@ export function App() {
             >
               <Store className="h-4 w-4" />
               3. Pesquisa de Mercados & Preços Pagos
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSection("auditoria_estoque")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeSection === "auditoria_estoque"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <ShieldCheck className="h-4 w-4" />
+              4. Auditoria de Estoque (Admin)
             </button>
 
             <button
@@ -538,6 +560,14 @@ export function App() {
                 ifoodFeePct={ifoodFeePct}
                 onChangeIfoodFeePct={handleChangeIfoodFeePct}
                 onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
+              />
+            )}
+
+            {(activeSection === "completo" ||
+              activeSection === "auditoria_estoque") && (
+              <StockAuditSection
+                inventoryByFlavor={analytics.inventoryByFlavor}
+                onUpdateFlavorStock={handleUpdateStock}
               />
             )}
           </>

@@ -206,17 +206,25 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   if (!isOpen) return null;
 
   const handleQtyChange = (produtoId: string, delta: number) => {
+    const item = inventoryByFlavor.find((p) => p.produto_id === produtoId);
+    const maxDisponivel = item ? item.quantidade_disponivel : 0;
+
     setQuantities((prev) => {
       const current = prev[produtoId] || 0;
-      const next = Math.max(0, current + delta);
+      if (delta > 0 && current >= maxDisponivel) {
+        return prev;
+      }
+      const next = Math.max(0, Math.min(maxDisponivel, current + delta));
       return { ...prev, [produtoId]: next };
     });
   };
 
   const handleSetExactQty = (produtoId: string, val: number) => {
+    const item = inventoryByFlavor.find((p) => p.produto_id === produtoId);
+    const maxDisponivel = item ? item.quantidade_disponivel : 0;
     setQuantities((prev) => ({
       ...prev,
-      [produtoId]: Math.max(0, val),
+      [produtoId]: Math.max(0, Math.min(maxDisponivel, val)),
     }));
   };
 
@@ -473,13 +481,17 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-2">
                   {filteredFlavors.map((prod) => {
                     const selectedQty = quantities[prod.produto_id] || 0;
-                    const isLow = prod.abaixo_do_minimo;
+                    const isOutOfStock = prod.quantidade_disponivel <= 0;
+                    const isLow = prod.abaixo_do_minimo && !isOutOfStock;
+                    const isMaxReached = selectedQty >= prod.quantidade_disponivel;
 
                     return (
                       <div
                         key={prod.produto_id}
                         className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
-                          selectedQty > 0
+                          isOutOfStock
+                            ? "border-border/50 bg-muted/20 opacity-60"
+                            : selectedQty > 0
                             ? "border-primary/60 bg-primary/5 shadow-sm"
                             : "border-border/70 bg-card hover:border-border"
                         }`}
@@ -489,6 +501,11 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                             <span className="text-xs font-bold text-foreground">
                               {prod.nome}
                             </span>
+                            {isOutOfStock && (
+                              <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-extrabold text-rose-600 dark:text-rose-400">
+                                Esgotado
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
                             <span className="font-bold text-primary">
@@ -497,7 +514,9 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                             <span>•</span>
                             <span
                               className={
-                                isLow
+                                isOutOfStock
+                                  ? "text-rose-600 dark:text-rose-400 font-bold"
+                                  : isLow
                                   ? "text-amber-600 dark:text-amber-400 font-semibold"
                                   : "text-muted-foreground"
                               }
@@ -525,7 +544,15 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleQtyChange(prod.produto_id, 1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90 shadow-sm"
+                            disabled={isOutOfStock || isMaxReached}
+                            title={
+                              isOutOfStock
+                                ? "Produto sem estoque disponível"
+                                : isMaxReached
+                                ? `Limite de estoque atingido (${prod.quantidade_disponivel} un.)`
+                                : "Adicionar 1 unidade"
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90 shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <Plus className="h-3 w-3" />
                           </button>

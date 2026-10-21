@@ -1,5 +1,6 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { checkIsSupabaseConfigured, supabase } from "@/lib/supabase";
+import { addAuditLog } from "@/services/auditService";
 import {
   DashboardDataSnapshot,
   EstoqueLote,
@@ -663,6 +664,24 @@ export async function createNewSale(
     return current;
   }
 
+  // Validação Estrita de Estoque: Nenhum geladinho pode ser vendido sem estoque nem ficar negativo
+  for (const item of preparedItems) {
+    const prod = productMap.get(item.produto_id)!;
+    const lote = current.estoqueLotes.find((e) => e.produto_id === item.produto_id);
+    const estoqueDisponivel = lote ? lote.quantidade_disponivel : 0;
+
+    if (estoqueDisponivel <= 0) {
+      throw new Error(
+        `Venda bloqueada: O sabor "${prod.nome}" está ESGOTADO (0 un no estoque). Não é permitido vender sem estoque disponível.`
+      );
+    }
+    if (item.quantidade > estoqueDisponivel) {
+      throw new Error(
+        `Venda bloqueada: Estoque insuficiente para "${prod.nome}". Restam apenas ${estoqueDisponivel} un no freezer, mas foi solicitada a venda de ${item.quantidade} un.`
+      );
+    }
+  }
+
   const saleStatus = payload.status || "concluida";
 
   if (current.source === "supabase" && supabase) {
@@ -924,11 +943,43 @@ export async function cancelOrRefundSale(
 
 export async function updateProductStock(
   produtoId: string,
-  novaQuantidade: number
+  novaQuantidade: number,
+  auditInfo?: {
+    adminNome?: string;
+    motivo?: string;
+    observacoes?: string;
+  }
 ): Promise<DashboardDataSnapshot> {
   const qtdSegura = Math.max(0, Math.round(novaQuantidade));
   const current = await fetchDashboardData();
   const nowIso = new Date().toISOString();
+
+  // Auditoria de estoque
+  const prod = current.produtos.find((p) => p.id === produtoId);
+  const existingLote = current.estoqueLotes.find(
+    (e) => e.produto_id === produtoId
+  );
+  const anterior = existingLote ? existingLote.quantidade_disponivel : 0;
+  const diferenca = qtdSegura - anterior;
+
+  if (diferenca !== 0 && prod) {
+    addAuditLog({
+      admin_responsavel: auditInfo?.adminNome || "Administrador",
+      tipo_item: "geladinho_pronto",
+      item_id: prod.id,
+      item_nome: prod.nome,
+      unidade_medida: "un",
+      quantidade_anterior: anterior,
+      quantidade_nova: qtdSegura,
+      diferenca,
+      motivo_ajuste:
+        auditInfo?.motivo ||
+        (diferenca > 0
+          ? "Reposição de Lote / Produção"
+          : "Ajuste / Baixa Manual"),
+      observacoes: auditInfo?.observacoes,
+    });
+  }
 
   if (current.source === "supabase" && supabase) {
     const existingLote = current.estoqueLotes.find(

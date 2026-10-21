@@ -54,9 +54,15 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
   if (!isOpen) return null;
 
   const handleQtyChange = (produtoId: string, delta: number) => {
+    const item = inventoryByFlavor.find((p) => p.produto_id === produtoId);
+    const maxDisponivel = item ? item.quantidade_disponivel : 0;
+
     setQuantities((prev) => {
       const current = prev[produtoId] || 0;
-      const next = Math.max(0, current + delta);
+      if (delta > 0 && current >= maxDisponivel) {
+        return prev;
+      }
+      const next = Math.max(0, Math.min(maxDisponivel, current + delta));
       return { ...prev, [produtoId]: next };
     });
   };
@@ -203,7 +209,8 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleQtyChange(prod.produto_id, -1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-card text-sm font-bold hover:bg-secondary"
+                            disabled={qtd === 0}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-card text-sm font-bold hover:bg-secondary disabled:opacity-40"
                           >
                             -
                           </button>
@@ -213,7 +220,11 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleQtyChange(prod.produto_id, 1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground hover:bg-primary/90"
+                            disabled={
+                              prod.quantidade_disponivel <= 0 ||
+                              qtd >= prod.quantidade_disponivel
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             +
                           </button>
