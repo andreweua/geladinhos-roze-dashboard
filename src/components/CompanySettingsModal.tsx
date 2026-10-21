@@ -16,6 +16,8 @@ import {
   ExternalLink,
   Database,
   Cloud,
+  Share2,
+  Sparkles,
 } from "lucide-react";
 import {
   BRAND_CONFIG,
@@ -202,6 +204,56 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
       console.error("Erro ao zerar dados:", err);
       alert("Não foi possível zerar os dados: " + String(err));
     }
+  };
+
+  const [copiedSyncLink, setCopiedSyncLink] = useState(false);
+
+  const generateMagicSyncUrl = () => {
+    const configToSync: Partial<BrandConfig> = {
+      companyName: formData.companyName.trim() || BRAND_CONFIG.companyName,
+      tonConfig: {
+        ...currentConfig.tonConfig,
+        merchantName:
+          formData.merchantName.trim() || BRAND_CONFIG.tonConfig.merchantName,
+        merchantCity:
+          formData.merchantCity.trim().toUpperCase() || "JAU",
+        pixKey: formData.pixKey.trim() || BRAND_CONFIG.tonConfig.pixKey,
+        pixKeyType: formData.pixKeyType,
+        whatsappNumber:
+          formData.whatsappNumber.replace(/\D/g, "") ||
+          BRAND_CONFIG.tonConfig.whatsappNumber,
+      },
+      supabaseConfig: {
+        supabaseUrl: formData.supabaseUrl.trim(),
+        supabaseAnonKey: formData.supabaseAnonKey.trim(),
+      },
+    };
+
+    const encoded = btoa(
+      unescape(encodeURIComponent(JSON.stringify(configToSync)))
+    );
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?sync_config=${encoded}`;
+  };
+
+  const handleCopyMagicSyncLink = () => {
+    const url = generateMagicSyncUrl();
+    navigator.clipboard.writeText(url);
+    setCopiedSyncLink(true);
+    setTimeout(() => setCopiedSyncLink(false), 2500);
+  };
+
+  const handleSendMagicSyncLinkWhatsApp = () => {
+    const url = generateMagicSyncUrl();
+    const msg =
+      `🍧 *CONEXÃO DO PAINEL — GELADINHOS DA ROZE* 🍧\n\n` +
+      `Oi Roze! Aqui está o seu link de conexão com o nosso painel e banco de dados em tempo real.\n\n` +
+      `👉 Basta tocar neste link no seu celular para sincronizar tudo automaticamente:\n${url}\n\n` +
+      `✅ Não precisa digitar senha nem chave nenhuma! É só abrir o link!`;
+    const waPhone =
+      formData.whatsappNumber.replace(/\D/g, "") || "5514988183327";
+    const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, "_blank");
   };
 
   return (
@@ -781,6 +833,39 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
 
                 <div className="rounded-lg bg-secondary/50 p-3 text-[11px] text-muted-foreground">
                   💡 <strong>Modo Offline Atual:</strong> Se deixar os campos vazios, o sistema continuará rodando com segurança no <strong>Modo Local Offline</strong>, guardando os dados no próprio aparelho.
+                </div>
+
+                {/* Magic Sync Link Button */}
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      Link Mágico de Conexão para o Celular da Rozana (1 Toque)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Você como administrador configura aqui no seu computador uma única vez. Depois, basta clicar abaixo para mandar o link no WhatsApp da Rozana. Ao tocar nele, o celular dela conecta automaticamente à mesma nuvem sem ela precisar digitar nada!
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleSendMagicSyncLinkWhatsApp}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
+                    >
+                      <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                      Enviar Conexão no WhatsApp da Rozana
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCopyMagicSyncLink}
+                      className="text-xs"
+                    >
+                      {copiedSyncLink ? "✓ Link Copiado!" : "Copiar Link de Conexão"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

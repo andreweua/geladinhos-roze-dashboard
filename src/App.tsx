@@ -23,6 +23,7 @@ import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
+import { saveCustomBrandConfig } from "@/config/brand.config";
 import {
   computeDashboardAnalytics,
   getDateRangeForPreset,
@@ -123,6 +124,7 @@ export function App() {
   const [snapshot, setSnapshot] = useState<DashboardDataSnapshot | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [showRefreshToast, setShowRefreshToast] = useState<boolean>(false);
+  const [syncSuccessToast, setSyncSuccessToast] = useState<string | null>(null);
 
   const loadData = useCallback(async (isManualTrigger = false) => {
     setIsRefreshing(true);
@@ -142,6 +144,28 @@ export function App() {
       setIsRefreshing(false);
     }
   }, []);
+
+  // Check magic sync config on URL query param
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const syncConfigParam = params.get("sync_config");
+      if (syncConfigParam) {
+        const jsonStr = decodeURIComponent(escape(atob(syncConfigParam)));
+        const parsed = JSON.parse(jsonStr);
+        saveCustomBrandConfig(parsed);
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        setSyncSuccessToast(
+          "✓ Painel Sincronizado com Sucesso pelo Administrador! Conexão com a Nuvem e Chaves ativadas neste celular."
+        );
+        setTimeout(() => setSyncSuccessToast(null), 5000);
+        loadData(true);
+      }
+    } catch (err) {
+      console.warn("Erro ao ler sync_config da URL:", err);
+    }
+  }, [loadData]);
 
   useEffect(() => {
     loadData(false);
@@ -604,6 +628,23 @@ export function App() {
             </p>
             <p className="text-[11px] text-muted-foreground">
               Estoque, DRE e indicadores atualizados em tempo real.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Admin Magic Sync Success Toast */}
+      {syncSuccessToast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-primary/50 bg-card/95 px-5 py-3.5 shadow-2xl backdrop-blur-md animate-in slide-in-from-top-4 duration-300 max-w-md">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-foreground">
+              Sincronização com o Administrador Ativa!
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {syncSuccessToast}
             </p>
           </div>
         </div>
