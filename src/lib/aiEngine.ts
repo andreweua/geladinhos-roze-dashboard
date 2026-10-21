@@ -820,8 +820,8 @@ export function computeAiIntelligenceReport(
 
 /**
  * Hybrid AI Consultant ("Consultor PereiraLabs IA")
- * Uses Google Gemini API (`gemini-2.5-flash`) if an API key is provided,
- * or falls back seamlessly to the deterministic Context-Aware Local Engine.
+ * Uses Google Gemini API (`gemini-2.0-flash` / `gemini-1.5-flash`) if an API key is provided,
+ * or falls back seamlessly to the comprehensive Context-Aware Local Engine.
  */
 export async function askPereiraLabsAI(
   question: string,
@@ -836,38 +836,39 @@ export async function askPereiraLabsAI(
     ""
   ).trim();
 
+  // If Gemini API Key is provided, try modern models with rich system context
   if (cleanKey) {
     try {
-      const systemContext = `Você é o Consultor Financeiro e de Produção da PereiraLabs IA, especialista em confeitaria artesanal e gestão da marca "Geladinhos Gourmet da Roze" (saquinhos padrão 150ml).
-Responda sempre em Português do Brasil (pt-BR), de forma executiva, acolhedora, prática e direta, usando formatação Markdown com números reais extraídos do painel abaixo:
+      const systemContext = `Você é o Consultor Chefe de Operações, Confeitaria e Finanças da PereiraLabs IA, especializado na marca "Geladinhos Gourmet da Roze" (proprietária: Rozana Helena Miguel, com bases em Jaú/SP e Três Pontas/MG).
+Responda sempre em Português do Brasil (pt-BR), com tom acolhedor, profissional, encorajador e altamente resolutivo, sem enrolação. Dê respostas práticas, passo a passo e com números reais.
 
-DADOS REAIS DO PAINEL NO PERÍODO SELECIONADO:
-- Faturamento Bruto: ${formatCurrency(analytics.kpis.faturamentoTotal)} (${analytics.kpis.totalGeladinhosVendidos} unidades vendidas em ${analytics.kpis.totalPedidosConcluidos} pedidos)
-- Lucro Líquido Real (DRE Consolidada): ${formatCurrency(analytics.dreConsolidada.lucro_liquido)} (Margem de Contribuição: ${analytics.dreConsolidada.margem_contribuicao_pct}%)
-- Ticket Médio: ${formatCurrency(analytics.kpis.ticketMedio)}
-- Taxa iFood Cadastrada: ${ifoodFeePct.toFixed(1)}% (Fator divisor: ${(1 - ifoodFeePct / 100).toFixed(4)})
-- Plano de Produção de Hoje: Produzir ${report.productionPlan.totalLotesHoje} lotes (${report.productionPlan.totalUnidadesProduzir} unidades), Custo: ${formatCurrency(report.productionPlan.custoTotalProducaoHoje)}, Lucro Esperado: ${formatCurrency(report.productionPlan.lucroLiquidoEsperadoHoje)}.
-- Sabores Críticos/Urgentes para Produzir: ${report.productionPlan.items
-        .filter((i) => i.lotes_recomendados > 0)
-        .map(
-          (i) =>
-            `${i.nome} (Estoque: ${i.estoque_atual} un, Produzir: ${i.lotes_recomendados} lote(s) = ${i.unidades_produzir} un)`
-        )
-        .join("; ")}
-- Economia com Sobras na Despensa Hoje: ${formatCurrency(report.shoppingList.economiaComSobras)}
-- DRE por Sabor: ${analytics.drePorProduto
-        .map(
-          (d) =>
-            `${d.nome}: Venda Local ${formatCurrency(d.preco_venda)} | iFood ${formatCurrency(d.preco_ifood)} | Custo ${formatCurrency(d.custo_total_un)} | Lucro/un ${formatCurrency(d.lucro_bruto_un)} | Vendidos: ${d.unidades_vendidas} un`
-        )
-        .join(" || ")}
-- Resumo Lote 69 Unidades (9 Receitas): Custo R$ ${RESUMO_LOTES_PRODUCAO.loteCardapioExpandido9Receitas.custoTotalProducao.toFixed(2)}, Faturamento Local R$ ${RESUMO_LOTES_PRODUCAO.loteCardapioExpandido9Receitas.faturamentoBrutoLocal.toFixed(2)}, Lucro Líquido R$ ${RESUMO_LOTES_PRODUCAO.loteCardapioExpandido9Receitas.lucroLiquidoEstimadoLocal.toFixed(2)}.
-- Cotações no Catálogo: ${TABELA_COTACAO_INSUMOS.length} itens monitorados (Varejo vs Atacado).`;
+CONHECIMENTO COMPLETO DA OPERAÇÃO:
+1. PADRÃO GOURMET:
+   - Volume padrão: exatamente 150ml por saquinho.
+   - Base cremosa clássica: 1 lata de leite condensado (395g) + 1 cx de creme de leite (200g) + 1 medida de leite integral + 10g a 12g de Liga Neutra. Bater no liquidificador, retirar a espuma com colher após descansar 15 a 20 min para não formar cristais de gelo nem bolhas de ar.
+   - Custo da embalagem: R$ 0,05 por saquinho (150ml). Custo operacional (energia, gás, freezer): ~15% (R$ 0,35/un).
+
+2. OS 8 SABORES OFICIAIS, CUSTOS E PREÇOS:
+   - Ninho com Nutella: Custo R$ 3,44 | Venda Local R$ 7,50 | iFood R$ 10,16 | Lucro Líquido Local R$ 4,06/un (54,1% margem). Modo: Espalhar 15g de Nutella na parede interna do saquinho com saco de confeitar antes de colocar a base de Ninho.
+   - Mousse de Morango c/ Geleia Artesanal: Custo R$ 2,89 | Venda Local R$ 7,00 | iFood R$ 9,49 | Lucro Líquido Local R$ 4,11/un (58,7% margem). Geleia: Morangos frescos reduzidos com açúcar.
+   - Mousse de Maracujá c/ Geleia Artesanal: Custo R$ 2,64 | Venda Local R$ 6,50 | iFood R$ 8,81 | Lucro Líquido Local R$ 3,86/un (59,4% margem). Toque azedinho da polpa com sementes mesclada no saquinho.
+   - Doce de Leite: Custo R$ 2,74 | Venda Local R$ 6,50 | iFood R$ 8,81 | Lucro Líquido Local R$ 3,76/un (57,8% margem). 12g de Doce de Leite Itambé espalhado no saquinho.
+   - Paçoca Cremosa: Custo R$ 2,33 | Venda Local R$ 6,00 | iFood R$ 8,13 | Lucro Líquido Local R$ 3,67/un (61,2% margem). Paçoca rolha batida com a base e pedacinhos no saquinho.
+   - Ouro Branco: Custo R$ 3,25 | Venda Local R$ 7,50 | iFood R$ 10,16 | Lucro Líquido Local R$ 4,25/un (56,7% margem). Bombom picado e base de chocolate branco.
+   - Sonho de Valsa: Custo R$ 3,28 | Venda Local R$ 7,50 | iFood R$ 10,16 | Lucro Líquido Local R$ 4,22/un (56,3% margem). Bombom picado e base de amendoim/castanha.
+   - Coco Branco Cremoso: Custo R$ 2,27 | Venda Local R$ 6,00 | iFood R$ 8,13 | Lucro Líquido Local R$ 3,73/un (62,2% margem). Leite de coco + coco ralado úmido.
+
+3. REGRAS DE NEGÓCIO E TECNOLOGIA:
+   - Taxa iFood: ${ifoodFeePct.toFixed(1)}%. Para receber o mesmo valor da venda local, divide o preço local por ${(1 - ifoodFeePct / 100).toFixed(4)}.
+   - Pagamentos: Pix Stone dinâmico (taxa 0,99%), Dinheiro (0%), Débito (1,99%), Crédito (3,50%).
+   - Estoque: Bloqueio estrito de vendas sem saldo. Não permite estoque negativo nem zerado. Ajustes físicos pelo Admin exigem motivo e notificam por e-mail na Central de Auditoria.
+   - Dados Atuais no Período: Faturamento Total: ${formatCurrency(analytics.kpis.faturamentoTotal)} (${analytics.kpis.totalGeladinhosVendidos} un.), Lucro Líquido: ${formatCurrency(analytics.dreConsolidada.lucro_liquido)}.
+   - Se o faturamento estiver zerado (início ou teste novo), não diga que está tudo confortável sem fazer nada; oriente ativamente os primeiros passos para a produção e venda.`;
 
       const modelsToTry = [
-        "gemini-2.5-flash",
-        "gemini-1.5-flash",
         "gemini-2.0-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-pro",
       ];
 
       for (const model of modelsToTry) {
@@ -891,7 +892,7 @@ DADOS REAIS DO PAINEL NO PERÍODO SELECIONADO:
                 ],
                 generationConfig: {
                   temperature: 0.35,
-                  maxOutputTokens: 900,
+                  maxOutputTokens: 1200,
                 },
               }),
             }
@@ -914,118 +915,360 @@ DADOS REAIS DO PAINEL NO PERÍODO SELECIONADO:
     }
   }
 
-  // Deterministic Context-Aware Local Analytical Engine
-  const q = question.toLowerCase();
+  // Comprehensive Context-Aware Local Engine (100% Offline & Free)
+  const q = question.toLowerCase().trim();
 
+  // 1. Dúvidas sobre primeiros passos / início / o que fazer hoje / teste
   if (
-    q.includes("produzir") ||
-    q.includes("produção") ||
-    q.includes("hoje") ||
-    q.includes("estoque") ||
-    q.includes("falta")
+    q.includes("começar") ||
+    q.includes("início") ||
+    q.includes("inicio") ||
+    q.includes("primeiro dia") ||
+    q.includes("o que fazer") ||
+    q.includes("passo a passo") ||
+    q.includes("por onde") ||
+    q.includes("ajuda") ||
+    q.includes("não sei") ||
+    q.includes("teste") ||
+    q.includes("primeira")
   ) {
-    const urgentes = report.productionPlan.items.filter(
-      (i) => i.lotes_recomendados > 0
-    );
-    const lista = urgentes
-      .map(
-        (i) =>
-          `- **${i.nome}**: Estoque atual de **${i.estoque_atual} un.** (autonomia de ${i.autonomia_dias} dias) $\\rightarrow$ Bater **${i.lotes_recomendados} receita(s)** (**+${i.unidades_produzir} un.** | Custo: ${formatCurrency(i.custo_total_producao)} | Lucro esperado: **${formatCurrency(i.lucro_liquido_esperado)}**)`
-      )
-      .join("\n");
-
     return {
       mode: "pereiralabs_local",
-      answer: `### 👩‍🍳 Plano de Produção Recomendado para Hoje\n\nCruzando o seu giro dos últimos 7 dias com o estoque atual da **Geladinhos Gourmet da Roze**, a recomendação é produzir **${report.productionPlan.totalLotesHoje} lote(s)** hoje (**${report.productionPlan.totalUnidadesProduzir} saquinhos de 150ml**):\n\n${
-        lista ||
-        "- Todos os sabores estão com estoque confortável acima de 4,5 dias de autonomia!"
-      }\n\n💰 **Resumo Financeiro da Fornada de Hoje:**\n- **Custo Total de Produção:** ${formatCurrency(report.productionPlan.custoTotalProducaoHoje)} *(mas você economiza **${formatCurrency(report.shoppingList.economiaComSobras)}** usando as sobras de Leite Ninho, Ovomaltine, Cacau 50% e Morango já em estoque!)*\n- **Faturamento Bruto Estimado:** ${formatCurrency(report.productionPlan.faturamentoPotencialHoje)}\n- **Lucro Líquido no Bolso:** **${formatCurrency(report.productionPlan.lucroLiquidoEsperadoHoje)}**`,
+      answer: `### 🚀 Guia Prático de Início Rápido — Geladinhos Gourmet da Roze
+
+Olá! Para começar a operação com segurança e garantir lucro imediato, siga estes 5 passos fundamentais:
+
+1. **Compras no Atacado Hoje:**
+   - Priorize os ingredientes da **Base Neutra**: Leite Condensado (fardo ou cx 395g), Creme de Leite (cx 200g), Leite Integral e Liga Neutra (pote 100g ou 1kg).
+   - Compre saquinhos próprios para geladinho gourmet (tamanho **150ml** — R$ 0,05/un).
+   - Recheios nobres: 1 pote de Nutella (compre 650g para economizar 18% por grama), Doce de Leite Itambé e Paçoca Rolha.
+
+2. **Produza o Quarteto Campeão de Vendas (32 unidades no 1º lote):**
+   - **Ninho com Nutella:** 8 unidades (Preço sugerido: R$ 7,50 | Lucro: R$ 4,06/un)
+   - **Mousse de Morango com Geleia:** 8 unidades (Preço sugerido: R$ 7,00 | Lucro: R$ 4,11/un)
+   - **Mousse de Maracujá com Geleia:** 8 unidades (Preço sugerido: R$ 6,50 | Lucro: R$ 3,86/un)
+   - **Doce de Leite Cremoso:** 8 unidades (Preço sugerido: R$ 6,50 | Lucro: R$ 3,76/un)
+   - *Total investido na fornada: ~R$ 93,00 $\\rightarrow$ Faturamento esperado: **R$ 220,00** $\\rightarrow$ Lucro líquido: **R$ 127,00**!*
+
+3. **Segredo da Confeitaria:**
+   - Bata a base no liquidificador e **deixe descansar por 15 a 20 minutos**.
+   - Retire a espuma que sobe com uma colher antes de encher os saquinhos. Isso elimina bolhas e impede a formação de cristais de gelo!
+   - Encha com dosador em exatos 150ml e leve ao congelador por 4 a 6 horas.
+
+4. **Entrada no Estoque:**
+   - Quando estiverem congelados, abra a aba **"4. Auditoria de Estoque (Admin)"** e adicione as quantidades prontas de cada sabor.
+
+5. **Primeiras Vendas:**
+   - Abra o botão **"Novo Pedido / Frente de Caixa (PDV)"** para registrar cada venda (Pix Stone, Dinheiro ou Cartão) e ver seu lucro subir em tempo real!`,
     };
   }
 
+  // 2. Dúvidas sobre Ninho com Nutella
+  if (q.includes("ninho") || q.includes("nutella")) {
+    return {
+      mode: "pereiralabs_local",
+      answer: `### 🍫 Ficha Técnica: Geladinho Gourmet Ninho com Nutella (150ml)
+
+O **Ninho com Nutella** é o carro-chefe de vendas da Roze Gourmet e o sabor mais desejado pelos clientes.
+
+- **Preço de Venda Local:** R$ 7,50
+- **Preço no iFood (com taxa 26,2%):** R$ 10,16
+- **Custo Total de Produção:** R$ 3,44 por unidade (insumos R$ 3,04 + saquinho R$ 0,05 + operacional R$ 0,35)
+- **Lucro Líquido no Bolso:** **R$ 4,06 por unidade** (Margem de **54,1%** sobre a venda)
+
+**Ingredientes para 1 Lote (~8 a 9 unidades de 150ml):**
+- 1 cx de Leite Condensado (395g)
+- 1 cx de Creme de Leite (200g)
+- 1 medida da caixinha de Leite Integral (~300ml)
+- 50g a 60g de Leite Ninho em pó integral
+- 10g de Liga Neutra
+- 120g a 135g de Nutella original (~15g por saquinho)
+
+**Modo de Preparo Profissional:**
+1. Coloque a Nutella em uma manga/saco de confeitar.
+2. Insira a ponta até o fundo do saquinho de 150ml e aperte ~15g. Espalhe com os dedos pelas paredes internas do saquinho.
+3. Bata no liquidificador o leite condensado, creme de leite, leite integral, leite Ninho e a liga neutra por 2 minutos.
+4. Deixe a mistura descansar por 15 minutos e retire a espuma superficial.
+5. Despeje 150ml da base em cada saquinho já com a Nutella espalhada, amarre ou sele e congele por 5 horas.`,
+    };
+  }
+
+  // 3. Dúvidas sobre Morango / Geleia de Morango
+  if (q.includes("morango") || q.includes("geleia de morango")) {
+    return {
+      mode: "pereiralabs_local",
+      answer: `### 🍓 Ficha Técnica: Mousse de Morango com Geleia Artesanal (150ml)
+
+O morango com pedacinhos de fruta fresca garante alto valor percebido e excelente margem de contribuição.
+
+- **Preço de Venda Local:** R$ 7,00
+- **Preço no iFood (taxa 26,2%):** R$ 9,49
+- **Custo Total de Produção:** R$ 2,89 por unidade
+- **Lucro Líquido no Bolso:** **R$ 4,11 por unidade** (Margem de **58,7%**)
+
+**Geleia Artesanal (Redução em fogo brando):**
+- 500g de Morangos frescos ou congelados picados
+- 100g de Açúcar cristal
+- *Preparo da geleia:* Cozinhe em fogo baixo mexendo até engrossar e ficar em ponto de calda brilhante. Deixe esfriar completamente antes de montar.
+
+**Base do Mousse (Rendimento ~8 unidades):**
+- 1 cx Leite Condensado (395g) + 1 cx Creme de Leite (200g) + 1 medida de Leite Integral + 1 pacote de pó para suco/sobremesa de morango + 10g Liga Neutra.
+- Espalhe 15g da geleia de morango fria no saquinho e complete com 150ml do mousse batido.`,
+    };
+  }
+
+  // 4. Dúvidas sobre Maracujá
+  if (q.includes("maracuja") || q.includes("maracujá")) {
+    return {
+      mode: "pereiralabs_local",
+      answer: `### 🟡 Ficha Técnica: Mousse de Maracujá com Geleia Artesanal (150ml)
+
+Sabor refrescante com o contraste perfeito entre o doce do mousse e a acidez das sementes de maracujá.
+
+- **Preço de Venda Local:** R$ 6,50
+- **Preço no iFood (taxa 26,2%):** R$ 8,81
+- **Custo Total de Produção:** R$ 2,64 por unidade
+- **Lucro Líquido no Bolso:** **R$ 3,86 por unidade** (Margem de **59,4%**)
+
+**Composição da Receita:**
+- Polpa de Maracujá com sementes reduzida com açúcar para mesclar no saquinho (10g a 12g por unidade).
+- Base cremosa de leite condensado, creme de leite, leite e polpa concentrada de maracujá batida com 10g de liga neutra.`,
+    };
+  }
+
+  // 5. Dúvidas sobre Paçoca
+  if (q.includes("paçoca") || q.includes("pacoca") || q.includes("amendoim")) {
+    return {
+      mode: "pereiralabs_local",
+      answer: `### 🥜 Ficha Técnica: Paçoca Cremosa Gourmet (150ml)
+
+Um dos sabores mais baratos de produzir e com maior aceitação popular em qualquer época do ano.
+
+- **Preço de Venda Local:** R$ 6,00
+- **Preço no iFood (taxa 26,2%):** R$ 8,13
+- **Custo Total de Produção:** **R$ 2,33 por unidade**
+- **Lucro Líquido no Bolso:** **R$ 3,67 por unidade** (Margem de **61,2%**)
+
+**Ingredientes (Rendimento ~8 unidades de 150ml):**
+- 1 cx Leite Condensado (395g) + 1 cx Creme de Leite (200g) + 300ml Leite Integral.
+- 5 a 6 Paçocas tipo Rolha esfareladas (bata 4 na base e reserve 1 a 2 esfareladas para colocar dentro dos saquinhos).
+- 10g de Liga Neutra para dar textura aveludada.`,
+    };
+  }
+
+  // 6. Dúvidas sobre Doce de Leite, Ouro Branco, Sonho de Valsa ou Coco
+  if (
+    q.includes("doce de leite") ||
+    q.includes("ouro branco") ||
+    q.includes("sonho de valsa") ||
+    q.includes("coco")
+  ) {
+    return {
+      mode: "pereiralabs_local",
+      answer: `### 🍨 Sabores Nobres de Alta Margem — Roze Gourmet
+
+- **Doce de Leite Itambé:** Custo: R$ 2,74 | Venda Local: R$ 6,50 | iFood: R$ 8,81 | **Lucro: R$ 3,76/un.** (Espalhe 12g de Doce de Leite com bico na parede do saquinho).
+- **Ouro Branco:** Custo: R$ 3,25 | Venda Local: R$ 7,50 | iFood: R$ 10,16 | **Lucro: R$ 4,25/un.** (Base cremosa de chocolate branco com bombom Ouro Branco picado).
+- **Sonho de Valsa:** Custo: R$ 3,28 | Venda Local: R$ 7,50 | iFood: R$ 10,16 | **Lucro: R$ 4,22/un.** (Base de castanha com bombom Sonho de Valsa picadinho).
+- **Coco Branco Cremoso:** Custo: R$ 2,27 | Venda Local: R$ 6,00 | iFood: R$ 8,13 | **Lucro: R$ 3,73/un.** (Leite de coco Sococo + coco ralado úmido).`,
+    };
+  }
+
+  // 7. Segredo técnico de confeitaria (liga neutra, cristais de gelo, cremosidade, espuma)
+  if (
+    q.includes("liga neutra") ||
+    q.includes("espuma") ||
+    q.includes("cristal") ||
+    q.includes("gelo") ||
+    q.includes("cremos") ||
+    q.includes("textura") ||
+    q.includes("liquidificador")
+  ) {
+    return {
+      mode: "pereiralabs_local",
+      answer: `### 🔬 O Segredo da Textura Gourmet Aveludada (Sem Cristais de Gelo)
+
+Para um geladinho ser considerado **Gourmet de Verdade**, ele precisa ter consistência de sorvete de massa ao morder, nunca de picolé de gelo. Siga estas 4 regras de ouro:
+
+1. **Uso Correto da Liga Neutra:** Use exatamente **10g a 12g de Liga Neutra** (cerca de 1 colher de sopa rasa) por receita de 1 litro de base. A liga neutra retém as moléculas de água e evita o congelamento em agulhas de gelo.
+2. **Tempo de Descanso Obrigatório:** Ao bater no liquidificador por 2 minutos, cria-se muita espuma (ar). **Desligue e deixe a jarra descansar por 15 a 20 minutos**.
+3. **Retirada da Espuma:** Com uma colher grande ou espumadeira, retire toda a camada branca de espuma que subiu. Encha os saquinhos apenas com o líquido liso e denso.
+4. **Espessura do Saquinho:** Use saquinhos próprios para geladinho gourmet (gramatura micra entre 0,06 e 0,08) de **150ml**. Evita furos no congelador e dá aspecto profissional.`,
+    };
+  }
+
+  // 8. Dúvidas sobre iFood, taxas e precificação
   if (
     q.includes("ifood") ||
     q.includes("taxa") ||
-    q.includes("preço") ||
-    q.includes("precificar") ||
-    q.includes("738")
+    q.includes("738") ||
+    q.includes("divisor") ||
+    q.includes("entrega") ||
+    q.includes("delivery")
   ) {
-    const fator = (1 - ifoodFeePct / 100).toFixed(4).replace(".", ",");
-    const tabela = analytics.drePorProduto
-      .map(
-        (d) =>
-          `- **${d.nome}**: Local **${formatCurrency(d.preco_venda)}** $\\rightarrow$ iFood **${formatCurrency(d.preco_ifood)}** *(Lucro Líquido preservado: **${formatCurrency(d.lucro_liquido_ifood)}/un.**)*`
-      )
-      .join("\n");
-
+    const divisor = (1 - ifoodFeePct / 100).toFixed(4);
     return {
       mode: "pereiralabs_local",
-      answer: `### 🛵 Precificação Dinâmica iFood (Taxa ativa: ${ifoodFeePct.toFixed(1)}%)\n\nPara ganhar exatamente o **mesmo lucro líquido em reais** da venda local, aplicamos o fator divisor exato de **${fator}** ($\\text{Preço iFood} = \\text{Preço Local} \\div ${fator}$):\n\n${tabela}\n\n✅ **Por que isso protege seu caixa?** Quando o iFood desconta os **${ifoodFeePct.toFixed(1)}%** sobre o preço do app, o repasse líquido que cai na sua conta é **100% idêntico ao seu Preço Local**, garantindo margem integral em todos os 8 sabores!`,
+      answer: `### 🛵 Fórmula Exata da Precificação iFood (Taxa Cadastrada: ${ifoodFeePct.toFixed(1)}%)
+
+Para você nunca pagar a comissão do iFood do seu próprio bolso, o sistema calcula o preço com a **Fórmula do Divisor de Margem Protegida**:
+
+$$\\text{Preço iFood} = \\frac{\\text{Preço de Venda Local}}{1 - (\\text{Taxa}/100)} = \\frac{\\text{Preço Local}}{${divisor.replace(".", ",")}}$$
+
+**Tabela Pronta de Preços no iFood:**
+- Sabores de **R$ 6,00** (Paçoca, Coco) $\\rightarrow$ **R$ 8,13** no iFood
+- Sabores de **R$ 6,50** (Doce de Leite, Maracujá) $\\rightarrow$ **R$ 8,81** no iFood
+- Sabores de **R$ 7,00** (Morango com Geleia) $\\rightarrow$ **R$ 9,49** no iFood
+- Sabores de **R$ 7,50** (Ninho Nutella, Bombons) $\\rightarrow$ **R$ 10,16** no iFood
+
+*Quando o iFood desconta os ${ifoodFeePct.toFixed(1)}% de comissão, o valor líquido que cai na conta da Roze é exatamente igual ao preço cobrado no balcão físico!*`,
     };
   }
 
+  // 9. Dúvidas sobre Stone / Ton / Pix / Maquininha / Pagamentos
   if (
-    q.includes("lucro") ||
-    q.includes("margem") ||
-    q.includes("rentável") ||
-    q.includes("campeão") ||
-    q.includes("melhor") ||
-    q.includes("dre")
+    q.includes("stone") ||
+    q.includes("ton") ||
+    q.includes("pix") ||
+    q.includes("maquininha") ||
+    q.includes("cartão") ||
+    q.includes("cartao") ||
+    q.includes("pagamento")
   ) {
-    const sortedByUnitProfit = [...analytics.drePorProduto].sort(
-      (a, b) => b.lucro_bruto_un - a.lucro_bruto_un
-    );
-    const top3Unit = sortedByUnitProfit
-      .slice(0, 3)
-      .map(
-        (d, i) =>
-          `${i + 1}. **${d.nome}** — Lucro Líquido de **${formatCurrency(d.lucro_bruto_un)}/un.** (Venda: ${formatCurrency(d.preco_venda)} | Custo: ${formatCurrency(d.custo_total_un)} | Markup: **${d.markup_multiplicador}x**)`
-      )
-      .join("\n");
-
     return {
       mode: "pereiralabs_local",
-      answer: `### 📊 Análise de Rentabilidade & DRE por Sabor\n\nNo período filtrado, sua operação acumulou **${formatCurrency(analytics.dreConsolidada.receita_bruta)}** de receita bruta e **${formatCurrency(analytics.dreConsolidada.lucro_liquido)}** de **Lucro Líquido Real** (já descontando taxas de pagamento, insumos, saquinhos de 150ml e 15% de gás/energia/água).\n\n🏆 **Top 3 Sabores que Mais Deixam Dinheiro por Unidade:**\n${top3Unit}\n\n💡 **Dica Estratégica PereiraLabs IA:** O sabor **${sortedByUnitProfit[0]?.nome}** entrega a maior margem unitária do cardápio. Combine-o em kits de 4 unidades com o **Ninho com Nutella** para elevar o ticket médio acima de R$ 29,00!`,
+      answer: `### 💳 Integração Financeira: Stone / Ton & Pix Dinâmico
+
+O painel já possui suporte para recebimento automatizado e conciliação de vendas:
+
+- **Pix Dinâmico Stone:** Gera QR Code exclusivo e código Copia e Cola para cada pedido. A taxa negociada Stone/Ton PJ é de **0,99%**.
+- **Dinheiro em Espécie:** Taxa de **0,00%** (100% no caixa).
+- **Cartão de Débito:** Taxa de **1,99%**.
+- **Cartão de Crédito à Vista:** Taxa de **3,50%**.
+
+*Ao finalizar uma venda pelo botão "Novo Pedido / PDV", o sistema já desconta a taxa exata da forma de pagamento e calcula seu Lucro Líquido Real instantaneamente!*`,
     };
   }
 
+  // 10. Dúvidas sobre Estoque, Auditoria, Negativo e Estornos
   if (
+    q.includes("estoque") ||
+    q.includes("negativo") ||
+    q.includes("zerado") ||
+    q.includes("auditoria") ||
+    q.includes("ajustar") ||
+    q.includes("estorn") ||
+    q.includes("cancelar") ||
+    q.includes("bloqueio")
+  ) {
+    return {
+      mode: "pereiralabs_local",
+      answer: `### 🛡️ Regras de Controle de Estoque & Auditoria (v2.8.0)
+
+O sistema conta com proteção reforçada de estoque:
+
+1. **Bloqueio de Venda Sem Saldo:**
+   - O PDV não permite selecionar mais unidades do que existem no congelador.
+   - Se o sabor estiver com 0 unidades, exibe o aviso \`🚫 Esgotado\` e o botão fica bloqueado.
+   - O estoque nunca fica negativo.
+
+2. **Ajuste Físico de Estoque pelo Administrador:**
+   - Na aba **"4. Auditoria de Estoque (Admin)"**, você pode lançar a contagem física real dos geladinhos ou insumos.
+   - O sistema exige informar o **Nome do Responsável** e o **Motivo** (ex: inventário, degelo, avaria, degustação).
+
+3. **Notificação por E-mail:**
+   - Todos os ajustes geram logs permanentes e disparam notificações para a lista de e-mails cadastrada.
+
+4. **Estorno de Venda:**
+   - Na tabela de Últimas Vendas, se um cliente cancelar ou devolver, você pode clicar em **Estornar**. O sistema pergunta se deseja devolver o produto ao estoque e cancela a receita mantendo o histórico de auditoria.`,
+    };
+  }
+
+  // 11. Dúvidas sobre Celular / PWA / Instalação
+  if (
+    q.includes("celular") ||
+    q.includes("instalar") ||
+    q.includes("pwa") ||
+    q.includes("app") ||
+    q.includes("android") ||
+    q.includes("iphone") ||
+    q.includes("ios")
+  ) {
+    return {
+      mode: "pereiralabs_local",
+      answer: `### 📱 Como Instalar e Usar o App no Celular da Roze
+
+O sistema é um **PWA (Progressive Web App)** nativo e funciona perfeitamente sem precisar baixar da loja:
+
+- **No Celular Android (Chrome):**
+  1. Abra o link do painel no Google Chrome.
+  2. Toque no aviso **"Instalar Aplicativo"** ou nos 3 pontinhos no canto superior $\\rightarrow$ **"Instalar aplicativo"**.
+  3. O ícone oficial da Roze Gourmet aparecerá na tela inicial e abrirá em tela cheia sem barras de navegador.
+
+- **No iPhone / iPad (Safari):**
+  1. Abra o link no Safari.
+  2. Toque no botão de **Compartilhar** (ícone do quadrado com a setinha para cima $\\uparrow$).
+  3. Role para baixo e selecione **"Adicionar à Tela de Início"**.
+  4. Toque em "Adicionar" no canto superior direito.
+
+*Pronto! Ele funcionará como um aplicativo oficial no celular dela.*`,
+    };
+  }
+
+  // 12. Dúvidas sobre Compras / Atacado / Cotações
+  if (
+    q.includes("compra") ||
     q.includes("insumo") ||
-    q.includes("barato") ||
-    q.includes("economizar") ||
-    q.includes("cotação") ||
+    q.includes("mercado") ||
     q.includes("atacado") ||
-    q.includes("compra")
+    q.includes("cotação") ||
+    q.includes("cotacao") ||
+    q.includes("barato")
   ) {
     const ops = report.costOptimizations.opportunities
-      .slice(0, 4)
+      .slice(0, 3)
       .map(
         (o) =>
-          `- **${o.insumo_alvo}**: Redução de **-${o.reducao_grama_pct}% por grama** (${o.cenario_otimizado}) $\\rightarrow$ Economia de **${formatCurrency(o.economia_mensal_estimada)}/mês**`
+          `- **${o.insumo_alvo}**: Comprando embalagem maior (${o.cenario_otimizado}) reduz **-${o.reducao_grama_pct}%** do custo por grama $\\rightarrow$ Economia estimada de **${formatCurrency(o.economia_mensal_estimada)}/mês**`
       )
       .join("\n");
 
     return {
       mode: "pereiralabs_local",
-      answer: `### 🛒 Engenharia de Insumos & Oportunidades no Atacado\n\nAnalisando as **54 cotações reais** cadastradas no seu painel, você pode aumentar seu lucro líquido em **${formatCurrency(report.costOptimizations.economiaMensalPotencial)} por mês** sem alterar a qualidade das receitas:\n\n${ops}\n\n📦 **Sobras Inteligentes na Despensa:** Antes de ir ao mercado hoje, lembre-se que você já possui sobras de **Leite Ninho (330g)**, **Ovomaltine (540g)**, **Chocolate 50% (960g)** e **Morango Congelado (520g)**, o que reduz seu desembolso imediato em **${formatCurrency(report.shoppingList.economiaComSobras)}**!`,
+      answer: `### 🛒 Estratégia de Compras no Atacado & Economia de Insumos
+
+Para maximizar o lucro, a regra de ouro é **nunca comprar embalagens pequenas de varejo**:
+
+${ops}
+
+📦 **Dica de Despensa:** Antes de ir ao mercado, confira a aba **"3. Pesquisa de Mercados & Preços Pagos"** para registrar os preços das notas fiscais e atualizar automaticamente o custo de todas as 8 receitas!`,
     };
   }
 
+  // 13. Metas de Lucro / Quanto Vender
   if (
     q.includes("meta") ||
+    q.includes("lucro") ||
     q.includes("3000") ||
     q.includes("4000") ||
     q.includes("5000") ||
-    q.includes("mês") ||
-    q.includes("vender")
+    q.includes("quanto vender")
   ) {
     const sim = report.profitSimulation;
     return {
       mode: "pereiralabs_local",
-      answer: `### 🎯 Plano Prático para Bater ${formatCurrency(sim.meta_lucro_mensal)} de Lucro Líquido/Mês\n\nCom o seu lucro líquido médio atual de **${formatCurrency(sim.lucro_medio_por_unidade)} por geladinho (150ml)** e trabalhando **${sim.dias_trabalhados_mes} dias no mês**, você precisa de:\n\n- **Meta Diária:** Vender **${sim.unidades_dia_necessarias} geladinhos por dia** (aprox. ${Math.ceil(sim.unidades_dia_necessarias / 4)} combos de 4 unidades)\n- **Meta Semanal:** **${sim.unidades_semana_necessarias} unidades/semana** (~**${sim.lotes_69_semana} lotes** completos do cardápio de 69 unidades)\n- **Volume Mensal Total:** **${sim.unidades_mes_necessarias} unidades** (Faturamento Bruto Local de **${formatCurrency(sim.faturamento_bruto_local_necessario)}** ou **${formatCurrency(sim.faturamento_bruto_ifood_necessario)}** no iFood)`,
+      answer: `### 🎯 Planejamento de Metas: Como Bater ${formatCurrency(sim.meta_lucro_mensal)} de Lucro Líquido no Mês
+
+Considerando o lucro líquido médio de **${formatCurrency(sim.lucro_medio_por_unidade)} por geladinho** e trabalhando **${sim.dias_trabalhados_mes} dias**:
+
+- **Meta Diária:** Vender **${sim.unidades_dia_necessarias} geladinhos por dia** (apenas ~${Math.ceil(sim.unidades_dia_necessarias / 4)} kits de 4 unidades).
+- **Meta Semanal:** **${sim.unidades_semana_necessarias} unidades por semana**.
+- **Meta Mensal:** **${sim.unidades_mes_necessarias} unidades no mês**.
+- **Faturamento Bruto Mensal:** **${formatCurrency(sim.faturamento_bruto_local_necessario)}** no balcão ou **${formatCurrency(sim.faturamento_bruto_ifood_necessario)}** no iFood.`,
     };
   }
 
+  // 14. Promoção / Combos / WhatsApp
   if (
     q.includes("promo") ||
     q.includes("combo") ||
@@ -1036,13 +1279,34 @@ DADOS REAIS DO PAINEL NO PERÍODO SELECIONADO:
     const combo = report.smartCombos[0];
     return {
       mode: "pereiralabs_local",
-      answer: `### 📲 Sugestão de Combo & Mensagem Pronta para WhatsApp\n\nPara girar rápido os sabores que estão com maior estoque hoje (**${combo.sabores_inclusos.map((s) => s.nome).join(" + ")}**), lance o **${combo.titulo}** por **${formatCurrency(combo.preco_combo_sugerido)}** (seu lucro líquido no combo é de **${formatCurrency(combo.lucro_liquido_combo)}**, margem de **${combo.margem_sobre_custo_pct}% sobre o custo**):\n\n\`\`\`text\n${combo.mensagem_whatsapp}\n\`\`\``,
+      answer: `### 📲 Combo de Vendas Rápido para Divulgar no WhatsApp
+
+Divulgue o **${combo.titulo}** por **${formatCurrency(combo.preco_combo_sugerido)}** (Lucro Líquido: **${formatCurrency(combo.lucro_liquido_combo)}**):
+
+\`\`\`text
+${combo.mensagem_whatsapp}
+\`\`\`
+
+*Copie a mensagem acima, publique no Status do WhatsApp e envie para grupos de condomínios e amigos para abrir a agenda de encomendas do dia!*`,
     };
   }
 
-  // Default comprehensive overview answer
+  // 15. Default Comprehensive AI Consultant
   return {
     mode: "pereiralabs_local",
-    answer: `### 🤖 Diagnóstico Executivo PereiraLabs IA — Geladinhos Gourmet da Roze\n\nAqui está a leitura em tempo real da sua operação (Score de Saúde: **${report.healthScore}/100**):\n\n1. **Resultado no Período:** Receita Bruta de **${formatCurrency(analytics.dreConsolidada.receita_bruta)}** e Lucro Líquido Real de **${formatCurrency(analytics.dreConsolidada.lucro_liquido)}** (${analytics.dreConsolidada.unidades_vendidas} un. vendidas, margem líquida de **${analytics.dreConsolidada.margem_contribuicao_pct}%**).\n2. **O que produzir hoje:** **${report.productionPlan.totalLotesHoje} lote(s)** (**${report.productionPlan.totalUnidadesProduzir} unidades**) com foco nos sabores de menor autonomia para gerar **${formatCurrency(report.productionPlan.lucroLiquidoEsperadoHoje)}** de lucro líquido.\n3. **Economia de Compras:** Aproveitando as sobras da despensa, você economiza **${formatCurrency(report.shoppingList.economiaComSobras)}** hoje, e comprando insumos-chave no atacado (Nutella 650g, Creme de Leite e Leite Condensado) economiza mais **${formatCurrency(report.costOptimizations.economiaMensalPotencial)}/mês**.\n\n*Pergunte sobre **"O que produzir hoje?"**, **"Como precificar no iFood?"**, **"Qual sabor dá mais lucro?"** ou **"Crie uma promoção para WhatsApp"**!*`,
+    answer: `### 💡 Consultoria PereiraLabs IA — Geladinhos Gourmet da Roze
+
+Analisei sua pergunta ("*${question}*") com base nas 8 fichas técnicas, controle de estoque e precificação da sua confeitaria:
+
+1. **Foco na Produção e Qualidade:**
+   - Os 8 sabores oficiais possuem custo médio de R$ 2,82 e preço médio de R$ 6,88, entregando **mais de 140% de margem líquida média**.
+   - Para começar a produzir, priorize os sabores mais pedidos: **Ninho com Nutella**, **Mousse de Morango com Geleia** e **Doce de Leite**.
+
+2. **Dicas Rápidas:**
+   - Para saber a receita e modo de preparo de qualquer sabor, pergunte: "*Qual a receita do Ninho com Nutella?*" ou "*Como fazer o morango?*".
+   - Para entender a taxa do iFood, pergunte: "*Como funciona a taxa do iFood?*".
+   - Para planejar compras, pergunte: "*O que comprar no atacado?*".
+
+*Como posso te ajudar especificamente agora com as receitas, compras, vendas ou estoque?*`,
   };
 }
