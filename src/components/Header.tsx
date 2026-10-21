@@ -11,6 +11,7 @@ import {
   Smartphone,
   Receipt,
   QrCode,
+  Settings,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
@@ -22,6 +23,7 @@ interface HeaderProps {
   onOpenStockModal: () => void;
   onOpenInstallModal: () => void;
   onOpenInvoiceModal: () => void;
+  onOpenSettingsModal?: () => void;
   isPwaInstalled: boolean;
   onRefresh: () => void;
   isRefreshing: boolean;
@@ -35,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenStockModal,
   onOpenInstallModal,
   onOpenInvoiceModal,
+  onOpenSettingsModal,
   isPwaInstalled,
   onRefresh,
   isRefreshing,
@@ -119,6 +122,19 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Smartphone className="h-4 w-4 text-rose-500" />
               <span className="hidden md:inline">Instalar App</span>
+            </Button>
+          )}
+
+          {onOpenSettingsModal && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenSettingsModal}
+              title="Configurar Dados da Empresa, Chave Pix, Taxas e Stone API"
+              className="hidden lg:inline-flex items-center gap-1.5 border-border"
+            >
+              <Settings className="h-4 w-4 text-muted-foreground" />
+              <span>Dados & Pix</span>
             </Button>
           )}
 

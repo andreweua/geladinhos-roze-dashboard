@@ -50,6 +50,14 @@ export interface BrandConfig {
       Cartao_Credito: number; // Ton Crédito: 3.50%
     };
   };
+  stoneConfig?: {
+    environment: "sandbox" | "production";
+    apiUrl: string;
+    clientId: string;
+    clientSecret: string;
+    accountId: string;
+    webhookSecret?: string;
+  };
   basesOperacionais: {
     jau: {
       responsavel: string;
@@ -135,6 +143,14 @@ export const BRAND_CONFIG: BrandConfig = {
       Cartao_Credito: 3.5,
     },
   },
+  stoneConfig: {
+    environment: "sandbox",
+    apiUrl: "https://sandbox-api.openbank.stone.com.br",
+    clientId: "",
+    clientSecret: "",
+    accountId: "",
+    webhookSecret: "",
+  },
   basesOperacionais: {
     jau: {
       responsavel: "Rozana Helena Miguel",
@@ -175,3 +191,51 @@ export const BRAND_CONFIG: BrandConfig = {
       "Desenvolvido por PereiraLabs - Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais",
   },
 };
+
+export const COMPANY_CONFIG_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_company_settings_v1`;
+
+export function getCustomBrandConfig(): BrandConfig {
+  try {
+    const raw = localStorage.getItem(COMPANY_CONFIG_STORAGE_KEY);
+    if (raw) {
+      const overrides = JSON.parse(raw) as Partial<BrandConfig>;
+      return {
+        ...BRAND_CONFIG,
+        ...overrides,
+        tonConfig: {
+          ...BRAND_CONFIG.tonConfig,
+          ...(overrides.tonConfig || {}),
+          rates: {
+            ...BRAND_CONFIG.tonConfig.rates,
+            ...(overrides.tonConfig?.rates || {}),
+          },
+        },
+        stoneConfig: {
+          ...BRAND_CONFIG.stoneConfig!,
+          ...(overrides.stoneConfig || {}),
+        },
+        basesOperacionais: {
+          jau: {
+            ...BRAND_CONFIG.basesOperacionais.jau,
+            ...(overrides.basesOperacionais?.jau || {}),
+          },
+          tresPontas: {
+            ...BRAND_CONFIG.basesOperacionais.tresPontas,
+            ...(overrides.basesOperacionais?.tresPontas || {}),
+          },
+        },
+      };
+    }
+  } catch (e) {
+    console.warn("Erro ao carregar configurações salvas:", e);
+  }
+  return BRAND_CONFIG;
+}
+
+export function saveCustomBrandConfig(config: Partial<BrandConfig>): void {
+  try {
+    localStorage.setItem(COMPANY_CONFIG_STORAGE_KEY, JSON.stringify(config));
+  } catch (e) {
+    console.warn("Erro ao salvar configurações personalizadas:", e);
+  }
+}

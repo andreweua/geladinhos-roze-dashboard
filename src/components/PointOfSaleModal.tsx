@@ -26,7 +26,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { BRAND_CONFIG } from "@/config/brand.config";
+import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
 import { formatCurrency, formatNumber, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { generatePixPayload } from "@/lib/pix";
 import { EstoquePorProduto, PaymentMethod } from "@/types/dashboard";
@@ -79,8 +79,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   const [isSimulatingWebhook, setIsSimulatingWebhook] = useState<boolean>(false);
   const [successAnimation, setSuccessAnimation] = useState<boolean>(false);
 
-  // Merchant Ton Config
-  const ton = BRAND_CONFIG.tonConfig;
+  // Merchant Ton Config (dinâmico com overrides do painel de configurações)
+  const ton = useMemo(() => getCustomBrandConfig().tonConfig, [isOpen]);
 
   // Selected items calculation
   const selectedItems = useMemo(() => {

@@ -84,6 +84,9 @@ export interface Venda {
   pix_txid?: string;
   pix_qrcode?: string;
   pix_copia_cola?: string;
+  motivo_cancelamento?: string;
+  data_cancelamento?: string;
+  estornou_estoque?: boolean;
 }
 
 export interface ItemVenda {

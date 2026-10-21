@@ -3,7 +3,7 @@
 // Integração via Supabase Edge Functions + Realtime WebSocket + Fallback Local
 // ============================================================================
 
-import { BRAND_CONFIG } from "@/config/brand.config";
+import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 import { generatePixPayload } from "@/lib/pix";
 import { PaymentMethod } from "@/types/dashboard";
@@ -37,7 +37,8 @@ export interface StonePixResult {
 export async function createStonePixCharge(
   params: CreateStonePixParams
 ): Promise<StonePixResult> {
-  const ton = BRAND_CONFIG.tonConfig;
+  const brand = getCustomBrandConfig();
+  const ton = brand.tonConfig;
   const nowIso = new Date().toISOString();
   const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
   const txid = `ROZE${Date.now()}${randomSuffix}`;

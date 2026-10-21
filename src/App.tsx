@@ -13,11 +13,13 @@ import { InvoicePriceUpdaterModal } from "@/components/InvoicePriceUpdaterModal"
 import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
+import { CompanySettingsModal } from "@/components/CompanySettingsModal";
 import {
   computeDashboardAnalytics,
   getDateRangeForPreset,
 } from "@/lib/analytics";
 import {
+  cancelOrRefundSale,
   createNewProduct,
   createNewSale,
   fetchDashboardData,
@@ -118,6 +120,7 @@ export function App() {
   const [posModalOpen, setPosModalOpen] = useState<boolean>(false);
   const [installModalOpen, setInstallModalOpen] = useState<boolean>(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState<boolean>(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState<boolean>(false);
 
   // PWA Install Prompt state (Android / Chrome / Edge)
   const [deferredPrompt, setDeferredPrompt] =
@@ -202,6 +205,15 @@ export function App() {
     setSnapshot(updated);
   };
 
+  const handleCancelSale = async (
+    vendaId: string,
+    motivo: string,
+    devolverAoEstoque: boolean
+  ) => {
+    const updated = await cancelOrRefundSale(vendaId, motivo, devolverAoEstoque);
+    setSnapshot(updated);
+  };
+
   const handleUpdateStock = async (produtoId: string, newQty: number) => {
     const updated = await updateProductStock(produtoId, newQty);
     setSnapshot(updated);
@@ -281,6 +293,7 @@ export function App() {
         }}
         onOpenInstallModal={() => setInstallModalOpen(true)}
         onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
+        onOpenSettingsModal={() => setSettingsModalOpen(true)}
         isPwaInstalled={isPwaInstalled}
         onRefresh={loadData}
         isRefreshing={isRefreshing}
@@ -466,6 +479,7 @@ export function App() {
                     setModalTab("estoque");
                     setModalOpen(true);
                   }}
+                  onCancelSale={handleCancelSale}
                 />
               </>
             )}
@@ -553,6 +567,12 @@ export function App() {
         canTriggerNativeInstall={Boolean(deferredPrompt)}
         onTriggerNativeInstall={handleTriggerNativeInstall}
         isInstalled={isPwaInstalled}
+      />
+
+      <CompanySettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        onConfigSaved={loadData}
       />
     </div>
   );

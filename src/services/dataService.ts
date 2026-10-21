@@ -830,6 +830,98 @@ export async function completePendingSale(
   return updatedSnapshot;
 }
 
+/**
+ * Realiza o cancelamento ou estorno de uma venda
+ * 1. Remove a venda do faturamento e das receitas (status muda para 'cancelada')
+ * 2. Mantém o registro histórico permanente com motivo e data
+ * 3. Se solicitado, estorna a baixa de estoque, devolvendo as unidades físicas ao freezer
+ */
+export async function cancelOrRefundSale(
+  vendaId: string,
+  motivo: string,
+  devolverAoEstoque: boolean
+): Promise<DashboardDataSnapshot> {
+  const current = await fetchDashboardData();
+  const nowIso = new Date().toISOString();
+
+  if (current.source === "supabase" && supabase) {
+    await supabase
+      .from("vendas")
+      .update({
+        status: "cancelada",
+        motivo_cancelamento: motivo,
+        data_cancelamento: nowIso,
+        estornou_estoque: devolverAoEstoque,
+      })
+      .eq("id", vendaId);
+
+    if (devolverAoEstoque) {
+      const { data: itens } = await supabase
+        .from("itens_venda")
+        .select("produto_id, quantidade")
+        .eq("venda_id", vendaId);
+
+      if (itens) {
+        for (const item of itens) {
+          const lote = current.estoqueLotes.find(
+            (e) => e.produto_id === item.produto_id
+          );
+          if (lote) {
+            await supabase
+              .from("estoque_lotes")
+              .update({
+                quantidade_disponivel: lote.quantidade_disponivel + item.quantidade,
+                updated_at: nowIso,
+              })
+              .eq("id", lote.id);
+          }
+        }
+      }
+    }
+
+    return fetchDashboardData();
+  }
+
+  const vendaIndex = current.vendas.findIndex((v) => v.id === vendaId);
+  if (vendaIndex === -1) return current;
+
+  const venda = current.vendas[vendaIndex];
+  const eraConcluida = venda.status === "concluida";
+
+  const updatedVendas = [...current.vendas];
+  updatedVendas[vendaIndex] = {
+    ...venda,
+    status: "cancelada",
+    motivo_cancelamento: motivo,
+    data_cancelamento: nowIso,
+    estornou_estoque: devolverAoEstoque,
+  };
+
+  let estoqueAtualizado = current.estoqueLotes;
+  if (devolverAoEstoque && eraConcluida) {
+    const itensDaVenda = current.itensVenda.filter((i) => i.venda_id === venda.id);
+    estoqueAtualizado = current.estoqueLotes.map((lote) => {
+      const item = itensDaVenda.find((i) => i.produto_id === lote.produto_id);
+      if (!item) return lote;
+      return {
+        ...lote,
+        quantidade_disponivel: lote.quantidade_disponivel + item.quantidade,
+        updated_at: nowIso,
+      };
+    });
+  }
+
+  const updatedSnapshot: DashboardDataSnapshot = {
+    ...current,
+    vendas: updatedVendas,
+    estoqueLotes: estoqueAtualizado,
+    lastSyncedAt: nowIso,
+  };
+
+  saveLocalSnapshot(updatedSnapshot);
+  return updatedSnapshot;
+}
+
 export async function updateProductStock(
   produtoId: string,
   novaQuantidade: number
