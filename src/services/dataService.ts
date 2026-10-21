@@ -1134,3 +1134,50 @@ export async function saveBatchFichasTecnicas(
   saveLocalSnapshot(updatedSnapshot);
   return updatedSnapshot;
 }
+
+/**
+ * Zera todos os dados operacionais (vendas, itens e estoque) para início de produção real,
+ * mantendo 100% preservadas as fichas técnicas de receitas e os produtos cadastrados.
+ */
+export async function resetToCleanSlate(): Promise<DashboardDataSnapshot> {
+  const current = await fetchDashboardData();
+  const nowIso = new Date().toISOString();
+
+  if (current.source === "supabase" && supabase) {
+    await supabase
+      .from("itens_venda")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase
+      .from("vendas")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase
+      .from("estoque_lotes")
+      .update({
+        quantidade_disponivel: 0,
+        updated_at: nowIso,
+      })
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    return fetchDashboardData();
+  }
+
+  // Local snapshot
+  const zeroStock = current.estoqueLotes.map((lote) => ({
+    ...lote,
+    quantidade_disponivel: 0,
+    updated_at: nowIso,
+  }));
+
+  const cleanSnapshot: DashboardDataSnapshot = {
+    ...current,
+    vendas: [],
+    itensVenda: [],
+    estoqueLotes: zeroStock,
+    lastSyncedAt: nowIso,
+  };
+
+  saveLocalSnapshot(cleanSnapshot);
+  return cleanSnapshot;
+}

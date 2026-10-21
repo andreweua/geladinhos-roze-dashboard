@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   IceCreamCone,
   Moon,
@@ -12,6 +12,7 @@ import {
   Receipt,
   QrCode,
   Settings,
+  Check,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
@@ -43,6 +44,16 @@ export const Header: React.FC<HeaderProps> = ({
   isRefreshing,
   dataSource,
 }) => {
+  const [justRefreshed, setJustRefreshed] = useState(false);
+
+  useEffect(() => {
+    if (isRefreshing) {
+      setJustRefreshed(true);
+    } else if (justRefreshed) {
+      const timer = setTimeout(() => setJustRefreshed(false), 2200);
+      return () => clearTimeout(timer);
+    }
+  }, [isRefreshing]);
   return (
     <header className="sticky top-0 z-30 w-full border-b border-border/80 bg-card/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
@@ -142,14 +153,23 @@ export const Header: React.FC<HeaderProps> = ({
             variant="ghost"
             size="icon"
             onClick={onRefresh}
-            title="Atualizar dados"
+            title={justRefreshed && !isRefreshing ? "Atualizado com sucesso!" : "Atualizar dados"}
             aria-label="Atualizar dados"
+            className="relative"
           >
-            <RefreshCw
-              className={`h-4 w-4 text-muted-foreground ${
-                isRefreshing ? "animate-spin text-primary" : ""
-              }`}
-            />
+            {isRefreshing ? (
+              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+            ) : justRefreshed ? (
+              <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 animate-in zoom-in" />
+            ) : (
+              <RefreshCw className="h-4 w-4 text-muted-foreground hover:text-foreground transition-transform active:rotate-180" />
+            )}
+            {justRefreshed && !isRefreshing && (
+              <span className="absolute top-1 right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+            )}
           </Button>
 
           <Button

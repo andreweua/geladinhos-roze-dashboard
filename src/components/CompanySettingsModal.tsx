@@ -9,6 +9,7 @@ import {
   Save,
   CheckCircle2,
   RefreshCw,
+  Trash2,
   Phone,
   MapPin,
   HelpCircle,
@@ -21,6 +22,7 @@ import {
   saveCustomBrandConfig,
 } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
+import { resetToCleanSlate } from "@/services/dataService";
 
 interface CompanySettingsModalProps {
   isOpen: boolean;
@@ -167,6 +169,26 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
       setFeedback("Configurações restauradas com sucesso!");
       onConfigSaved();
       setTimeout(() => setFeedback(null), 2500);
+    }
+  };
+
+  const handleCleanSlateAction = async () => {
+    const confirmed = window.confirm(
+      "Atenção: Deseja zerar todas as vendas e estoques de lotes para a Rozana iniciar a produção real amanhã?\n\n" +
+        "✓ Todas as 8 Fichas Técnicas e receitas serão 100% preservadas.\n" +
+        "✓ O catálogo de produtos continuará intacto.\n" +
+        "✓ Vendas simuladas e saldos de estoque serão zerados (0 un)."
+    );
+    if (!confirmed) return;
+
+    try {
+      await resetToCleanSlate();
+      setFeedback("Operação concluída! Vendas e estoques zerados para início da produção real.");
+      onConfigSaved();
+      setTimeout(() => setFeedback(null), 3000);
+    } catch (err) {
+      console.error("Erro ao zerar dados:", err);
+      alert("Não foi possível zerar os dados: " + String(err));
     }
   };
 
@@ -670,15 +692,27 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
 
         {/* Footer */}
         <div className="border-t border-border px-5 py-3.5 bg-secondary/20 flex flex-wrap items-center justify-between gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleResetDefaults}
-            className="text-muted-foreground hover:text-foreground text-xs"
-          >
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            <span>Restaurar Padrões de Fábrica</span>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetDefaults}
+              className="text-muted-foreground hover:text-foreground text-xs"
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              <span>Restaurar Padrões</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCleanSlateAction}
+              className="border-amber-500/40 text-amber-500 hover:bg-amber-500/10 text-xs font-medium"
+              title="Zera vendas e estoques mantendo 100% das fichas técnicas para o início real"
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+              <span>Zerar Vendas e Estoque (Início Real)</span>
+            </Button>
+          </div>
 
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>

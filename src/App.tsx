@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutDashboard, ChefHat, Layers, Sparkles, QrCode, Store, ShieldCheck } from "lucide-react";
+import {
+  LayoutDashboard,
+  ChefHat,
+  Layers,
+  Sparkles,
+  QrCode,
+  Store,
+  ShieldCheck,
+  CheckCircle2,
+} from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Header } from "@/components/Header";
 import { DateFilterBar } from "@/components/DateFilterBar";
@@ -113,8 +122,30 @@ export function App() {
   // Dashboard Data Snapshot
   const [snapshot, setSnapshot] = useState<DashboardDataSnapshot | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [showRefreshToast, setShowRefreshToast] = useState<boolean>(false);
 
-  // Modal state
+  const loadData = useCallback(async (isManualTrigger = false) => {
+    setIsRefreshing(true);
+    const start = Date.now();
+    try {
+      const data = await fetchDashboardData();
+      setSnapshot(data);
+      const elapsed = Date.now() - start;
+      if (elapsed < 650) {
+        await new Promise((r) => setTimeout(r, 650 - elapsed));
+      }
+      if (isManualTrigger) {
+        setShowRefreshToast(true);
+        setTimeout(() => setShowRefreshToast(false), 2500);
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData(false);
+  }, [loadData]);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [modalTab, setModalTab] = useState<"venda" | "estoque">("venda");
   const [posModalOpen, setPosModalOpen] = useState<boolean>(false);
@@ -175,20 +206,6 @@ export function App() {
       setInstallModalOpen(false);
     }
   };
-
-  const loadData = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      const data = await fetchDashboardData();
-      setSnapshot(data);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   const handleSelectPreset = (preset: DatePreset) => {
     setDateFilter(
@@ -295,7 +312,7 @@ export function App() {
         onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
         onOpenSettingsModal={() => setSettingsModalOpen(true)}
         isPwaInstalled={isPwaInstalled}
-        onRefresh={loadData}
+        onRefresh={() => loadData(true)}
         isRefreshing={isRefreshing}
         dataSource={snapshot?.source || "demo_local"}
       />
@@ -574,6 +591,23 @@ export function App() {
         onClose={() => setSettingsModalOpen(false)}
         onConfigSaved={loadData}
       />
+
+      {/* Floating Refresh Success Toast */}
+      {showRefreshToast && (
+        <div className="fixed bottom-5 right-5 z-50 flex items-center gap-3 rounded-2xl border border-emerald-500/40 bg-card/95 px-4 py-3 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-4 duration-300">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-foreground">
+              Painel Sincronizado com Sucesso!
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Estoque, DRE e indicadores atualizados em tempo real.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
