@@ -77,18 +77,45 @@ ALTER TABLE itens_venda ENABLE ROW LEVEL SECURITY;
 ALTER TABLE estoque_lotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auditoria_estoque ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Acesso público anônimo produtos" ON produtos;
 CREATE POLICY "Acesso público anônimo produtos" ON produtos FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acesso público anônimo vendas" ON vendas;
 CREATE POLICY "Acesso público anônimo vendas" ON vendas FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acesso público anônimo itens_venda" ON itens_venda;
 CREATE POLICY "Acesso público anônimo itens_venda" ON itens_venda FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acesso público anônimo estoque_lotes" ON estoque_lotes;
 CREATE POLICY "Acesso público anônimo estoque_lotes" ON estoque_lotes FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acesso público anônimo auditoria_estoque" ON auditoria_estoque;
 CREATE POLICY "Acesso público anônimo auditoria_estoque" ON auditoria_estoque FOR ALL USING (true) WITH CHECK (true);
 
--- Habilitar Realtime nas tabelas para sincronização instantânea
-ALTER PUBLICATION supabase_realtime ADD TABLE produtos;
-ALTER PUBLICATION supabase_realtime ADD TABLE vendas;
-ALTER PUBLICATION supabase_realtime ADD TABLE itens_venda;
-ALTER PUBLICATION supabase_realtime ADD TABLE estoque_lotes;
-ALTER PUBLICATION supabase_realtime ADD TABLE auditoria_estoque;
+-- Habilitar Realtime nas tabelas para sincronização instantânea (Idempotente)
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE produtos;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE vendas;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE itens_venda;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE estoque_lotes;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE auditoria_estoque;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+END $$;
 
 -- ============================================================================
 -- SEED INICIAL DOS 8 SABORES OFICIAIS (COM ESTOQUE PRONTO PARA REGISTRO REAL)
