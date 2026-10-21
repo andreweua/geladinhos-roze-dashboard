@@ -1,5 +1,5 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { checkIsSupabaseConfigured, supabase } from "@/lib/supabase";
 import {
   DashboardDataSnapshot,
   EstoqueLote,
@@ -569,7 +569,7 @@ export function resetLocalDemoData(): DashboardDataSnapshot {
 }
 
 export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
-  if (isSupabaseConfigured && supabase) {
+  if (checkIsSupabaseConfigured() && supabase) {
     try {
       const [produtosRes, vendasRes, itensRes, estoqueRes] = await Promise.all([
         supabase.from("produtos").select("*").order("nome"),

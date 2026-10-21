@@ -76,12 +76,14 @@ export const Header: React.FC<HeaderProps> = ({
                 className="hidden sm:inline-flex gap-1 text-[11px]"
                 title={
                   dataSource === "supabase"
-                    ? "Conectado ao banco PostgreSQL no Supabase"
-                    : "Modo Demonstração Interativo (dados salvos no navegador)"
+                    ? "Conectado ao banco PostgreSQL no Supabase (Sincronização em Tempo Real)"
+                    : "Modo Local Offline (Dados salvos isoladamente na memória deste dispositivo)"
                 }
               >
                 <Database className="h-3 w-3" />
-                {dataSource === "supabase" ? "Supabase Online" : "Modo Demo Ativo"}
+                {dataSource === "supabase"
+                  ? "Nuvem Supabase Ativa"
+                  : "Modo Local (Dispositivo)"}
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">

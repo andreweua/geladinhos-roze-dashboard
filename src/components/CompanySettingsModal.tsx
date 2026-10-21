@@ -14,6 +14,8 @@ import {
   MapPin,
   HelpCircle,
   ExternalLink,
+  Database,
+  Cloud,
 } from "lucide-react";
 import {
   BRAND_CONFIG,
@@ -36,7 +38,7 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   onConfigSaved,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    "empresa" | "pix_ton" | "stone_api" | "polos"
+    "empresa" | "pix_ton" | "stone_api" | "polos" | "supabase"
   >("pix_ton");
 
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -74,6 +76,10 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     tresPontasResponsavel: currentConfig.basesOperacionais.tresPontas.responsavel,
     tresPontasCep: currentConfig.basesOperacionais.tresPontas.cep,
     tresPontasLogradouro: currentConfig.basesOperacionais.tresPontas.logradouro,
+
+    // Supabase Cloud Sync
+    supabaseUrl: currentConfig.supabaseConfig?.supabaseUrl || "",
+    supabaseAnonKey: currentConfig.supabaseConfig?.supabaseAnonKey || "",
   });
 
   if (!isOpen) return null;
@@ -127,10 +133,14 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
           logradouro: formData.tresPontasLogradouro.trim(),
         },
       },
+      supabaseConfig: {
+        supabaseUrl: formData.supabaseUrl.trim(),
+        supabaseAnonKey: formData.supabaseAnonKey.trim(),
+      },
     };
 
     saveCustomBrandConfig(updated);
-    setFeedback("Configurações da Empresa, Pix e Stone salvas com sucesso!");
+    setFeedback("Configurações da Empresa, Pix, Stone e Supabase salvas com sucesso!");
     onConfigSaved();
 
     setTimeout(() => {
@@ -165,6 +175,8 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         tresPontasResponsavel: BRAND_CONFIG.basesOperacionais.tresPontas.responsavel,
         tresPontasCep: BRAND_CONFIG.basesOperacionais.tresPontas.cep,
         tresPontasLogradouro: BRAND_CONFIG.basesOperacionais.tresPontas.logradouro,
+        supabaseUrl: "",
+        supabaseAnonKey: "",
       });
       setFeedback("Configurações restauradas com sucesso!");
       onConfigSaved();
@@ -281,6 +293,19 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
           >
             <MapPin className="h-4 w-4" />
             <span>Polos Operacionais & CEPs</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("supabase")}
+            className={`flex items-center gap-1.5 px-4 py-2.5 transition-colors border-b-2 whitespace-nowrap ${
+              activeTab === "supabase"
+                ? "border-primary text-primary bg-primary/5 font-bold"
+                : "border-transparent text-muted-foreground hover:bg-secondary/40"
+            }`}
+          >
+            <Database className="h-4 w-4" />
+            <span>Nuvem Supabase (Sincronização)</span>
           </button>
         </div>
 
@@ -684,6 +709,78 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                       className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: SUPABASE CLOUD SYNC */}
+          {activeTab === "supabase" && (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-xs">
+                <div className="flex items-center gap-2 font-bold text-foreground mb-1">
+                  <Database className="h-4 w-4 text-primary" />
+                  Sincronização em Tempo Real (Jaú-SP ↔ Três Pontas-MG)
+                </div>
+                <p className="text-muted-foreground leading-relaxed">
+                  Para que você e a Rozana vejam as mesmas vendas, estoques e receitas atualizados instantaneamente em qualquer lugar, basta conectar um banco gratuito no <strong>Supabase</strong>.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <a
+                    href="https://supabase.com"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
+                  >
+                    Abrir Supabase (Gratuito)
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-muted-foreground">
+                    Script das tabelas pronto no repositório: <code>supabase-schema.sql</code>
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-border p-4 bg-background">
+                <div>
+                  <label className="text-xs font-bold text-foreground block mb-1">
+                    Supabase Project URL (API URL):
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.supabaseUrl}
+                    onChange={(e) =>
+                      setFormData({ ...formData, supabaseUrl: e.target.value })
+                    }
+                    placeholder="Ex: https://xyzcompany.supabase.co"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-mono text-foreground focus:border-primary focus:outline-none"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Encontrado no painel do Supabase em: <em>Project Settings → API → Project URL</em>.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-foreground block mb-1">
+                    Supabase Anon Public Key (Chave Anônima Pública):
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.supabaseAnonKey}
+                    onChange={(e) =>
+                      setFormData({ ...formData, supabaseAnonKey: e.target.value })
+                    }
+                    placeholder="Ex: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    className="w-full rounded-lg border border-input bg-background p-3 text-xs font-mono text-foreground focus:border-primary focus:outline-none"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Encontrado no painel do Supabase em: <em>Project Settings → API → Project API Keys → anon / public</em>.
+                  </p>
+                </div>
+
+                <div className="rounded-lg bg-secondary/50 p-3 text-[11px] text-muted-foreground">
+                  💡 <strong>Modo Offline Atual:</strong> Se deixar os campos vazios, o sistema continuará rodando com segurança no <strong>Modo Local Offline</strong>, guardando os dados no próprio aparelho.
                 </div>
               </div>
             </div>

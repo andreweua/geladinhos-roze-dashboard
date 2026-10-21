@@ -58,6 +58,10 @@ export interface BrandConfig {
     accountId: string;
     webhookSecret?: string;
   };
+  supabaseConfig?: {
+    supabaseUrl: string;
+    supabaseAnonKey: string;
+  };
   basesOperacionais: {
     jau: {
       responsavel: string;
@@ -190,6 +194,10 @@ export const BRAND_CONFIG: BrandConfig = {
     fullText:
       "Desenvolvido por PereiraLabs - Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais",
   },
+  supabaseConfig: {
+    supabaseUrl: "",
+    supabaseAnonKey: "",
+  },
 };
 
 export const COMPANY_CONFIG_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_company_settings_v1`;
@@ -213,6 +221,10 @@ export function getCustomBrandConfig(): BrandConfig {
         stoneConfig: {
           ...BRAND_CONFIG.stoneConfig!,
           ...(overrides.stoneConfig || {}),
+        },
+        supabaseConfig: {
+          supabaseUrl: overrides.supabaseConfig?.supabaseUrl || "",
+          supabaseAnonKey: overrides.supabaseConfig?.supabaseAnonKey || "",
         },
         basesOperacionais: {
           jau: {
