@@ -81,6 +81,9 @@ export interface Venda {
   forma_pagamento: PaymentMethod;
   valor_total: number;
   status: SaleStatus;
+  pix_txid?: string;
+  pix_qrcode?: string;
+  pix_copia_cola?: string;
 }
 
 export interface ItemVenda {

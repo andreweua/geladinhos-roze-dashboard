@@ -628,6 +628,11 @@ export interface NewSalePayload {
   forma_pagamento: PaymentMethod;
   cliente_nome?: string;
   cliente_telefone?: string;
+  status?: "concluida" | "pendente" | "cancelada";
+  pix_txid?: string;
+  pix_qrcode?: string;
+  pix_copia_cola?: string;
+  venda_id?: string;
   itens: Array<{
     produto_id: string;
     quantidade: number;
@@ -658,16 +663,26 @@ export async function createNewSale(
     return current;
   }
 
+  const saleStatus = payload.status || "concluida";
+
   if (current.source === "supabase" && supabase) {
+    const saleInsertData: Record<string, unknown> = {
+      forma_pagamento: payload.forma_pagamento,
+      cliente_nome: payload.cliente_nome?.trim() || null,
+      cliente_telefone: payload.cliente_telefone?.trim() || null,
+      valor_total: valorTotal,
+      status: saleStatus,
+      pix_txid: payload.pix_txid || null,
+      pix_qrcode: payload.pix_qrcode || null,
+      pix_copia_cola: payload.pix_copia_cola || null,
+    };
+    if (payload.venda_id && !payload.venda_id.startsWith("venda-temp")) {
+      saleInsertData.id = payload.venda_id;
+    }
+
     const { data: vendaInserida, error: vendaErr } = await supabase
       .from("vendas")
-      .insert({
-        forma_pagamento: payload.forma_pagamento,
-        cliente_nome: payload.cliente_nome?.trim() || null,
-        cliente_telefone: payload.cliente_telefone?.trim() || null,
-        valor_total: valorTotal,
-        status: "concluida",
-      })
+      .insert(saleInsertData)
       .select()
       .single();
 
@@ -680,22 +695,25 @@ export async function createNewSale(
       }));
       await supabase.from("itens_venda").insert(itemsToInsert);
 
-      for (const item of preparedItems) {
-        const lote = current.estoqueLotes.find(
-          (e) => e.produto_id === item.produto_id
-        );
-        if (lote) {
-          const novaQtd = Math.max(
-            0,
-            lote.quantidade_disponivel - item.quantidade
+      // Apenas baixa estoque se a venda estiver concluída imediatamente
+      if (saleStatus === "concluida") {
+        for (const item of preparedItems) {
+          const lote = current.estoqueLotes.find(
+            (e) => e.produto_id === item.produto_id
           );
-          await supabase
-            .from("estoque_lotes")
-            .update({
-              quantidade_disponivel: novaQtd,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", lote.id);
+          if (lote) {
+            const novaQtd = Math.max(
+              0,
+              lote.quantidade_disponivel - item.quantidade
+            );
+            await supabase
+              .from("estoque_lotes")
+              .update({
+                quantidade_disponivel: novaQtd,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", lote.id);
+          }
         }
       }
 
@@ -703,7 +721,7 @@ export async function createNewSale(
     }
   }
 
-  const newVendaId = `venda-${Date.now()}`;
+  const newVendaId = payload.venda_id || `venda-${Date.now()}`;
   const nowIso = new Date().toISOString();
 
   const novaVenda: Venda = {
@@ -713,7 +731,10 @@ export async function createNewSale(
     data_venda: nowIso,
     forma_pagamento: payload.forma_pagamento,
     valor_total: valorTotal,
-    status: "concluida",
+    status: saleStatus,
+    pix_txid: payload.pix_txid,
+    pix_qrcode: payload.pix_qrcode,
+    pix_copia_cola: payload.pix_copia_cola,
   };
 
   const novosItens: ItemVenda[] = preparedItems.map((i, idx) => ({
@@ -724,25 +745,83 @@ export async function createNewSale(
     preco_unitario: i.preco_unitario,
   }));
 
+  // Apenas baixa estoque se a venda estiver concluída
+  const estoqueAtualizado =
+    saleStatus === "concluida"
+      ? current.estoqueLotes.map((lote) => {
+          const soldItem = preparedItems.find(
+            (i) => i.produto_id === lote.produto_id
+          );
+          if (!soldItem) return lote;
+          return {
+            ...lote,
+            quantidade_disponivel: Math.max(
+              0,
+              lote.quantidade_disponivel - soldItem.quantidade
+            ),
+            updated_at: nowIso,
+          };
+        })
+      : current.estoqueLotes;
+
+  const updatedSnapshot: DashboardDataSnapshot = {
+    ...current,
+    vendas: [novaVenda, ...current.vendas],
+    itensVenda: [...novosItens, ...current.itensVenda],
+    estoqueLotes: estoqueAtualizado,
+    lastSyncedAt: nowIso,
+  };
+
+  saveLocalSnapshot(updatedSnapshot);
+  return updatedSnapshot;
+}
+
+/**
+ * Conclui uma venda pendente (ex: após confirmação de webhook do Pix)
+ * e realiza a dedução correspondente no estoque de produtos
+ */
+export async function completePendingSale(
+  vendaIdOrTxId: string
+): Promise<DashboardDataSnapshot> {
+  const current = await fetchDashboardData();
+  const nowIso = new Date().toISOString();
+
+  if (current.source === "supabase" && supabase) {
+    // Tenta primeiro via RPC seguro
+    await supabase.rpc("settle_stone_pix_sale", { txid_param: vendaIdOrTxId });
+    return fetchDashboardData();
+  }
+
+  // Fallback local
+  const vendaIndex = current.vendas.findIndex(
+    (v) => v.id === vendaIdOrTxId || v.pix_txid === vendaIdOrTxId
+  );
+  if (vendaIndex === -1) return current;
+
+  const venda = current.vendas[vendaIndex];
+  if (venda.status === "concluida") return current;
+
+  const updatedVendas = [...current.vendas];
+  updatedVendas[vendaIndex] = {
+    ...venda,
+    status: "concluida",
+  };
+
+  const itensDaVenda = current.itensVenda.filter((i) => i.venda_id === venda.id);
+
   const estoqueAtualizado = current.estoqueLotes.map((lote) => {
-    const soldItem = preparedItems.find(
-      (i) => i.produto_id === lote.produto_id
-    );
-    if (!soldItem) return lote;
+    const item = itensDaVenda.find((i) => i.produto_id === lote.produto_id);
+    if (!item) return lote;
     return {
       ...lote,
-      quantidade_disponivel: Math.max(
-        0,
-        lote.quantidade_disponivel - soldItem.quantidade
-      ),
+      quantidade_disponivel: Math.max(0, lote.quantidade_disponivel - item.quantidade),
       updated_at: nowIso,
     };
   });
 
   const updatedSnapshot: DashboardDataSnapshot = {
     ...current,
-    vendas: [novaVenda, ...current.vendas],
-    itensVenda: [...novosItens, ...current.itensVenda],
+    vendas: updatedVendas,
     estoqueLotes: estoqueAtualizado,
     lastSyncedAt: nowIso,
   };

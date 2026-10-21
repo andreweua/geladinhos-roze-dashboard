@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   X,
   Plus,
@@ -18,6 +18,12 @@ import {
   ExternalLink,
   ShieldCheck,
   Percent,
+  Radio,
+  Loader2,
+  CheckCircle2,
+  Zap,
+  Building2,
+  AlertCircle,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG } from "@/config/brand.config";
@@ -25,6 +31,12 @@ import { formatCurrency, formatNumber, PAYMENT_METHOD_LABELS } from "@/lib/utils
 import { generatePixPayload } from "@/lib/pix";
 import { EstoquePorProduto, PaymentMethod } from "@/types/dashboard";
 import { NewSalePayload } from "@/services/dataService";
+import {
+  createStonePixCharge,
+  subscribeToPixSettlement,
+  simulateStoneWebhookPayment,
+  StonePixResult,
+} from "@/services/stonePixService";
 
 interface PointOfSaleModalProps {
   isOpen: boolean;
@@ -59,6 +71,13 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   const [copiedPix, setCopiedPix] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Stone OpenBank Dynamic Pix states
+  const [stonePixData, setStonePixData] = useState<StonePixResult | null>(null);
+  const [isGeneratingPix, setIsGeneratingPix] = useState<boolean>(false);
+  const [paymentStatus, setPaymentStatus] = useState<"idle" | "waiting" | "paid">("idle");
+  const [isSimulatingWebhook, setIsSimulatingWebhook] = useState<boolean>(false);
+  const [successAnimation, setSuccessAnimation] = useState<boolean>(false);
 
   // Merchant Ton Config
   const ton = BRAND_CONFIG.tonConfig;
@@ -100,7 +119,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   const tonFeeAmount = Number((totalVenda * (tonFeeRate / 100)).toFixed(2));
   const repasseLiquidoTon = Number((totalVenda - tonFeeAmount).toFixed(2));
 
-  // Dynamic Pix BR Code Payload
+  // Dynamic Pix BR Code Payload fallback
   const pixData = useMemo(() => {
     if (totalVenda <= 0) return { payload: "", txId: "", cleanKey: ton.pixKey };
     return generatePixPayload({
@@ -111,6 +130,78 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       description: `Pedido ${totalUnidades}x Geladinhos`,
     });
   }, [totalVenda, totalUnidades, ton]);
+
+  // Efeito para gerar cobrança dinâmica Stone Pix assim que entra no passo de pagamento
+  useEffect(() => {
+    if (step === "payment" && paymentMethod === "Pix" && totalVenda > 0) {
+      let isCancelled = false;
+      setIsGeneratingPix(true);
+      createStonePixCharge({
+        amount: totalVenda,
+        description: `Pedido ${totalUnidades}x Geladinhos Roze`,
+        cliente_nome: clienteNome.trim() || undefined,
+        cliente_telefone: clienteTelefone.trim() || undefined,
+        itens: selectedItems.map((i) => ({
+          produto_id: i.produto_id,
+          quantidade: i.qtdSelecionada,
+          preco_unitario: i.preco_venda,
+        })),
+      })
+        .then((res) => {
+          if (!isCancelled) {
+            setStonePixData(res);
+            setPaymentStatus("waiting");
+          }
+        })
+        .catch((err) => {
+          console.warn("Falha ao gerar Pix Stone:", err);
+        })
+        .finally(() => {
+          if (!isCancelled) setIsGeneratingPix(false);
+        });
+
+      return () => {
+        isCancelled = true;
+      };
+    }
+  }, [step, paymentMethod, totalVenda, totalUnidades]);
+
+  // Escuta WebSocket em Tempo Real (Supabase Realtime) para liquidação automática via Webhook
+  useEffect(() => {
+    if (step === "payment" && paymentMethod === "Pix" && stonePixData?.venda_id) {
+      setPaymentStatus("waiting");
+      const unsubscribe = subscribeToPixSettlement(stonePixData.venda_id, async () => {
+        setPaymentStatus("paid");
+        setSuccessAnimation(true);
+        await onSubmitSale({
+          forma_pagamento: "Pix",
+          cliente_nome: clienteNome.trim() || undefined,
+          cliente_telefone: clienteTelefone.trim() || undefined,
+          status: "concluida",
+          pix_txid: stonePixData.txid,
+          pix_copia_cola: stonePixData.copia_e_cola,
+          itens: selectedItems.map((i) => ({
+            produto_id: i.produto_id,
+            quantidade: i.qtdSelecionada,
+          })),
+        });
+
+        setTimeout(() => {
+          setSuccessAnimation(false);
+          setQuantities({});
+          setClienteNome("");
+          setClienteTelefone("");
+          setStep("cart");
+          setPaymentStatus("idle");
+          onClose();
+        }, 2800);
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }
+  }, [step, paymentMethod, stonePixData?.venda_id]);
 
   if (!isOpen) return null;
 
@@ -129,10 +220,13 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
     }));
   };
 
+  const activePixPayload = stonePixData?.copia_e_cola || pixData.payload;
+  const activeTxId = stonePixData?.txid || pixData.txId;
+
   const handleCopyPix = async () => {
-    if (!pixData.payload) return;
+    if (!activePixPayload) return;
     try {
-      await navigator.clipboard.writeText(pixData.payload);
+      await navigator.clipboard.writeText(activePixPayload);
       setCopiedPix(true);
       setTimeout(() => setCopiedPix(false), 2500);
     } catch {
@@ -155,13 +249,51 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
     const message = `🍧 *GELADINHOS GOURMET DA ROZE — NOVO PEDIDO* 🍧\n\nOlá, *${greetingName}*! Seu pedido foi registrado com sucesso:\n\n${itemsSummary}\n\n💰 *Total do Pedido: ${formatCurrency(
       totalVenda
-    )}*\n💳 Forma de Pagamento: *Pix (Conta Ton / Maquininha)*\n\n🔑 *Pix Copia e Cola:*\n\`\`\`\n${pixData.payload}\n\`\`\`\n\nChave Pix Direta: *${ton.pixKey}* (Ton / ${ton.merchantName})\n\nAssim que realizar o pagamento, envie o comprovante para separarmos seu pedido imediatamente! 🛵✨`;
+    )}*\n💳 Forma de Pagamento: *Pix Dinâmico Stone OpenBank / Ton*\n🆔 Identificador (txid): \`${activeTxId}\`\n\n🔑 *Pix Copia e Cola:*\n\`\`\`\n${activePixPayload}\n\`\`\`\n\nChave Pix Direta: *${ton.pixKey}* (Ton / ${ton.merchantName})\n\nAssim que você efetuar o pagamento, nosso sistema Stone OpenBank confirmará o recebimento de forma 100% automática e seu pedido será separado na hora! 🛵✨`;
 
     const targetUrl = cleanPhone
       ? `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`
       : `https://wa.me/?text=${encodeURIComponent(message)}`;
 
     window.open(targetUrl, "_blank");
+  };
+
+  // Simulação imediata do Webhook Stone OpenBank para testes
+  const handleSimulatePaymentWebhook = async () => {
+    if (!stonePixData || isSimulatingWebhook) return;
+    setIsSimulatingWebhook(true);
+    try {
+      await simulateStoneWebhookPayment(stonePixData.txid, stonePixData.venda_id);
+      setPaymentStatus("paid");
+      setSuccessAnimation(true);
+
+      await onSubmitSale({
+        forma_pagamento: "Pix",
+        cliente_nome: clienteNome.trim() || undefined,
+        cliente_telefone: clienteTelefone.trim() || undefined,
+        status: "concluida",
+        pix_txid: stonePixData.txid,
+        pix_copia_cola: stonePixData.copia_e_cola,
+        itens: selectedItems.map((i) => ({
+          produto_id: i.produto_id,
+          quantidade: i.qtdSelecionada,
+        })),
+      });
+
+      setTimeout(() => {
+        setSuccessAnimation(false);
+        setQuantities({});
+        setClienteNome("");
+        setClienteTelefone("");
+        setStep("cart");
+        setPaymentStatus("idle");
+        onClose();
+      }, 2800);
+    } catch (err) {
+      console.error("Erro ao simular webhook Stone:", err);
+    } finally {
+      setIsSimulatingWebhook(false);
+    }
   };
 
   const handleConfirmAndFinalizeSale = async () => {
@@ -173,6 +305,9 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
         forma_pagamento: paymentMethod,
         cliente_nome: clienteNome.trim() || undefined,
         cliente_telefone: clienteTelefone.trim() || undefined,
+        status: "concluida",
+        pix_txid: paymentMethod === "Pix" ? activeTxId : undefined,
+        pix_copia_cola: paymentMethod === "Pix" ? activePixPayload : undefined,
         itens: selectedItems.map((i) => ({
           produto_id: i.produto_id,
           quantidade: i.qtdSelecionada,
@@ -184,6 +319,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       setClienteNome("");
       setClienteTelefone("");
       setStep("cart");
+      setPaymentStatus("idle");
       onClose();
     } finally {
       setIsSubmitting(false);
@@ -204,6 +340,29 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       aria-modal="true"
     >
       <div className="relative flex max-h-[94vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl text-foreground">
+        {/* Celebration Overlay on Automated Webhook Settlement */}
+        {successAnimation && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 p-6 text-center backdrop-blur-md animate-in fade-in zoom-in duration-300">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-inner mb-4 animate-bounce">
+              <CheckCircle2 className="h-12 w-12" />
+            </div>
+            <h3 className="text-2xl font-black text-foreground">
+              Pagamento Recebido com Sucesso!
+            </h3>
+            <p className="mt-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              Liquidação Bancária Confirmada via Webhook Stone OpenBank
+            </p>
+            <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-foreground max-w-sm">
+              <p className="font-bold">
+                ✓ {totalUnidades} geladinhos baixados automaticamente do estoque!
+              </p>
+              <p className="text-muted-foreground text-[11px] mt-1 font-mono">
+                txid: {activeTxId}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/80 px-5 py-4 bg-secondary/30">
           <div className="flex items-center gap-3">
@@ -216,11 +375,11 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                   Frente de Caixa (PDV) — Novo Pedido
                 </h3>
                 <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                  Ton Pix Integrado
+                  Stone OpenBank Pix
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Gere cobrança Pix dinâmica da maquininha Ton, envie por WhatsApp e baixe o estoque
+                Cobrança dinâmica Stone OpenBank, liquidação automática via Webhook e baixa de estoque
               </p>
             </div>
           </div>
@@ -457,34 +616,69 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                 </div>
               </div>
 
-              {/* PAYMENT DETAILS: PIX (TON BR CODE) */}
+              {/* PAYMENT DETAILS: PIX (STONE OPENBANK DYNAMIC BR CODE) */}
               {paymentMethod === "Pix" && (
-                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 sm:p-5">
+                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 sm:p-5 space-y-4">
+                  {/* Status Banner */}
+                  <div className="flex items-center justify-between rounded-xl bg-card border border-primary/20 p-2.5 px-3.5 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                      </span>
+                      <span className="font-bold text-foreground">
+                        Status Stone OpenBank:
+                      </span>
+                      <span className="font-semibold text-amber-600 dark:text-amber-400">
+                        {paymentStatus === "waiting"
+                          ? "Aguardando confirmação bancária..."
+                          : paymentStatus === "paid"
+                          ? "Pagamento Confirmado!"
+                          : "Gerando cobrança dinâmica..."}
+                      </span>
+                    </div>
+
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                      Realtime Ativo
+                    </span>
+                  </div>
+
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                     {/* QR Code Container */}
                     <div className="flex flex-col items-center justify-center rounded-xl border border-primary/20 bg-white p-3 shadow-sm shrink-0 self-center">
-                      <QRCodeSVG
-                        value={pixData.payload}
-                        size={175}
-                        level="M"
-                        includeMargin={true}
-                      />
+                      {isGeneratingPix ? (
+                        <div className="flex h-[175px] w-[175px] items-center justify-center">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        </div>
+                      ) : (
+                        <QRCodeSVG
+                          value={activePixPayload}
+                          size={175}
+                          level="M"
+                          includeMargin={true}
+                        />
+                      )}
                       <span className="mt-1 text-[10px] font-bold text-zinc-700">
                         Pague com qualquer banco via Pix
                       </span>
                     </div>
 
-                    {/* Pix Actions & Ton details */}
+                    {/* Pix Actions & Stone details */}
                     <div className="flex-1 space-y-3">
                       <div>
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-                          QR Code Dinâmico Ton • {ton.merchantName}
-                        </span>
-                        <h4 className="text-base font-extrabold text-foreground">
-                          {formatCurrency(totalVenda)} via Pix
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                            Stone OpenBank • PJ Ton
+                          </span>
+                          <span className="rounded-md bg-secondary px-1.5 py-0.2 text-[10px] font-mono text-muted-foreground">
+                            txid: {activeTxId.slice(0, 16)}...
+                          </span>
+                        </div>
+                        <h4 className="text-base font-extrabold text-foreground mt-0.5">
+                          {formatCurrency(totalVenda)} via Pix Dinâmico
                         </h4>
                         <p className="text-xs text-muted-foreground">
-                          Chave cadastrada: <strong>{ton.pixKey}</strong> ({ton.pixKeyType}) • Praça: {ton.merchantCity}
+                          Favorecido: <strong>{ton.merchantName}</strong> • Praça: {ton.merchantCity}
                         </p>
                       </div>
 
@@ -518,8 +712,29 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                         </button>
                       </div>
 
-                      <div className="rounded-lg bg-background/80 border border-border/60 p-2.5 text-[11px] text-muted-foreground">
-                        💡 <strong>Taxa Ton Pix (0,99%):</strong> Desconto de {formatCurrency(tonFeeAmount)} • Repasse Líquido no Caixa: <strong>{formatCurrency(repasseLiquidoTon)}</strong>
+                      {/* Webhook Test Simulation Button */}
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          disabled={isSimulatingWebhook}
+                          onClick={handleSimulatePaymentWebhook}
+                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                        >
+                          {isSimulatingWebhook ? (
+                            <>
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <span>Simulando Webhook Stone OpenBank...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-3.5 w-3.5 text-amber-600" />
+                              <span>⚡ Simular Liquidação Bancária (Stone Webhook)</span>
+                            </>
+                          )}
+                        </button>
+                        <span className="mt-1 block text-center text-[10px] text-muted-foreground">
+                          Testa o recebimento instantâneo, animação de sucesso e baixa no estoque.
+                        </span>
                       </div>
                     </div>
                   </div>

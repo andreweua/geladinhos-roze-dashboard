@@ -137,9 +137,20 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                         </div>
                       </td>
                       <td className="whitespace-nowrap py-3 px-3">
-                        <Badge variant="outline" className="text-[11px]">
-                          {PAYMENT_METHOD_LABELS[venda.forma_pagamento]}
-                        </Badge>
+                        <div className="flex flex-col gap-1 items-start">
+                          <Badge variant="outline" className="text-[11px]">
+                            {PAYMENT_METHOD_LABELS[venda.forma_pagamento]}
+                          </Badge>
+                          {venda.status === "pendente" ? (
+                            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                              ⏳ Pix Pendente
+                            </span>
+                          ) : (
+                            <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
+                              ✓ Concluída
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="whitespace-nowrap py-3 px-3 text-right font-bold text-foreground">
                         {formatCurrency(venda.valor_total)}
