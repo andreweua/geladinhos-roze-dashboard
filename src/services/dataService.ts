@@ -10,17 +10,9 @@ import {
   Venda,
 } from "@/types/dashboard";
 
-// Updated storage key to v2_real so browsers automatically load the real PDF recipes
-const STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_dashboard_data_v2_real`;
-
-function seededRandom(seed: number): () => number {
-  let s = seed % 2147483647;
-  if (s <= 0) s += 2147483646;
-  return () => {
-    s = (s * 16807) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
-}
+// Updated storage key to v3_clean_real to eliminate all fictitious/generated sales
+// Retaining strictly the real products, real recipes/technical sheets and user quotations.
+const STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_dashboard_data_v3_clean_real`;
 
 export function calculateUnitCostFromFicha(ficha: FichaTecnicaProduto): {
   custoInsumosReceita: number;
@@ -374,7 +366,6 @@ function getDefaultFichasTecnicas(): FichaTecnicaProduto[] {
 
 function generateInitialDemoData(): DashboardDataSnapshot {
   const now = new Date();
-  const rand = seededRandom(20261019);
   const fichasTecnicas = getDefaultFichasTecnicas();
 
   // Exact products from PDF 1 & PDF 2 (Saquinhos de 150ml)
@@ -453,179 +444,21 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
   ];
 
-  // Stock batches matching real batch yields (some below 10 units to highlight replenishment alert)
-  const estoqueLotes: EstoqueLote[] = [
-    {
-      id: "est-1",
-      produto_id: "prod-doce-de-leite",
-      quantidade_disponivel: 8,
-      updated_at: new Date(now.getTime() - 2 * 3600000).toISOString(),
-    },
-    {
-      id: "est-2",
-      produto_id: "prod-ninho-nutella",
-      quantidade_disponivel: 6,
-      updated_at: new Date(now.getTime() - 4 * 3600000).toISOString(),
-    },
-    {
-      id: "est-3",
-      produto_id: "prod-ninho-brigadeiro",
-      quantidade_disponivel: 16,
-      updated_at: new Date(now.getTime() - 12 * 3600000).toISOString(),
-    },
-    {
-      id: "est-4",
-      produto_id: "prod-mousse-maracuja",
-      quantidade_disponivel: 24,
-      updated_at: new Date(now.getTime() - 1 * 3600000).toISOString(),
-    },
-    {
-      id: "est-5",
-      produto_id: "prod-delicia-ovomaltine",
-      quantidade_disponivel: 9,
-      updated_at: new Date(now.getTime() - 16 * 3600000).toISOString(),
-    },
-    {
-      id: "est-6",
-      produto_id: "prod-romeu-julieta",
-      quantidade_disponivel: 18,
-      updated_at: new Date(now.getTime() - 24 * 3600000).toISOString(),
-    },
-    {
-      id: "est-7",
-      produto_id: "prod-cheesecake-frutas-vermelhas",
-      quantidade_disponivel: 5,
-      updated_at: new Date(now.getTime() - 5 * 3600000).toISOString(),
-    },
-    {
-      id: "est-8",
-      produto_id: "prod-ninho-morango",
-      quantidade_disponivel: 14,
-      updated_at: new Date(now.getTime() - 18 * 3600000).toISOString(),
-    },
-  ];
+  // Estoque inicial limpo dos 8 sabores reais das fichas técnicas (iniciando em 0 para controle real)
+  const estoqueLotes: EstoqueLote[] = produtos.map((prod, idx) => ({
+    id: `est-${idx + 1}`,
+    produto_id: prod.id,
+    quantidade_disponivel: 0,
+    updated_at: now.toISOString(),
+  }));
 
-  const productWeights = [0.16, 0.22, 0.16, 0.14, 0.11, 0.08, 0.07, 0.06];
-  const paymentMethods: PaymentMethod[] = [
-    "Pix",
-    "Pix",
-    "Pix",
-    "Pix",
-    "Cartao_Credito",
-    "Cartao_Credito",
-    "Cartao_Debito",
-    "Cartao_Debito",
-    "Dinheiro",
-  ];
-
+  // Sem vendas fictícias: a Rozana e o lojista cadastram as vendas reais no Frente de Caixa (PDV)
   const vendas: Venda[] = [];
   const itensVenda: ItemVenda[] = [];
 
-  const pickWeightedProduct = (): Produto => {
-    const r = rand();
-    let acc = 0;
-    for (let i = 0; i < produtos.length; i++) {
-      acc += productWeights[i];
-      if (r <= acc) return produtos[i];
-    }
-    return produtos[0];
-  };
-
-  let saleCounter = 1;
-  let itemCounter = 1;
-
-  for (let daysAgo = 89; daysAgo >= 0; daysAgo--) {
-    const dayDate = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() - daysAgo
-    );
-    const dayOfWeek = dayDate.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6 || dayOfWeek === 5;
-
-    const numOrders =
-      daysAgo === 0
-        ? 5
-        : daysAgo === 1
-          ? 6
-          : isWeekend
-            ? Math.floor(rand() * 4) + 4
-            : Math.floor(rand() * 3) + 2;
-
-    for (let o = 0; o < numOrders; o++) {
-      const hour =
-        daysAgo === 0
-          ? Math.max(9, Math.min(now.getHours(), 10 + o * 2))
-          : 11 + Math.floor(rand() * 9);
-      const minute = Math.floor(rand() * 55);
-      const saleTimestamp = new Date(
-        dayDate.getFullYear(),
-        dayDate.getMonth(),
-        dayDate.getDate(),
-        hour,
-        minute
-      );
-
-      if (daysAgo === 0 && saleTimestamp.getTime() > now.getTime()) {
-        saleTimestamp.setTime(now.getTime() - (numOrders - o) * 18 * 60000);
-      }
-
-      const vendaId = `venda-${saleCounter++}`;
-      const numDistinctFlavors = Math.floor(rand() * 3) + 1;
-      const chosenIds = new Set<string>();
-      let valorTotal = 0;
-
-      for (let f = 0; f < numDistinctFlavors; f++) {
-        const prod = pickWeightedProduct();
-        if (chosenIds.has(prod.id)) continue;
-        chosenIds.add(prod.id);
-
-        const qtd = Math.floor(rand() * 4) + 1;
-        const subtotal = Number((qtd * prod.preco_venda).toFixed(2));
-        valorTotal = Number((valorTotal + subtotal).toFixed(2));
-
-        itensVenda.push({
-          id: `item-${itemCounter++}`,
-          venda_id: vendaId,
-          produto_id: prod.id,
-          quantidade: qtd,
-          preco_unitario: prod.preco_venda,
-        });
-      }
-
-      const metodo =
-        paymentMethods[Math.floor(rand() * paymentMethods.length)];
-
-      const sampleCustomers = [
-        { nome: "Mariana Silva", tel: "31991234567" },
-        { nome: "Lucas Santos", tel: "31998765432" },
-        { nome: "Beatriz Oliveira", tel: "31987654321" },
-        { nome: "Rodrigo Costa", tel: "31992345678" },
-        { nome: "Camila Ferreira", tel: "31993456789" },
-        { nome: "Ana Paula Souza", tel: "31994567890" },
-        { nome: "Thiago Mendes", tel: "31995678901" },
-        { nome: "Juliana Lima", tel: "31996789012" },
-      ];
-      const cust = daysAgo <= 14 && rand() > 0.25 ? sampleCustomers[Math.floor(rand() * sampleCustomers.length)] : undefined;
-
-      vendas.push({
-        id: vendaId,
-        cliente_nome: cust?.nome,
-        cliente_telefone: cust?.tel,
-        data_venda: saleTimestamp.toISOString(),
-        forma_pagamento: metodo,
-        valor_total: valorTotal,
-        status: "concluida",
-      });
-    }
-  }
-
   return {
     produtos,
-    vendas: vendas.sort(
-      (a, b) =>
-        new Date(b.data_venda).getTime() - new Date(a.data_venda).getTime()
-    ),
+    vendas,
     itensVenda,
     estoqueLotes,
     fichasTecnicas,

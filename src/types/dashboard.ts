@@ -197,3 +197,64 @@ export interface DashboardDataSnapshot {
   source: "supabase" | "demo_local";
   lastSyncedAt: string;
 }
+
+/**
+ * Cadastro de Estabelecimentos Comerciais Locais (Mercados, Atacados, Distribuidoras)
+ */
+export interface EstabelecimentoLocal {
+  id: string;
+  nome: string;
+  tipo: "Atacado" | "Supermercado" | "Distribuidora" | "Empório" | "Internet" | "Outro";
+  endereco_fisico: string; // Rua, número, bairro, cidade, CEP
+  endereco_eletronico: string; // Site, e-commerce, Google Maps, WhatsApp ou Instagram
+  telefone?: string;
+  contato_responsavel?: string;
+  observacoes?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+/**
+ * Pesquisa de Preço em Mercados Locais (Cotações de Insumos)
+ */
+export interface PesquisaPrecoLocal {
+  id: string;
+  estabelecimento_id: string;
+  estabelecimento_nome: string;
+  insumo_nome: string; // ex: Leite Condensado, Creme de Leite, Nutella, etc.
+  marca: string; // ex: Moça, Italac, Piracanjuba, Ferrero
+  quantidade_embalagem: number; // ex: 395, 1000, 200, 650
+  unidade_medida: "g" | "kg" | "ml" | "l" | "un";
+  preco_pesquisado: number; // R$
+  preco_por_kg_ou_l: number; // Preço normalizado em R$/kg ou R$/L para comparação
+  data_pesquisa: string; // YYYY-MM-DD
+  em_promocao: boolean;
+  observacoes?: string;
+}
+
+/**
+ * Preços Efetivamente Pagos (Histórico de Compras Reais via Cupom ou Nota Fiscal)
+ */
+export interface CompraItemReal {
+  id: string;
+  descricao: string;
+  insumo_correspondente?: string;
+  quantidade: number;
+  unidade: string;
+  preco_unitario_pago: number;
+  preco_total: number;
+  aplicado_ficha_tecnica?: boolean;
+}
+
+export interface CompraNotaFiscalReal {
+  id: string;
+  estabelecimento_id?: string;
+  estabelecimento_nome: string;
+  data_compra: string;
+  numero_cupom_ou_nfe: string;
+  chave_acesso?: string;
+  valor_total: number;
+  itens: CompraItemReal[];
+  origem: "nfc_chave" | "xml" | "cupom_foto" | "manual";
+  created_at: string;
+}

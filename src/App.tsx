@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { LayoutDashboard, ChefHat, Layers, Sparkles, QrCode } from "lucide-react";
+import { LayoutDashboard, ChefHat, Layers, Sparkles, QrCode, Store, ShieldCheck } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Header } from "@/components/Header";
 import { DateFilterBar } from "@/components/DateFilterBar";
@@ -8,6 +8,7 @@ import { ChartsSection } from "@/components/ChartsSection";
 import { TablesSection } from "@/components/TablesSection";
 import { TechnicalSheetAndDreSection } from "@/components/TechnicalSheetAndDreSection";
 import { AiIntelligenceSection } from "@/components/AiIntelligenceSection";
+import { LocalMarketAndInvoicesSection } from "@/components/LocalMarketAndInvoicesSection";
 import { InvoicePriceUpdaterModal } from "@/components/InvoicePriceUpdaterModal";
 import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
@@ -99,9 +100,9 @@ export function App() {
     getDateRangeForPreset("7dias")
   );
 
-  // Active View Tab ("completo" | "visao_geral" | "ficha_dre" | "pereiralabs_ia")
+  // Active View Tab ("completo" | "visao_geral" | "ficha_dre" | "mercados_precos" | "pereiralabs_ia")
   const [activeSection, setActiveSection] = useState<
-    "completo" | "visao_geral" | "ficha_dre" | "pereiralabs_ia"
+    "completo" | "visao_geral" | "ficha_dre" | "mercados_precos" | "pereiralabs_ia"
   >("completo");
   const [selectedProductId, setSelectedProductId] = useState<string>(
     "prod-doce-de-leite"
@@ -226,6 +227,38 @@ export function App() {
     setSnapshot(updated);
   };
 
+  const handleApplyPaidPriceToRecipes = async (
+    insumoNome: string,
+    novoPrecoUnit: number
+  ) => {
+    if (!snapshot) return;
+    const normTarget = insumoNome.toLowerCase().trim();
+
+    const updatedFichas = snapshot.fichasTecnicas.map((ficha) => {
+      let changed = false;
+      const updatedIngredientes = ficha.ingredientes.map((ing) => {
+        const normIng = ing.nome.toLowerCase().trim();
+        if (normIng.includes(normTarget) || normTarget.includes(normIng)) {
+          changed = true;
+          return {
+            ...ing,
+            custo_receita: Number(novoPrecoUnit.toFixed(2)),
+          };
+        }
+        return ing;
+      });
+
+      if (!changed) return ficha;
+      return {
+        ...ficha,
+        ingredientes: updatedIngredientes,
+      };
+    });
+
+    const fresh = await saveBatchFichasTecnicas(updatedFichas);
+    setSnapshot(fresh);
+  };
+
   const handleResetDemo = () => {
     const fresh = resetLocalDemoData();
     setSnapshot(fresh);
@@ -297,6 +330,19 @@ export function App() {
 
             <button
               type="button"
+              onClick={() => setActiveSection("mercados_precos")}
+              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
+                activeSection === "mercados_precos"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <Store className="h-4 w-4" />
+              3. Pesquisa de Mercados & Preços Pagos
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveSection("pereiralabs_ia")}
               className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
                 activeSection === "pereiralabs_ia"
@@ -340,6 +386,33 @@ export function App() {
           </div>
         ) : (
           <>
+            {/* Real Data Clean Slate Banner */}
+            {analytics.kpis.totalPedidosConcluidos === 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ShieldCheck className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-foreground">
+                      Modo 100% Dados Reais Ativado
+                    </h4>
+                    <p className="text-muted-foreground">
+                      Todos os dados fictícios foram excluídos. Lance vendas reais no botão <strong>"Novo Pedido / Frente de Caixa (PDV)"</strong> para movimentar seus gráficos e relatórios!
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPosModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-primary px-3.5 py-1.5 font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all"
+                >
+                  <QrCode className="h-3.5 w-3.5" />
+                  <span>Novo Pedido / PDV</span>
+                </button>
+              </div>
+            )}
+
             {/* 5 KPIs always visible at top */}
             <KpiCards
               kpis={analytics.kpis}
@@ -351,6 +424,15 @@ export function App() {
                 }, 50);
               }}
             />
+
+            {(activeSection === "completo" ||
+              activeSection === "mercados_precos") && (
+              <LocalMarketAndInvoicesSection
+                onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
+                fichasTecnicas={snapshot.fichasTecnicas}
+                onApplyPaidPriceToRecipes={handleApplyPaidPriceToRecipes}
+              />
+            )}
 
             {(activeSection === "completo" ||
               activeSection === "pereiralabs_ia") && (

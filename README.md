@@ -1,12 +1,13 @@
 # 🍧 Geladinhos Gourmet da Roze — Dashboard Gerencial (PWA & White-Label)
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-1.7.0-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-1.8.0-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
+![Dados](https://img.shields.io/badge/Dados-100%25%20Reais-10b981)
 ![Pagamento](https://img.shields.io/badge/Ton%20Pix-BACEN%20EMV%20QR%20Code-2563eb)
 ![WhatsApp](https://img.shields.io/badge/WhatsApp-Checkout%20%26%20Recibo-22c55e)
-![Stack](https://img.shields.io/badge/Stack-React%20%2B%20Vite%20%2B%20TypeScript%20%2B%20Supabase%20%2B%20Recharts-f59e0b)
+![Mercados](https://img.shields.io/badge/Pesquisa%20de%20Pre%C3%A7o-Mercados%20Locais-f59e0b)
 
-Dashboard financeiro, operacional e de Frente de Caixa (PDV) desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase (PostgreSQL) + PereiraLabs IA**, com suporte a **Pix QR Code Ton (BR Code EMV dinâmico)**, integração com **WhatsApp**, hospedagem no **GitHub Pages**, instalação nativa como **PWA** e arquitetura **White-Label**.
+Dashboard financeiro, operacional, de Frente de Caixa (PDV) e Inteligência Artificial desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase (PostgreSQL) + PereiraLabs IA**, com suporte a **Pix QR Code Ton (BR Code EMV dinâmico)**, integração com **WhatsApp**, **Pesquisa de Mercados Locais (endereço físico e eletrônico)**, **Preços Pagos Reais via Cupom/NF-e**, instalação como **PWA** e hospedagem no **GitHub Pages**.
 
 - 🌐 **Acesse a Demonstração Online (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
 - 📋 **Histórico de Versões**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
@@ -15,32 +16,23 @@ Dashboard financeiro, operacional e de Frente de Caixa (PDV) desenvolvido em **R
 
 ## 📊 Funcionalidades Principais
 
-1. **Frente de Caixa (PDV) com Pix Ton Dinâmico & WhatsApp (`v1.7.0`)**:
-   - **QR Code Pix Dinâmico**: Geração oficial BACEN BR Code EMV Payload (`TLV + CRC16 CCITT`) com valor da venda em tempo real para a chave Ton da proprietária.
-   - **Copiar Pix Copia e Cola**: Botão com 1 toque para transferir o código Pix completo.
-   - **Enviar pelo WhatsApp**: Link direto `wa.me/55...` com saudação personalizada, discriminação dos itens, valor total e chave Pix Copia e Cola para pagamento à distância.
-   - **Calculadora de Troco para Dinheiro**: Atalhos de cédulas (R$ 10, R$ 20, R$ 50, R$ 100) e cálculo instantâneo de troco.
-   - **Dedução Imediata de Estoque**: Baixa automática das unidades no estoque de lotes prontos.
-2. **Arquitetura em Duas Vistas Principais**:
-   - **1. Visão Geral de Vendas**:
-     - **5 KPIs**: Faturamento Total, Lucro Líquido Real, Total de Geladinhos Vendidos, Ticket Médio e Alerta de Sabores Críticos (< 10 un).
-     - **5 Gráficos Analíticos**:
-       - *Gráfico 1 (100% largura)*: Faturamento Diário vs Custos Totais ao longo do tempo.
-       - *Gráficos 2 e 3*: Top 5 Sabores Mais Vendidos (Barras) e Vendas por Forma de Pagamento (Donut).
-       - *Gráficos 4 e 5*: Nível de Estoque por Sabor e **Margem de Lucro % por Sabor** (com toggle para visão analítica).
-     - **Tabelas Operacionais**: Últimas Vendas Realizadas (com botão de ação para WhatsApp) e Reposição Rápida de Estoque.
-   - **2. Ficha Técnica & DRE por Produto**:
-     - Matriz comparativa de todos os 8 sabores: Preço de Venda, Insumos, Embalagens, Taxas TON, Margem R$ e Margem %.
-     - Cartão DRE Gerencial detalhado por sabor com simulador de taxa de delivery/iFood dinâmico (`Preço Local / (1 - Taxa/100)`).
-     - Modal de edição e criação de receitas e fichas técnicas.
-3. **Modelagem Relacional PostgreSQL / Supabase (`supabase/migrations/20261020_initial_schema.sql`)**:
-   - Tabelas estruturadas com integridade referencial: `insumos`, `produtos`, `ficha_tecnica`, `taxas_pagamento`, `vendas`, `itens_venda` e `estoque_lotes`.
-4. **Central de Inteligência PereiraLabs IA**:
-   - Plano inteligente de produção com 1 clique `+Lote no Estoque`, Lista de Compras com aproveitamento de sobras, Matriz BCG de cardápio, Radar de 54 cotações (Varejo vs Atacado), Simulador de metas e Chat Híbrido com Google Gemini.
-5. **Importador de Preços de Insumos por Nota Fiscal / NFC-e**:
-   - Consulta por Chave de 44 dígitos / QR Code de NFC-e, Upload de XML SEFAZ, Foto do Cupom Impresso e CSV.
-6. **Paleta Gourmet Confeitaria**:
-   - Tons sofisticados de confeitaria artesanal (Berry Rose, Soft Peach e toques dourados) com alta legibilidade e suporte completo a Dark Mode.
+1. **100% Dados Reais (`v1.8.0`)**:
+   - Eliminação de qualquer venda fictícia ou sintética. O painel opera exclusivamente com as 8 receitas reais cadastradas dos PDFs e vendas reais lançadas pela Rozana no Frente de Caixa (PDV).
+2. **Pesquisa de Mercados Locais & Preços Pagos (`v1.8.0`)**:
+   - **Cadastro de Estabelecimentos**: Registro de Mercados, Atacados e Distribuidoras locais com **Endereço Físico Completo** (Rua, bairro, cidade, CEP), **Endereço Eletrônico Oficial** (Site, e-commerce, Google Maps, WhatsApp ou Instagram), telefone e observações.
+   - **Pesquisa de Preços nos Mercados (Cotações)**: Registro de cotações com cálculo automático do **Preço Normalizado (R$ por Kg ou R$ por Litro)** e selo de **"Menor Preço Local"**.
+   - **Preços Efetivamente Pagos (Cupons & NF-e)**: Histórico de notas fiscais reais importadas com botão de 1 clique para atualizar a Ficha Técnica oficial.
+3. **Frente de Caixa (PDV) com Pix Ton Dinâmico & WhatsApp (`v1.7.0`)**:
+   - **QR Code Pix Dinâmico**: Geração oficial BACEN BR Code EMV Payload (`TLV + CRC16 CCITT`) com valor da venda em tempo real para a chave Ton da titular `ROZANA HELENA MIGUEL` (`+5514988183327`).
+   - **Copiar Pix Copia e Cola**: 1 toque com feedback visual.
+   - **Enviar pelo WhatsApp**: Link direto `wa.me/55...` com resumo completo do pedido e chave Pix para pagamento à distância.
+   - **Calculadora de Troco para Dinheiro**: Atalhos de cédulas (R$ 10, R$ 20, R$ 50, R$ 100).
+   - **Dedução Imediata de Estoque**: Baixa automática das unidades no estoque.
+4. **Arquitetura de Navegação**:
+   - **1. Visão Geral de Vendas**: 5 KPIs, 5 Gráficos Analíticos, Tabelas de Últimas Vendas e Reposição.
+   - **2. Ficha Técnica & DRE por Produto**: Matriz comparativa dos 8 sabores, precificação iFood dinâmica (`Preço Local / 0,738`) e editor de receitas.
+   - **3. Pesquisa de Mercados & Preços Pagos**: Estabelecimentos, Cotações Locais e Cupons Fiscais Reais.
+   - **4. Central de Inteligência PereiraLabs IA**: Planejador de produção anti-ruptura, Lista de compras com sobras, Matriz BCG e simulador financeiro.
 4. **2 Tabelas Operacionais + Central Rápida**:
    - **Tabela de Últimas Vendas** e **Tabela de Reposição de Estoque** (com ajuste rápido `-1`, `+1`, `+10`)
    - **Modal Central Rápida** para lançar novas vendas (abatendo estoque automaticamente) e cadastrar novos sabores.

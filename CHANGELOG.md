@@ -7,6 +7,32 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [1.8.0] - 2026-10-20
+
+### Adicionado & Aprimorado
+- **Limpeza Completa de Dados Fictícios (100% Dados Reais)**:
+  - Eliminação de todas as vendas sintéticas/aleatórias e clientes fictícios gerados para demonstração inicial.
+  - As vendas agora refletem estritamente operações reais lançadas pela Rozana no Frente de Caixa (PDV).
+  - Preservação integral dos 8 sabores e fichas técnicas reais de 150ml dos cadernos oficiais da confeitaria (*Doce de Leite Itambé, Ninho com Nutella, Ninho com Brigadeiro 50%, Mousse de Maracujá c/ Geleia, Delícia de Ovomaltine, Romeu e Julieta, Cheesecake Frutas Vermelhas e Ninho c/ Geleia de Morango*).
+  - Banner informativo de validação: "Modo 100% Dados Reais Ativado".
+- **Área Dedicada: Pesquisa de Mercados & Preços Pagos (`src/components/LocalMarketAndInvoicesSection.tsx` & `src/services/marketSurveyService.ts`)**:
+  - **1. Cadastro de Estabelecimentos Comerciais Locais**:
+    - Armazena Nome, Tipo (Atacado, Supermercado, Distribuidora, Empório, Internet), **Endereço Físico Completo** (Rua, Número, Bairro, Cidade, CEP) e **Endereço Eletrônico** (Site, E-commerce, Link do Google Maps ou WhatsApp oficial), além de telefones e observações de compra.
+    - Pré-carregado com os principais centros de abastecimento da região de Marília / SP (DDD 14): *Atacadão Marília, Assaí Atacadista Tiradentes, Tauste Supermercados, Confiança Aquarius e Distribuidora Doce & Festa Embalagens*.
+    - Modal interativo para adicionar, editar e excluir estabelecimentos.
+  - **2. Pesquisa de Preços nos Mercados Locais (Cotações)**:
+    - Registro de cotações pesquisadas em visitas, folhetos ou aplicativos.
+    - Cálculo automático do **Preço Normalizado (R$ por Kg ou R$ por Litro)** para comparar de forma justa embalagens de tamanhos diferentes (ex: Nutella 350g vs 650g).
+    - Identificação automática do **"Menor Preço Local"** com badge visual verde.
+    - Filtros por insumo, marca, mercado e ofertas ativas.
+  - **3. Preços Efetivamente Pagos (Histórico de Compras Reais via Cupom / NF)**:
+    - Registro detalhado de compras com comprovante fiscal (chave de acesso NFC-e, XML ou cupom de foto).
+    - Botão **"Atualizar Ficha Técnica"**: permite transferir o preço unitário efetivamente pago diretamente para a receita oficial, recalculando o CMV unitário e a DRE.
+- **Configuração da Chave Pix Ton Oficial**:
+  - Chave Ton atualizada para `+5514988183327` (BACEN E.164) em nome da titular `ROZANA HELENA MIGUEL` (Praça Marília/SP).
+
+---
+
 ## [1.7.0] - 2026-10-20
 
 ### Adicionado & Aprimorado

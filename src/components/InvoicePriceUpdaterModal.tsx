@@ -26,6 +26,7 @@ import {
   saveQuotations,
 } from "@/services/quotationService";
 import { formatCurrency } from "@/lib/utils";
+import { addCompraNotaFiscal } from "@/services/marketSurveyService";
 
 interface InvoicePriceUpdaterModalProps {
   isOpen: boolean;
@@ -259,6 +260,39 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
       );
 
       await onSaveBatchFichas(updatedFichas);
+
+      // 3. Save to Preços Pagos (Histórico de Compras Reais)
+      try {
+        addCompraNotaFiscal({
+          estabelecimento_nome: parsedReceipt?.storeName || "Supermercado / Atacado",
+          data_compra: parsedReceipt?.issueDate || new Date().toISOString().split("T")[0],
+          numero_cupom_ou_nfe: parsedReceipt?.accessKey
+            ? `NFC-e ${parsedReceipt.accessKey.slice(-6)}`
+            : "Cupom Fiscal Importado",
+          chave_acesso: parsedReceipt?.accessKey,
+          valor_total:
+            parsedReceipt?.totalValue ||
+            toApply.reduce((acc, i) => acc + i.totalPrice, 0),
+          origem:
+            activeTab === "nfce_key"
+              ? "nfc_chave"
+              : activeTab === "upload_xml"
+                ? "xml"
+                : "cupom_foto",
+          itens: toApply.map((it) => ({
+            id: `item-${Date.now()}-${Math.random().toString().slice(-4)}`,
+            descricao: it.rawDescription,
+            insumo_correspondente: it.matchedIngredientName || undefined,
+            quantidade: it.quantity,
+            unidade: it.unit,
+            preco_unitario_pago: it.unitPrice,
+            preco_total: it.totalPrice,
+            aplicado_ficha_tecnica: true,
+          })),
+        });
+      } catch {
+        // non-blocking
+      }
 
       setSuccessNotice(
         `Sucesso! ${toApply.length} insumos tiveram seus preços atualizados no catálogo e todas as 8 Fichas Técnicas foram recalculadas imediatamente!`

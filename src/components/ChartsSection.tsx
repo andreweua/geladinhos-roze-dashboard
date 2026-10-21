@@ -402,7 +402,12 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-12">
+            {paymentDistribution.every((p) => p.valor === 0) ? (
+              <div className="flex h-[250px] items-center justify-center text-xs text-muted-foreground">
+                Nenhum pagamento registrado no período selecionado.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-12">
               <div className="h-[250px] sm:col-span-7">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -469,7 +474,8 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
                 ))}
               </div>
             </div>
-          </CardContent>
+          )}
+        </CardContent>
         </Card>
       </div>
 
