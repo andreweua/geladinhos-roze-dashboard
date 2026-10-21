@@ -531,4 +531,46 @@ export const TABELA_COTACAO_INSUMOS: CotacaoInsumo[] = [
     preco_atacado: "R$ 4,48",
     preco_por_grama: "R$ 0,045",
   },
+
+  // Embalagens & Descartáveis
+  {
+    id: "cot-55",
+    categoria: "Embalagens & Descartáveis",
+    produto: "Saquinhos p/ Geladinho Cristal 150ml (Cento c/ 100 un)",
+    preco_varejo: "R$ 5,00",
+    preco_atacado: "R$ 4,80 (Simão Doces)",
+    preco_por_grama: "R$ 0,048 / un",
+  },
+  {
+    id: "cot-56",
+    categoria: "Embalagens & Descartáveis",
+    produto: "Adesivos / Rótulos de Sabor e Validade (Rolo c/ 500 un)",
+    preco_varejo: "R$ 22,00",
+    preco_atacado: "R$ 18,50",
+    preco_por_grama: "R$ 0,037 / un",
+  },
+  {
+    id: "cot-57",
+    categoria: "Embalagens & Descartáveis",
+    produto: "Sacola Kraft Delivery P (Pacote c/ 50 un - cabe 4 a 6 un)",
+    preco_varejo: "R$ 25,00",
+    preco_atacado: "R$ 21,50",
+    preco_por_grama: "R$ 0,430 / un",
+  },
+  {
+    id: "cot-58",
+    categoria: "Embalagens & Descartáveis",
+    produto: "Colheres / Pazinhas Descartáveis Sobremesa (Pacote c/ 100 un)",
+    preco_varejo: "R$ 6,50",
+    preco_atacado: "R$ 5,20",
+    preco_por_grama: "R$ 0,052 / un",
+  },
+  {
+    id: "cot-59",
+    categoria: "Embalagens & Descartáveis",
+    produto: "Lacre de Segurança / Fita Adesiva Personalizada (Rolo 50m)",
+    preco_varejo: "R$ 12,00",
+    preco_atacado: "R$ 9,90",
+    preco_por_grama: "R$ 0,020 / un",
+  },
 ];

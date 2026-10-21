@@ -31,7 +31,11 @@ export interface FichaTecnicaProduto {
 
 export interface CotacaoInsumo {
   id: string;
-  categoria: "Laticínios" | "Chocolates & Recheios" | "Frutas & Mercearia";
+  categoria:
+    | "Laticínios"
+    | "Chocolates & Recheios"
+    | "Frutas & Mercearia"
+    | "Embalagens & Descartáveis";
   produto: string;
   preco_varejo: string;
   preco_atacado: string;

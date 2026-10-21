@@ -2,7 +2,7 @@ import { BRAND_CONFIG } from "@/config/brand.config";
 import { TABELA_COTACAO_INSUMOS } from "@/data/insumosCatalog";
 import { CotacaoInsumo, FichaTecnicaProduto } from "@/types/dashboard";
 
-const QUOTATIONS_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_tabela_cotacoes_v1`;
+const QUOTATIONS_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_tabela_cotacoes_v2`;
 
 export interface ImportedReceiptItem {
   id: string;

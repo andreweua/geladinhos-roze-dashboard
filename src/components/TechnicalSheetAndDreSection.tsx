@@ -1189,12 +1189,13 @@ export const TechnicalSheetAndDreSection: React.FC<
                   className="rounded-lg border border-input bg-background pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap gap-1">
                 {[
                   "Todas",
                   "Laticínios",
                   "Chocolates & Recheios",
                   "Frutas & Mercearia",
+                  "Embalagens & Descartáveis",
                 ].map((cat) => (
                   <button
                     key={cat}
@@ -1202,7 +1203,7 @@ export const TechnicalSheetAndDreSection: React.FC<
                     onClick={() => setInsumoCat(cat)}
                     className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all ${
                       insumoCat === cat
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary text-primary-foreground font-bold shadow-xs"
                         : "bg-secondary text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -1213,8 +1214,38 @@ export const TechnicalSheetAndDreSection: React.FC<
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="max-h-[360px] overflow-y-auto rounded-xl border border-border/80">
+        <CardContent className="space-y-4">
+          {/* Guia Didático de Onde Ficam Outros Custos */}
+          <div className="rounded-xl border border-primary/25 bg-gradient-to-r from-primary/5 via-card to-primary/5 p-4 text-xs space-y-2.5">
+            <div className="flex items-center gap-2 font-bold text-foreground">
+              <span className="flex h-5 w-5 items-center justify-center rounded-md bg-primary text-primary-foreground text-[11px]">
+                ℹ
+              </span>
+              <span>Onde ficam cadastrados os outros materiais, utensílios, freezer e taxas?</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-muted-foreground">
+              <div className="rounded-lg bg-background/80 border border-border/60 p-2.5 space-y-1">
+                <strong className="text-foreground block">📦 Embalagens & Descartáveis:</strong>
+                <span>
+                  Saquinhos 150ml, adesivos de sabor, sacolas de delivery e colherinhas descartáveis estão cotados nesta tabela e entram na ficha técnica como <strong>custo de embalagem unitário (R$ 0,05 a R$ 0,10/un)</strong>.
+                </span>
+              </div>
+              <div className="rounded-lg bg-background/80 border border-border/60 p-2.5 space-y-1">
+                <strong className="text-foreground block">⚡ Freezer, Utensílios & Energia:</strong>
+                <span>
+                  O freezer, liquidificador e colheres de preparo são equipamentos (CAPEX). Eles não se gastam por grama: o consumo de energia elétrica e a depreciação entram no DRE como <strong>Custo Operacional Fixo (15% = R$ 0,35/un)</strong>.
+                </span>
+              </div>
+              <div className="rounded-lg bg-background/80 border border-border/60 p-2.5 space-y-1">
+                <strong className="text-foreground block">💳 Taxas de Cartão/Pix & iFood:</strong>
+                <span>
+                  Não são insumos físicos. Ficam no painel <em>Dados & Pix</em> (Ton Pix 0,99%, Débito 1,99%, Crédito 3,50%) e no <strong>divisor do iFood (26,2%)</strong>, descontadas percentualmente sobre a venda bruta.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-h-[380px] overflow-y-auto rounded-xl border border-border/80">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead className="sticky top-0 bg-secondary text-[11px] font-semibold uppercase text-muted-foreground shadow-sm">
                 <tr>
@@ -1222,7 +1253,7 @@ export const TechnicalSheetAndDreSection: React.FC<
                   <th className="py-2.5 px-2">Categoria</th>
                   <th className="py-2.5 px-2 text-right">Preço Varejo</th>
                   <th className="py-2.5 px-2 text-right">Preço Atacado</th>
-                  <th className="py-2.5 pl-2 pr-4 text-right">Preço de 1g</th>
+                  <th className="py-2.5 pl-2 pr-4 text-right">Preço Unitário / 1g</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
