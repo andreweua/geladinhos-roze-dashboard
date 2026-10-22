@@ -139,8 +139,8 @@ export const LocalMarketAndInvoicesSection: React.FC<
   const [gtinSearchFeedback, setGtinSearchFeedback] = useState<string | null>(null);
   const [rscTokenModalOpen, setRscTokenModalOpen] = useState(false);
   const [rscTokenInput, setRscTokenInput] = useState(() => getRscGtinToken());
-  const [rscEmailInput, setRscEmailInput] = useState("ANDREWEUA@GMAIL.COM");
-  const [rscPasswordInput, setRscPasswordInput] = useState("");
+  const [rscEmailInput, setRscEmailInput] = useState(() => BRAND_CONFIG.rscGtinConfig?.email || "ANDREWEUA@GMAIL.COM");
+  const [rscPasswordInput, setRscPasswordInput] = useState(() => BRAND_CONFIG.rscGtinConfig?.defaultPassword || "");
   const [isLoggingInRsc, setIsLoggingInRsc] = useState(false);
   const [rscLoginFeedback, setRscLoginFeedback] = useState<string | null>(null);
 

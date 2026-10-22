@@ -1,6 +1,7 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 
 const RSC_TOKEN_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_rsc_gtin_token_v1`;
+const RSC_TOKEN_EXPIRES_KEY = `${BRAND_CONFIG.storagePrefix}_rsc_gtin_expires_v1`;
 
 export interface GtinProductInfo {
   gtin: string;
@@ -237,18 +238,53 @@ export function getRscGtinToken(): string {
 }
 
 /**
- * Salva o Token de Autenticação da RSC Sistemas
+ * Salva o Token de Autenticação da RSC Sistemas com tempo de expiração
  */
-export function saveRscGtinToken(token: string): void {
+export function saveRscGtinToken(token: string, expiresIn: number = 3600): void {
   try {
     const cleaned = token.trim();
     if (cleaned) {
       localStorage.setItem(RSC_TOKEN_STORAGE_KEY, cleaned);
+      const expiresAt = Date.now() + Math.max(300, expiresIn - 120) * 1000;
+      localStorage.setItem(RSC_TOKEN_EXPIRES_KEY, String(expiresAt));
     } else {
       localStorage.removeItem(RSC_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(RSC_TOKEN_EXPIRES_KEY);
     }
   } catch {
     // ignore
+  }
+}
+
+/**
+ * Retorna um token válido, renovando automaticamente em segundo plano
+ * usando as credenciais configuradas se estiver expirado ou ausente.
+ */
+export async function getValidRscToken(): Promise<string> {
+  try {
+    const token = localStorage.getItem(RSC_TOKEN_STORAGE_KEY) || "";
+    const expiresAtStr = localStorage.getItem(RSC_TOKEN_EXPIRES_KEY);
+    const expiresAt = expiresAtStr ? parseInt(expiresAtStr, 10) : 0;
+
+    // Se o token existir e ainda for válido por pelo menos 1 minuto, retorna
+    if (token && expiresAt > Date.now()) {
+      return token;
+    }
+
+    // Se expirou ou não existe, renova automaticamente via API v3
+    if (BRAND_CONFIG.rscGtinConfig?.autoAuth && BRAND_CONFIG.rscGtinConfig.defaultPassword) {
+      const auth = await loginRscSistemas(
+        BRAND_CONFIG.rscGtinConfig.email,
+        BRAND_CONFIG.rscGtinConfig.defaultPassword
+      );
+      if (auth.success && auth.token) {
+        return auth.token;
+      }
+    }
+
+    return token;
+  } catch {
+    return "";
   }
 }
 
@@ -278,9 +314,11 @@ export async function loginRscSistemas(
     }
 
     const data = await response.json();
-    if (data && data.token) {
-      saveRscGtinToken(data.token);
-      return { success: true, token: data.token };
+    const activeToken = data?.token || data?.access_token;
+    if (activeToken) {
+      const expiresIn = data?.expires_in || 3600;
+      saveRscGtinToken(activeToken, expiresIn);
+      return { success: true, token: activeToken };
     }
     return { success: false, error: "Token não retornado pela API RSC Sistemas." };
   } catch (err: unknown) {
@@ -361,7 +399,7 @@ export async function consultarProdutoPorGtin(
   }
 
   // 2. Se houver token da RSC Sistemas configurado, chamar API v3 oficial
-  const token = (userToken || getRscGtinToken()).trim();
+  const token = (userToken || (await getValidRscToken())).trim();
   if (token) {
     try {
       const response = await fetch(

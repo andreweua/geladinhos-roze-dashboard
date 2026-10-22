@@ -62,6 +62,11 @@ export interface BrandConfig {
     supabaseUrl: string;
     supabaseAnonKey: string;
   };
+  rscGtinConfig?: {
+    email: string;
+    defaultPassword?: string;
+    autoAuth: boolean;
+  };
   basesOperacionais: {
     jau: {
       responsavel: string;
@@ -191,6 +196,11 @@ export const BRAND_CONFIG: BrandConfig = {
       Cartao_Debito: "#d97706", // Amber Gold
       Dinheiro: "#059669", // Mint Emerald
     },
+  },
+  rscGtinConfig: {
+    email: "ANDREWEUA@GMAIL.COM",
+    defaultPassword: "Eute@m@2026",
+    autoAuth: true,
   },
   developerCredit: {
     studio: "PereiraLabs - Divisão de Tecnologia e IA",
