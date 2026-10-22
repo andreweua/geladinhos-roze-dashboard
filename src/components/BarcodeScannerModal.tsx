@@ -124,17 +124,31 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     setScannedCode(null);
 
     try {
-      // 1. Request camera stream with continuous autofocus & high quality
-      const constraints: MediaStreamConstraints = {
-        audio: false,
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      };
+      // Check if mediaDevices is supported
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setErrorMessage("Câmera indisponível neste navegador. Certifique-se de acessar via conexão segura HTTPS ou digite o código de barras abaixo.");
+        setHasPermission(false);
+        return;
+      }
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      // 1. Request camera stream with continuous autofocus & high quality, with fallback
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        });
+      } catch {
+        // Graceful fallback for devices that fail specific constraints
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: true,
+        });
+      }
       streamRef.current = stream;
 
       if (videoRef.current) {
