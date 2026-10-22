@@ -103,7 +103,7 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "2.9.0",
+  appVersion: "3.0.0",
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",

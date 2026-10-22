@@ -8,8 +8,11 @@ import {
   CheckCircle2,
   AlertTriangle,
   Search,
+  Sparkles,
 } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
+import { Capacitor } from "@capacitor/core";
+import { BarcodeScanner, BarcodeFormat } from "@capacitor-mlkit/barcode-scanning";
 import { Button } from "@/components/ui/primitives";
 
 interface BarcodeScannerModalProps {
@@ -35,8 +38,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const [facingMode, setFacingMode] = useState<"environment" | "user">("environment");
   const [torchAvailable, setTorchAvailable] = useState<boolean>(false);
   const [torchOn, setTorchOn] = useState<boolean>(false);
+  const [zoomAvailable, setZoomAvailable] = useState<boolean>(false);
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [manualCode, setManualCode] = useState<string>("");
   const [scannedCode, setScannedCode] = useState<string | null>(null);
+
+  const isNative = Capacitor.isNativePlatform();
 
   // Play audio beep on barcode detection
   const playBeep = useCallback(() => {
@@ -163,6 +170,13 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         } else {
           setTorchAvailable(false);
         }
+
+        // Check Zoom support
+        if ((capabilities as { zoom?: { min: number; max: number } })?.zoom) {
+          setZoomAvailable(true);
+        } else {
+          setZoomAvailable(false);
+        }
       }
 
       // 2. Barcode Detection Strategy:
@@ -252,22 +266,87 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     }
   };
 
+  // Toggle Zoom (1x <-> 2x)
+  const handleToggleZoom = async () => {
+    if (!streamRef.current) return;
+    const track = streamRef.current.getVideoTracks()[0];
+    if (track) {
+      try {
+        const nextZoom = zoomLevel === 1 ? 2 : 1;
+        await (track as unknown as { applyConstraints: (c: unknown) => Promise<void> }).applyConstraints({
+          advanced: [{ zoom: nextZoom }],
+        });
+        setZoomLevel(nextZoom);
+      } catch (err) {
+        console.warn("Failed to toggle zoom:", err);
+      }
+    }
+  };
+
   // Flip Camera (environment <-> user)
   const handleFlipCamera = () => {
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
   };
 
+  // Native Google ML Kit Scanner for Android/iOS App
+  const startNativeScanner = useCallback(async () => {
+    try {
+      try {
+        const isAvailable = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+        if (!isAvailable.available) {
+          await BarcodeScanner.installGoogleBarcodeScannerModule();
+        }
+      } catch (err) {
+        console.warn("Google Barcode module check:", err);
+      }
+
+      const { camera } = await BarcodeScanner.requestPermissions();
+      if (camera !== "granted" && camera !== "limited") {
+        setErrorMessage("Permissão da câmera necessária no aplicativo.");
+        return;
+      }
+
+      const { barcodes } = await BarcodeScanner.scan({
+        formats: [
+          BarcodeFormat.Ean13,
+          BarcodeFormat.Ean8,
+          BarcodeFormat.UpcA,
+          BarcodeFormat.UpcE,
+          BarcodeFormat.Code128,
+          BarcodeFormat.QrCode,
+        ],
+      });
+
+      if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+        handleDetectedCode(barcodes[0].rawValue);
+      } else {
+        onClose();
+      }
+    } catch (err) {
+      console.warn("Native scan error or cancelled:", err);
+      onClose();
+    }
+  }, [handleDetectedCode, onClose]);
+
   // Lifecycle
   useEffect(() => {
     if (isOpen) {
-      startCamera();
+      if (isNative) {
+        startNativeScanner();
+      } else {
+        startCamera();
+      }
     } else {
-      stopCamera();
+      if (!isNative) {
+        stopCamera();
+      }
     }
     return () => {
-      stopCamera();
+      if (!isNative) {
+        stopCamera();
+      }
     };
-  }, [isOpen, startCamera, stopCamera]);
+  }, [isOpen, isNative, startCamera, startNativeScanner, stopCamera]);
 
   if (!isOpen) return null;
 
@@ -338,6 +417,16 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
           {/* Camera Controls on top of video */}
           <div className="absolute top-3 right-3 flex items-center gap-2">
+            {zoomAvailable && (
+              <button
+                type="button"
+                onClick={handleToggleZoom}
+                className="rounded-full bg-black/60 px-2.5 py-1.5 text-xs font-bold text-white shadow-md hover:bg-black/80"
+                title="Alternar Zoom 1x / 2x"
+              >
+                {zoomLevel}x
+              </button>
+            )}
             {torchAvailable && (
               <button
                 type="button"
@@ -359,6 +448,29 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
+
+          {/* Native Google ML Kit Mode Card */}
+          {isNative && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/95 p-6 text-center backdrop-blur-md">
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Sparkles className="h-7 w-7 text-primary animate-pulse" />
+              </div>
+              <h4 className="text-sm font-black text-foreground">
+                Leitor Nativo Google ML Kit
+              </h4>
+              <p className="mt-1 text-xs text-muted-foreground max-w-xs">
+                Visão computacional por IA com autofoco físico contínuo e leitura ultrarrápida (sub-30ms).
+              </p>
+              <Button
+                type="button"
+                onClick={startNativeScanner}
+                className="mt-4 bg-primary text-primary-foreground font-bold text-xs shadow-lg"
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                Escanear com Google ML Kit
+              </Button>
+            </div>
+          )}
 
           {/* Target Hint Badge */}
           <div className="pointer-events-none absolute bottom-3 inset-x-0 flex justify-center px-4">
