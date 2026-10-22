@@ -8,9 +8,13 @@ import {
   Store,
   ShieldCheck,
   CheckCircle2,
+  PackagePlus,
+  Receipt,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Header } from "@/components/Header";
+import { AppSidebar, SidebarTab } from "@/components/navigation/AppSidebar";
+import { AppBottomNav, NavTab } from "@/components/navigation/AppBottomNav";
 import { DateFilterBar } from "@/components/DateFilterBar";
 import { KpiCards } from "@/components/KpiCards";
 import { ChartsSection } from "@/components/ChartsSection";
@@ -25,6 +29,7 @@ import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
 import { saveCustomBrandConfig } from "@/config/brand.config";
+import { Button } from "@/components/ui/primitives";
 import {
   computeDashboardAnalytics,
   getDateRangeForPreset,
@@ -113,10 +118,13 @@ export function App() {
     getDateRangeForPreset("7dias")
   );
 
-  // Active View Tab ("completo" | "visao_geral" | "ficha_dre" | "mercados_precos" | "pereiralabs_ia" | "auditoria_estoque")
+  // Active App Section: "inicio" (default) | "fichas" | "cotacoes" | "gestao" | "completo"
   const [activeSection, setActiveSection] = useState<
-    "completo" | "visao_geral" | "ficha_dre" | "mercados_precos" | "pereiralabs_ia" | "auditoria_estoque"
-  >("completo");
+    "inicio" | "fichas" | "cotacoes" | "gestao" | "completo"
+  >("inicio");
+
+  // Sub-aba de Gestão & Inteligência ("ia" | "auditoria")
+  const [gestaoSubTab, setGestaoSubTab] = useState<"ia" | "auditoria">("ia");
   const [selectedProductId, setSelectedProductId] = useState<string>(
     "prod-doce-de-leite"
   );
@@ -332,273 +340,332 @@ export function App() {
   }, [snapshot, dateFilter, ifoodFeePct]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <Header
-        isDark={isDark}
-        onToggleTheme={() => setIsDark((prev) => !prev)}
-        onOpenNewSale={() => setPosModalOpen(true)}
+    <div className="min-h-screen bg-background text-foreground flex">
+      {/* 1. Desktop & Tablet Sidebar */}
+      <AppSidebar
+        activeTab={activeSection}
+        onSelectTab={(tab) => {
+          if (tab === "ia") {
+            setActiveSection("gestao");
+            setGestaoSubTab("ia");
+          } else if (tab === "auditoria") {
+            setActiveSection("gestao");
+            setGestaoSubTab("auditoria");
+          } else {
+            setActiveSection(tab as any);
+          }
+        }}
+        onOpenPos={() => setPosModalOpen(true)}
         onOpenStockModal={() => {
           setModalTab("estoque");
           setModalOpen(true);
         }}
-        onOpenInstallModal={() => setInstallModalOpen(true)}
         onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
         onOpenSettingsModal={() => setSettingsModalOpen(true)}
+        onOpenInstallModal={() => setInstallModalOpen(true)}
         isPwaInstalled={isPwaInstalled}
+        isDark={isDark}
+        onToggleTheme={() => setIsDark((prev) => !prev)}
         onRefresh={() => loadData(true)}
         isRefreshing={isRefreshing}
         dataSource={snapshot?.source || "demo_local"}
       />
 
-      <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        {/* Global Date Filter Bar */}
-        <DateFilterBar
-          dateFilter={dateFilter}
-          onSelectPreset={handleSelectPreset}
-          onCustomDateChange={handleCustomDateChange}
-          onOpenStockModal={() => {
-            setModalTab("estoque");
-            setModalOpen(true);
-          }}
-        />
+      {/* 2. Main Body Container (Adaptive to Sidebar) */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Header (Sticky at top on phones) */}
+        <div className="md:hidden">
+          <Header
+            isDark={isDark}
+            onToggleTheme={() => setIsDark((prev) => !prev)}
+            onOpenNewSale={() => setPosModalOpen(true)}
+            onOpenStockModal={() => {
+              setModalTab("estoque");
+              setModalOpen(true);
+            }}
+            onOpenInstallModal={() => setInstallModalOpen(true)}
+            onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
+            onOpenSettingsModal={() => setSettingsModalOpen(true)}
+            isPwaInstalled={isPwaInstalled}
+            onRefresh={() => loadData(true)}
+            isRefreshing={isRefreshing}
+            dataSource={snapshot?.source || "demo_local"}
+          />
+        </div>
 
-        {/* Navigation Switcher: 2 Abas Principais + Botão PDV Ton + Abas Complementares */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-border/80 bg-card p-1.5 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setActiveSection("visao_geral")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeSection === "visao_geral"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              1. Visão Geral de Vendas
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSection("ficha_dre")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeSection === "ficha_dre"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <ChefHat className="h-4 w-4" />
-              2. Ficha Técnica & DRE por Produto
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSection("mercados_precos")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeSection === "mercados_precos"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <Store className="h-4 w-4" />
-              3. Pesquisa de Mercados & Preços Pagos
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSection("auditoria_estoque")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeSection === "auditoria_estoque"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <ShieldCheck className="h-4 w-4" />
-              4. Auditoria de Estoque (Admin)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSection("pereiralabs_ia")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeSection === "pereiralabs_ia"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-primary bg-primary/10 hover:bg-primary/20"
-              }`}
-            >
-              <Sparkles className="h-4 w-4" />
-              PereiraLabs IA (Produção & Lucro)
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveSection("completo")}
-              className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all ${
-                activeSection === "completo"
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <Layers className="h-4 w-4" />
-              Painel Completo
-            </button>
+        {/* Desktop Top Header Bar (Breadcrumb & Fast Actions) */}
+        <header className="hidden md:flex items-center justify-between border-b border-border/80 bg-card/75 backdrop-blur-md px-6 py-3.5 sticky top-0 z-20">
+          <div>
+            <h2 className="text-base font-bold text-foreground">
+              {activeSection === "inicio" && "Visão Geral & Faturamento"}
+              {activeSection === "fichas" && "Fichas Técnicas & DRE por Produto"}
+              {activeSection === "cotacoes" && "Cotações de Preços & Mercados Locais"}
+              {activeSection === "gestao" &&
+                (gestaoSubTab === "ia"
+                  ? "PereiraLabs IA (Previsão & Lucro)"
+                  : "Auditoria Física de Estoque")}
+              {activeSection === "completo" && "Painel Completo Unificado"}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {activeSection === "inicio" &&
+                "Indicadores do dia, gráficos de vendas e reposição de estoque"}
+              {activeSection === "fichas" &&
+                "Custos dos ingredientes, margem iFood vs Balcão e engenharia de receitas"}
+              {activeSection === "cotacoes" &&
+                "Pesquisa de preços com scanner GTIN, listas de compras e NF-e"}
+              {activeSection === "gestao" &&
+                "Consultoria de inteligência artificial e controle de perdas no estoque"}
+              {activeSection === "completo" && "Visão panorâmica de todos os módulos"}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setModalTab("estoque");
+                setModalOpen(true);
+              }}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <PackagePlus className="h-4 w-4 text-primary" />
+              <span>Repor Estoque</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setInvoiceModalOpen(true)}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <Receipt className="h-4 w-4 text-primary" />
+              <span>Importar NF-e</span>
+            </Button>
+
+            <Button
+              variant="default"
+              size="sm"
               onClick={() => setPosModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md hover:opacity-90 transition-all hover:scale-[1.02]"
+              className="bg-primary text-primary-foreground font-bold shadow-sm hover:bg-primary/90 gap-1.5 text-xs"
             >
               <QrCode className="h-4 w-4" />
-              <span>Novo Pedido / Frente de Caixa (PDV)</span>
-            </button>
+              <span>Novo Pedido / PDV</span>
+            </Button>
           </div>
-        </div>
+        </header>
 
-        {!analytics || !snapshot ? (
-          <div className="flex h-64 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
-            Carregando indicadores de {BRAND_CONFIG.companyName}...
-          </div>
-        ) : (
-          <>
-            {/* Real Data Clean Slate Banner */}
-            {analytics.kpis.totalPedidosConcluidos === 0 && (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <ShieldCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-foreground">
-                      Modo 100% Dados Reais Ativado
-                    </h4>
-                    <p className="text-muted-foreground">
-                      Todos os dados fictícios foram excluídos. Lance vendas reais no botão <strong>"Novo Pedido / Frente de Caixa (PDV)"</strong> para movimentar seus gráficos e relatórios!
-                    </p>
-                  </div>
+        {/* Dynamic Screen View Content */}
+        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6 lg:px-8 pb-28 md:pb-12">
+          {!analytics || !snapshot ? (
+            <div className="flex h-64 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
+              Carregando indicadores de {BRAND_CONFIG.companyName}...
+            </div>
+          ) : (
+            <>
+              {/* TELA 1: INÍCIO (Overview) */}
+              {(activeSection === "inicio" || activeSection === "completo") && (
+                <div className="space-y-6">
+                  {/* Global Date Filter Bar */}
+                  <DateFilterBar
+                    dateFilter={dateFilter}
+                    onSelectPreset={handleSelectPreset}
+                    onCustomDateChange={handleCustomDateChange}
+                    onOpenStockModal={() => {
+                      setModalTab("estoque");
+                      setModalOpen(true);
+                    }}
+                  />
+
+                  {/* Real Data Clean Slate Banner */}
+                  {analytics.kpis.totalPedidosConcluidos === 0 && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <ShieldCheck className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-foreground">
+                            Modo 100% Dados Reais Ativado
+                          </h4>
+                          <p className="text-muted-foreground">
+                            Todos os dados fictícios foram excluídos. Lance vendas reais no botão <strong>"Novo Pedido / Frente de Caixa (PDV)"</strong> para movimentar seus gráficos e relatórios!
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPosModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-primary px-3.5 py-1.5 font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all"
+                      >
+                        <QrCode className="h-3.5 w-3.5" />
+                        <span>Novo Pedido / PDV</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 5 KPIs */}
+                  <KpiCards
+                    kpis={analytics.kpis}
+                    onClickLowStock={() => {
+                      setTimeout(() => {
+                        const el = document.getElementById("tabelas-operacionais");
+                        el?.scrollIntoView({ behavior: "smooth" });
+                      }, 50);
+                    }}
+                  />
+
+                  {/* 5 Charts */}
+                  <ChartsSection
+                    dailySales={analytics.dailySales}
+                    topFlavors={analytics.topFlavors}
+                    paymentDistribution={analytics.paymentDistribution}
+                    inventoryByFlavor={analytics.inventoryByFlavor}
+                    drePorProduto={analytics.drePorProduto}
+                  />
+
+                  {/* 2 Operational Tables */}
+                  <TablesSection
+                    ultimasVendas={analytics.ultimasVendas}
+                    reposicaoEstoque={analytics.reposicaoEstoque}
+                    onQuickStockChange={handleUpdateStock}
+                    onOpenStockModal={() => {
+                      setModalTab("estoque");
+                      setModalOpen(true);
+                    }}
+                    onCancelSale={handleCancelSale}
+                  />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setPosModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-primary px-3.5 py-1.5 font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all"
-                >
-                  <QrCode className="h-3.5 w-3.5" />
-                  <span>Novo Pedido / PDV</span>
-                </button>
-              </div>
-            )}
+              )}
 
-            {/* 5 KPIs always visible at top */}
-            <KpiCards
-              kpis={analytics.kpis}
-              onClickLowStock={() => {
-                setActiveSection("completo");
-                setTimeout(() => {
-                  const el = document.getElementById("tabelas-operacionais");
-                  el?.scrollIntoView({ behavior: "smooth" });
-                }, 50);
-              }}
-            />
+              {/* TELA 2: PRODUÇÃO & FICHAS */}
+              {(activeSection === "fichas" || activeSection === "completo") && (
+                <div className="space-y-6">
+                  <TechnicalSheetAndDreSection
+                    produtos={snapshot.produtos}
+                    fichasTecnicas={snapshot.fichasTecnicas}
+                    drePorProduto={analytics.drePorProduto}
+                    dreConsolidada={analytics.dreConsolidada}
+                    selectedProductId={selectedProductId}
+                    onSelectProductId={setSelectedProductId}
+                    onSaveFicha={handleSaveFicha}
+                    ifoodFeePct={ifoodFeePct}
+                    onChangeIfoodFeePct={handleChangeIfoodFeePct}
+                    onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
+                  />
+                </div>
+              )}
 
-            {(activeSection === "completo" ||
-              activeSection === "mercados_precos") && (
-              <LocalMarketAndInvoicesSection
-                onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
-                fichasTecnicas={snapshot.fichasTecnicas}
-                onApplyPaidPriceToRecipes={handleApplyPaidPriceToRecipes}
-              />
-            )}
+              {/* TELA 3: COTAÇÕES & COMPRAS */}
+              {(activeSection === "cotacoes" || activeSection === "completo") && (
+                <div className="space-y-6">
+                  <LocalMarketAndInvoicesSection
+                    onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
+                    fichasTecnicas={snapshot.fichasTecnicas}
+                    onApplyPaidPriceToRecipes={handleApplyPaidPriceToRecipes}
+                  />
+                </div>
+              )}
 
-            {(activeSection === "completo" ||
-              activeSection === "pereiralabs_ia") && (
-              <AiIntelligenceSection
-                snapshot={snapshot}
-                analytics={analytics}
-                ifoodFeePct={ifoodFeePct}
-                onUpdateStock={handleUpdateStock}
-                onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
-              />
-            )}
+              {/* TELA 4: GESTÃO & IA */}
+              {(activeSection === "gestao" || activeSection === "completo") && (
+                <div className="space-y-6">
+                  {/* Segment Switcher inside Gestão */}
+                  {activeSection === "gestao" && (
+                    <div className="flex items-center justify-center sm:justify-start">
+                      <div className="inline-flex rounded-xl border border-border/80 bg-card p-1 shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => setGestaoSubTab("ia")}
+                          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                            gestaoSubTab === "ia"
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          }`}
+                        >
+                          <Sparkles className="h-4 w-4 text-amber-400" />
+                          <span>PereiraLabs IA (Previsão & Lucro)</span>
+                        </button>
 
-            {(activeSection === "completo" ||
-              activeSection === "visao_geral") && (
-              <>
-                {/* 5 Charts */}
-                <ChartsSection
-                  dailySales={analytics.dailySales}
-                  topFlavors={analytics.topFlavors}
-                  paymentDistribution={analytics.paymentDistribution}
-                  inventoryByFlavor={analytics.inventoryByFlavor}
-                  drePorProduto={analytics.drePorProduto}
-                />
+                        <button
+                          type="button"
+                          onClick={() => setGestaoSubTab("auditoria")}
+                          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                            gestaoSubTab === "auditoria"
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          }`}
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          <span>Auditoria de Estoque (Física & Lotes)</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
-                {/* 2 Operational Tables */}
-                <TablesSection
-                  ultimasVendas={analytics.ultimasVendas}
-                  reposicaoEstoque={analytics.reposicaoEstoque}
-                  onQuickStockChange={handleUpdateStock}
-                  onOpenStockModal={() => {
-                    setModalTab("estoque");
-                    setModalOpen(true);
-                  }}
-                  onCancelSale={handleCancelSale}
-                />
-              </>
-            )}
+                  {(activeSection === "completo" || gestaoSubTab === "ia") && (
+                    <AiIntelligenceSection
+                      snapshot={snapshot}
+                      analytics={analytics}
+                      ifoodFeePct={ifoodFeePct}
+                      onUpdateStock={handleUpdateStock}
+                      onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
+                    />
+                  )}
 
-            {(activeSection === "completo" ||
-              activeSection === "ficha_dre") && (
-              <TechnicalSheetAndDreSection
-                produtos={snapshot.produtos}
-                fichasTecnicas={snapshot.fichasTecnicas}
-                drePorProduto={analytics.drePorProduto}
-                dreConsolidada={analytics.dreConsolidada}
-                selectedProductId={selectedProductId}
-                onSelectProductId={setSelectedProductId}
-                onSaveFicha={handleSaveFicha}
-                ifoodFeePct={ifoodFeePct}
-                onChangeIfoodFeePct={handleChangeIfoodFeePct}
-                onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
-              />
-            )}
+                  {(activeSection === "completo" || gestaoSubTab === "auditoria") && (
+                    <StockAuditSection
+                      inventoryByFlavor={analytics.inventoryByFlavor}
+                      onUpdateFlavorStock={handleUpdateStock}
+                    />
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </main>
 
-            {(activeSection === "completo" ||
-              activeSection === "auditoria_estoque") && (
-              <StockAuditSection
-                inventoryByFlavor={analytics.inventoryByFlavor}
-                onUpdateFlavorStock={handleUpdateStock}
-              />
-            )}
-          </>
-        )}
-      </main>
-
-      <footer className="mt-10 border-t border-border/60 bg-card/60 py-6 text-center text-xs text-muted-foreground">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 sm:flex-row sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <p>
-              <strong className="text-foreground">
-                {BRAND_CONFIG.companyName}
-              </strong>{" "}
-              — {BRAND_CONFIG.tagline}
+        <footer className="mt-auto border-t border-border/60 bg-card/60 py-5 text-center text-xs text-muted-foreground">
+          <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 sm:flex-row sm:px-6 lg:px-8">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <p>
+                <strong className="text-foreground">
+                  {BRAND_CONFIG.companyName}
+                </strong>{" "}
+                — {BRAND_CONFIG.tagline}
+              </p>
+              <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-semibold text-secondary-foreground">
+                v{BRAND_CONFIG.appVersion}
+              </span>
+            </div>
+            <p className="font-medium text-foreground/90">
+              Desenvolvido por{" "}
+              <span className="font-bold text-primary">
+                {BRAND_CONFIG.developerCredit.studio}
+              </span>{" "}
+              <span className="mx-1 text-muted-foreground">|</span>{" "}
+              <span className="font-semibold">
+                {BRAND_CONFIG.developerCredit.company}
+              </span>
             </p>
-            <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-semibold text-secondary-foreground">
-              v{BRAND_CONFIG.appVersion}
-            </span>
           </div>
-          <p className="font-medium text-foreground/90">
-            Desenvolvido por{" "}
-            <span className="font-bold text-primary">
-              {BRAND_CONFIG.developerCredit.studio}
-            </span>{" "}
-            <span className="mx-1 text-muted-foreground">|</span>{" "}
-            <span className="font-semibold">
-              {BRAND_CONFIG.developerCredit.company}
-            </span>
-          </p>
-        </div>
-      </footer>
+        </footer>
+      </div>
+
+      {/* 3. Mobile Bottom Navigation Bar */}
+      <AppBottomNav
+        activeTab={
+          activeSection === "fichas"
+            ? "fichas"
+            : activeSection === "cotacoes"
+            ? "cotacoes"
+            : activeSection === "gestao"
+            ? "gestao"
+            : "inicio"
+        }
+        onSelectTab={(tab) => setActiveSection(tab)}
+        onOpenPos={() => setPosModalOpen(true)}
+      />
 
       {analytics && (
         <PointOfSaleModal
