@@ -253,6 +253,43 @@ export function saveRscGtinToken(token: string): void {
 }
 
 /**
+ * Autentica diretamente na API v3 da RSC Sistemas usando e-mail e senha
+ * gerando e salvando automaticamente o Bearer Token.
+ */
+export async function loginRscSistemas(
+  email: string,
+  senha: string
+): Promise<{ success: boolean; token?: string; error?: string }> {
+  try {
+    const credentials = btoa(`${email.trim()}:${senha.trim()}`);
+    const response = await fetch("https://gtin.rscsistemas.com.br/api/v3/oauth/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${credentials}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return { success: false, error: "Usuário ou senha inválidos no RSC Sistemas." };
+      }
+      return { success: false, error: `Falha ao autenticar na RSC Sistemas (HTTP ${response.status})` };
+    }
+
+    const data = await response.json();
+    if (data && data.token) {
+      saveRscGtinToken(data.token);
+      return { success: true, token: data.token };
+    }
+    return { success: false, error: "Token não retornado pela API RSC Sistemas." };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: `Erro de conexão com a RSC Sistemas: ${msg}` };
+  }
+}
+
+/**
  * Extrai peso/volume e unidade do nome do produto (ex: "LEITE CONDENSADO MOCA 395G" -> 395g)
  */
 export function parsePackagingFromTitle(title: string): {
@@ -323,12 +360,12 @@ export async function consultarProdutoPorGtin(
     };
   }
 
-  // 2. Se houver token da RSC Sistemas configurado, chamar API oficial
+  // 2. Se houver token da RSC Sistemas configurado, chamar API v3 oficial
   const token = (userToken || getRscGtinToken()).trim();
   if (token) {
     try {
       const response = await fetch(
-        `https://gtin.rscsistemas.com.br/api/gtin/infor/${cleanGtin}`,
+        `https://gtin.rscsistemas.com.br/api/v3/gtin/${cleanGtin}`,
         {
           method: "GET",
           headers: {
@@ -352,13 +389,15 @@ export async function consultarProdutoPorGtin(
             unidade_medida: parsed.unidade,
             categoria: data.categoria || "Confeitaria / Insumos",
             ncm: data.ncm,
-            foto_url: data.link_foto || `https://gtin.rscsistemas.com.br/api/gtin/img/${cleanGtin}`,
+            foto_url: data.link_foto || `https://gtin.rscsistemas.com.br/api/v3/gtin/${cleanGtin}/image`,
             fonte: "rsc_sistemas",
           };
         }
+      } else if (response.status === 404) {
+        // Produto ainda não catalogado no banco da RSC Sistemas
       }
     } catch (err) {
-      console.warn("Consulta à API RSC Sistemas falhou ou bloqueada por CORS:", err);
+      console.warn("Consulta à API v3 RSC Sistemas falhou:", err);
     }
   }
 

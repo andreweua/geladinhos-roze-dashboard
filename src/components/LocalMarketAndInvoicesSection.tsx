@@ -65,6 +65,7 @@ import {
   consultarProdutoPorGtin,
   getRscGtinToken,
   saveRscGtinToken,
+  loginRscSistemas,
 } from "@/services/gtinService";
 
 interface LocalMarketAndInvoicesSectionProps {
@@ -138,6 +139,10 @@ export const LocalMarketAndInvoicesSection: React.FC<
   const [gtinSearchFeedback, setGtinSearchFeedback] = useState<string | null>(null);
   const [rscTokenModalOpen, setRscTokenModalOpen] = useState(false);
   const [rscTokenInput, setRscTokenInput] = useState(() => getRscGtinToken());
+  const [rscEmailInput, setRscEmailInput] = useState("ANDREWEUA@GMAIL.COM");
+  const [rscPasswordInput, setRscPasswordInput] = useState("");
+  const [isLoggingInRsc, setIsLoggingInRsc] = useState(false);
+  const [rscLoginFeedback, setRscLoginFeedback] = useState<string | null>(null);
 
   const [selectedInsumoAnalysis, setSelectedInsumoAnalysis] = useState<string>("Leite Condensado");
   const [appliedFeedback, setAppliedFeedback] = useState<string | null>(null);
@@ -274,6 +279,28 @@ export const LocalMarketAndInvoicesSection: React.FC<
     setRscTokenModalOpen(false);
     setGtinSearchFeedback("Token RSC Sistemas salvo com sucesso!");
     setTimeout(() => setGtinSearchFeedback(null), 3500);
+  };
+
+  const handleAutoLoginRsc = async () => {
+    if (!rscEmailInput.trim() || !rscPasswordInput.trim()) {
+      setRscLoginFeedback("Informe o e-mail e a senha do painel RSC Sistemas.");
+      return;
+    }
+    setIsLoggingInRsc(true);
+    setRscLoginFeedback(null);
+    const result = await loginRscSistemas(rscEmailInput, rscPasswordInput);
+    setIsLoggingInRsc(false);
+    if (result.success && result.token) {
+      setRscTokenInput(result.token);
+      setRscLoginFeedback("Autenticado com sucesso! Token gerado e ativado.");
+      setGtinSearchFeedback("Token RSC Sistemas ativado com sucesso!");
+      setTimeout(() => {
+        setRscTokenModalOpen(false);
+        setRscLoginFeedback(null);
+      }, 1500);
+    } else {
+      setRscLoginFeedback(result.error || "Erro ao conectar.");
+    }
   };
 
   const handleOpenNewPesquisa = () => {
@@ -2027,34 +2054,84 @@ export const LocalMarketAndInvoicesSection: React.FC<
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <p className="text-muted-foreground leading-relaxed">
-                Insira abaixo o seu Token de Acesso da plataforma <strong>RSC Sistemas / GTIN OSCBR</strong> (
-                <a
-                  href="https://www.gtin.rscsistemas.com.br/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline font-bold"
-                >
-                  gtin.rscsistemas.com.br
-                </a>
-                ).
-              </p>
+            <div className="space-y-4 text-xs">
+              {/* Opção 1: Login Automático */}
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-2.5">
+                <div className="flex items-center gap-1.5 font-bold text-foreground">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-black">1</span>
+                  <span>Gerar Token Automaticamente (Recomendado)</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Informe o seu e-mail e senha da conta <strong>gtin.rscsistemas.com.br</strong> para o app gerar o token JWT automaticamente via API v3:
+                </p>
 
-              <div>
-                <label className="block font-bold text-foreground mb-1">
-                  Bearer Token da API RSC Sistemas:
-                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="block text-[10px] font-bold text-muted-foreground mb-1">
+                      E-mail do painel:
+                    </label>
+                    <input
+                      type="email"
+                      value={rscEmailInput}
+                      onChange={(e) => setRscEmailInput(e.target.value)}
+                      placeholder="seu_email@dominio.com"
+                      className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-muted-foreground mb-1">
+                      Senha do painel:
+                    </label>
+                    <input
+                      type="password"
+                      value={rscPasswordInput}
+                      onChange={(e) => setRscPasswordInput(e.target.value)}
+                      placeholder="Sua senha da RSC..."
+                      className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {rscLoginFeedback && (
+                  <p className={`text-[11px] font-semibold ${rscLoginFeedback.includes("sucesso") ? "text-emerald-500" : "text-amber-500"}`}>
+                    {rscLoginFeedback}
+                  </p>
+                )}
+
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isLoggingInRsc || !rscEmailInput || !rscPasswordInput}
+                  onClick={handleAutoLoginRsc}
+                  className="w-full bg-primary text-primary-foreground font-bold text-xs shadow-sm mt-1"
+                >
+                  {isLoggingInRsc ? "Conectando e gerando token..." : "Gerar & Ativar Token RSC"}
+                </Button>
+              </div>
+
+              {/* Opção 2: Colar Token Manualmente */}
+              <div className="rounded-xl border border-border bg-card p-3.5 space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-foreground">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-secondary text-[10px] text-foreground font-black">2</span>
+                  <span>Ou cole o Bearer Token gerado via cURL:</span>
+                </div>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={rscTokenInput}
                   onChange={(e) => setRscTokenInput(e.target.value)}
-                  placeholder="Cole aqui seu token de acesso da RSC Sistemas..."
-                  className="w-full rounded-xl border border-input bg-background p-2.5 font-mono text-xs focus:border-primary focus:outline-none"
+                  placeholder="Cole aqui seu token JWT (Bearer Token)..."
+                  className="w-full rounded-lg border border-input bg-background p-2 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
                 />
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  💡 Salvo no seu navegador com segurança. Permite consultar automaticamente nome, marca, foto e dados fiscais de qualquer código de barras no Brasil.
-                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!rscTokenInput.trim()}
+                  onClick={handleSaveRscToken}
+                  className="w-full text-xs font-semibold"
+                >
+                  Salvar Token Manualmente
+                </Button>
               </div>
             </div>
 
@@ -2065,16 +2142,7 @@ export const LocalMarketAndInvoicesSection: React.FC<
                 size="sm"
                 onClick={() => setRscTokenModalOpen(false)}
               >
-                Cancelar
-              </Button>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={handleSaveRscToken}
-                className="bg-primary text-primary-foreground font-bold"
-              >
-                Salvar Token
+                Fechar
               </Button>
             </div>
           </div>
