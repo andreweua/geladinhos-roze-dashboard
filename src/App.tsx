@@ -34,6 +34,7 @@ import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
+import { ChangelogModal } from "@/components/ChangelogModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CashShiftModal } from "@/components/cash/CashShiftModal";
 import { CashShift, getCurrentShift } from "@/services/cashShiftService";
@@ -174,6 +175,22 @@ export function App() {
     }
   }, []);
 
+  // Função equivalente à tecla "F5" do notebook: recarrega a página e atualiza o Service Worker
+  const handleHardReload = useCallback(() => {
+    try {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const reg of registrations) {
+            reg.update();
+          }
+        });
+      }
+    } catch {
+      // ignore
+    }
+    window.location.reload();
+  }, []);
+
   // Check magic sync config on URL query param
   useEffect(() => {
     try {
@@ -206,6 +223,7 @@ export function App() {
   const [invoiceModalOpen, setInvoiceModalOpen] = useState<boolean>(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState<boolean>(false);
   const [cashShiftModalOpen, setCashShiftModalOpen] = useState<boolean>(false);
+  const [changelogModalOpen, setChangelogModalOpen] = useState<boolean>(false);
   const [currentShift, setCurrentShift] = useState<CashShift | null>(() =>
     getCurrentShift()
   );
@@ -466,7 +484,7 @@ export function App() {
         isPwaInstalled={isPwaInstalled}
         isDark={isDark}
         onToggleTheme={() => setIsDark((prev) => !prev)}
-        onRefresh={() => loadData(true)}
+        onRefresh={handleHardReload}
         isRefreshing={isRefreshing}
         dataSource={snapshot?.source || "demo_local"}
         currentUser={currentUser}
@@ -490,7 +508,7 @@ export function App() {
             onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
             onOpenSettingsModal={() => setSettingsModalOpen(true)}
             isPwaInstalled={isPwaInstalled}
-            onRefresh={() => loadData(true)}
+            onRefresh={handleHardReload}
             isRefreshing={isRefreshing}
             dataSource={snapshot?.source || "demo_local"}
             currentUser={currentUser}
@@ -1078,9 +1096,17 @@ export function App() {
                 </strong>{" "}
                 — {BRAND_CONFIG.tagline}
               </p>
-              <span className="rounded-full border border-border bg-secondary px-2 py-0.5 text-[10px] font-semibold text-secondary-foreground">
-                v{BRAND_CONFIG.appVersion}
-              </span>
+              <button
+                type="button"
+                onClick={() => setChangelogModalOpen(true)}
+                className="group inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer shadow-xs"
+                title="Clique para ver o que há de novo na versão 3.1.0"
+              >
+                <span>v{BRAND_CONFIG.appVersion}</span>
+                <span className="text-[9px] font-normal opacity-85 group-hover:opacity-100">
+                  • Ver Novidades ✨
+                </span>
+              </button>
             </div>
             <div className="flex flex-col items-center gap-0.5 text-center mt-1">
               <p className="text-[11px] font-medium text-muted-foreground">
@@ -1204,6 +1230,12 @@ export function App() {
             setPosModalOpen(true);
           }
         }}
+      />
+
+      <ChangelogModal
+        isOpen={changelogModalOpen}
+        onClose={() => setChangelogModalOpen(false)}
+        onForceReload={handleHardReload}
       />
 
       {/* Floating Refresh Success Toast */}

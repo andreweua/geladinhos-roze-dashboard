@@ -167,8 +167,8 @@ export const Header: React.FC<HeaderProps> = ({
             variant="ghost"
             size="icon"
             onClick={onRefresh}
-            title={justRefreshed && !isRefreshing ? "Atualizado com sucesso!" : "Atualizar dados"}
-            aria-label="Atualizar dados"
+            title={justRefreshed && !isRefreshing ? "Atualizado com sucesso!" : "Recarregar tela e sincronizar dados (F5)"}
+            aria-label="Recarregar tela e sincronizar dados (F5)"
             className="relative h-8 w-8"
           >
             {isRefreshing ? (

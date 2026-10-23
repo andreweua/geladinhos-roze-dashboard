@@ -225,6 +225,7 @@ export function getCustomBrandConfig(): BrandConfig {
       return {
         ...BRAND_CONFIG,
         ...overrides,
+        appVersion: BRAND_CONFIG.appVersion, // A versão do app é sempre a versão oficial do build
         tonConfig: {
           ...BRAND_CONFIG.tonConfig,
           ...(overrides.tonConfig || {}),

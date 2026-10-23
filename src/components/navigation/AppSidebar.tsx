@@ -91,7 +91,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         <button
           type="button"
           onClick={onRefresh}
-          title="Sincronizar / Atualizar Dados"
+          title="Recarregar tela e sincronizar dados (F5)"
           className="shrink-0 rounded-xl p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors border border-border/60 hover:border-border"
         >
           <RefreshCw

@@ -1,4 +1,4 @@
-const CACHE_NAME = "geladinhos-roze-pwa-v2";
+const CACHE_NAME = "geladinhos-roze-pwa-v3-1";
 const PRECACHE_ASSETS = [
   "./",
   "./index.html",
