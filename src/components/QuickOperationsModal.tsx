@@ -9,11 +9,13 @@ import {
   Check,
   ChefHat,
   CheckCircle2,
+  Lock,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/primitives";
 import { formatCurrency, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { EstoquePorProduto, FichaTecnicaProduto, PaymentMethod } from "@/types/dashboard";
 import { NewProductPayload, NewSalePayload } from "@/services/dataService";
+import { CashShift } from "@/services/cashShiftService";
 
 interface QuickOperationsModalProps {
   isOpen: boolean;
@@ -26,6 +28,8 @@ interface QuickOperationsModalProps {
   onCreateProduct: (payload: NewProductPayload) => Promise<void>;
   onResetDemoData: () => void;
   dataSource: "supabase" | "demo_local";
+  currentShift?: CashShift | null;
+  onOpenCashShift?: () => void;
 }
 
 export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
@@ -39,6 +43,8 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
   onCreateProduct,
   onResetDemoData,
   dataSource,
+  currentShift,
+  onOpenCashShift,
 }) => {
   const [activeTab, setActiveTab] = useState<"venda" | "estoque">(initialTab);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Pix");
@@ -93,6 +99,15 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
   const handleConfirmSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedItems.length === 0) return;
+
+    if (!currentShift) {
+      if (onOpenCashShift) {
+        onClose();
+        onOpenCashShift();
+      }
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await onSubmitSale({
@@ -178,6 +193,30 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === "venda" ? (
             <form onSubmit={handleConfirmSale} className="space-y-5">
+              {!currentShift && (
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs text-amber-900 dark:text-amber-200">
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>
+                      <strong>Caixa Fechado:</strong> É obrigatório abrir o caixa informando o troco inicial antes de lançar vendas.
+                    </span>
+                  </div>
+                  {onOpenCashShift && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        onClose();
+                        onOpenCashShift();
+                      }}
+                      className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs"
+                    >
+                      Abrir Caixa Agora
+                    </Button>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   1. Selecione os Sabores e Quantidades
@@ -285,15 +324,30 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
                   </p>
                 </div>
 
-                <Button
-                  type="submit"
-                  size="lg"
-                  disabled={selectedItems.length === 0 || isSubmitting}
-                  className="bg-gradient-to-r from-rose-600 to-rose-500 text-white"
-                >
-                  <Check className="h-4 w-4" />
-                  {isSubmitting ? "Salvando..." : "Concluir Venda"}
-                </Button>
+                {!currentShift ? (
+                  <Button
+                    type="button"
+                    size="lg"
+                    onClick={() => {
+                      onClose();
+                      if (onOpenCashShift) onOpenCashShift();
+                    }}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold gap-2"
+                  >
+                    <Lock className="h-4 w-4" />
+                    <span>Abrir Caixa para Vender</span>
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="lg"
+                    disabled={selectedItems.length === 0 || isSubmitting}
+                    className="bg-gradient-to-r from-rose-600 to-rose-500 text-white"
+                  >
+                    <Check className="h-4 w-4" />
+                    {isSubmitting ? "Salvando..." : "Concluir Venda"}
+                  </Button>
+                )}
               </div>
             </form>
           ) : (

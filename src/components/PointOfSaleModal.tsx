@@ -28,6 +28,7 @@ import {
   FileSpreadsheet,
   Download,
   Receipt,
+  Lock,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
@@ -35,6 +36,7 @@ import { formatCurrency, formatNumber, PAYMENT_METHOD_LABELS } from "@/lib/utils
 import { generatePixPayload } from "@/lib/pix";
 import { EstoquePorProduto, PaymentMethod, VendaDetalhada, CanalVenda } from "@/types/dashboard";
 import { NewSalePayload } from "@/services/dataService";
+import { CashShift } from "@/services/cashShiftService";
 import {
   searchCustomers,
   formatPhoneBr,
@@ -57,6 +59,8 @@ interface PointOfSaleModalProps {
   onClose: () => void;
   inventoryByFlavor: EstoquePorProduto[];
   onSubmitSale: (payload: NewSalePayload) => Promise<void>;
+  currentShift?: CashShift | null;
+  onOpenCashShift?: () => void;
 }
 
 export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
@@ -64,6 +68,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   onClose,
   inventoryByFlavor,
   onSubmitSale,
+  currentShift,
+  onOpenCashShift,
 }) => {
   // Step 1: Items selection & Customer details | Step 2: Payment & Pix confirmation
   const [step, setStep] = useState<"cart" | "payment">("cart");
@@ -320,6 +326,13 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   // Simulação imediata do Webhook Stone OpenBank para testes
   const handleSimulatePaymentWebhook = async () => {
     if (!stonePixData || isSimulatingWebhook) return;
+    if (!currentShift) {
+      if (onOpenCashShift) {
+        onClose();
+        onOpenCashShift();
+      }
+      return;
+    }
     setIsSimulatingWebhook(true);
     try {
       await simulateStoneWebhookPayment(stonePixData.txid, stonePixData.venda_id);
@@ -360,6 +373,14 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
   const handleConfirmAndFinalizeSale = async () => {
     if (selectedItems.length === 0 || isSubmitting) return;
+
+    if (!currentShift) {
+      if (onOpenCashShift) {
+        onClose();
+        onOpenCashShift();
+      }
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -487,6 +508,37 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-5">
+          {/* Alerta de Caixa Fechado */}
+          {!currentShift && (
+            <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs text-amber-900 dark:text-amber-200 shadow-sm animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs">
+                  <Lock className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="font-bold text-foreground">
+                    Caixa Fechado — Abertura Obrigatória
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    É obrigatório abrir o caixa informando o fundo de troco inicial antes de finalizar vendas.
+                  </p>
+                </div>
+              </div>
+              {onOpenCashShift && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenCashShift();
+                  }}
+                  className="rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 text-xs transition-colors shrink-0 shadow-sm"
+                >
+                  Abrir Caixa Agora
+                </button>
+              )}
+            </div>
+          )}
+
           {step === "cart" ? (
             <div className="space-y-4">
               {/* Channel / Origem da Venda */}
@@ -1062,7 +1114,19 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
               </button>
             )}
 
-            {step === "cart" ? (
+            {!currentShift ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  if (onOpenCashShift) onOpenCashShift();
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-600 hover:bg-amber-700 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-colors"
+              >
+                <Lock className="h-4 w-4" />
+                <span>Caixa Fechado — Abrir Caixa para Vender</span>
+              </button>
+            ) : step === "cart" ? (
               <button
                 type="button"
                 disabled={totalUnidades === 0}

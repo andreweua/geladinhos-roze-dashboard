@@ -272,7 +272,12 @@ export function App() {
     const params = new URLSearchParams(window.location.search);
     const action = params.get("action");
     if (action === "nova-venda" || action === "pdv") {
-      setPosModalOpen(true);
+      const activeShift = getCurrentShift();
+      if (!activeShift) {
+        setCashShiftModalOpen(true);
+      } else {
+        setPosModalOpen(true);
+      }
     } else if (action === "estoque") {
       setModalTab("estoque");
       setModalOpen(true);
@@ -307,7 +312,26 @@ export function App() {
     setDateFilter(getDateRangeForPreset("personalizado", start, end));
   };
 
+  const handleOpenPos = useCallback(() => {
+    // Validação estrita: nem o administrador nem o operador podem vender sem antes abrir o caixa
+    const activeShift = getCurrentShift();
+    if (!activeShift) {
+      setCurrentShift(null);
+      setCashShiftModalOpen(true);
+      return;
+    }
+    setPosModalOpen(true);
+  }, []);
+
   const handleSubmitSale = async (payload: NewSalePayload) => {
+    // Validação estrita: trava caso o caixa esteja fechado
+    const activeShift = getCurrentShift();
+    if (!activeShift) {
+      setCurrentShift(null);
+      setPosModalOpen(false);
+      setCashShiftModalOpen(true);
+      throw new Error("O caixa está fechado! Abra o caixa informando o fundo de troco antes de registrar vendas.");
+    }
     const updated = await createNewSale(payload);
     setSnapshot(updated);
   };
@@ -431,7 +455,7 @@ export function App() {
             setActiveSection(tab as any);
           }
         }}
-        onOpenPos={() => setPosModalOpen(true)}
+        onOpenPos={handleOpenPos}
         onOpenStockModal={() => {
           setModalTab("estoque");
           setModalOpen(true);
@@ -457,7 +481,7 @@ export function App() {
           <Header
             isDark={isDark}
             onToggleTheme={() => setIsDark((prev) => !prev)}
-            onOpenNewSale={() => setPosModalOpen(true)}
+            onOpenNewSale={handleOpenPos}
             onOpenStockModal={() => {
               setModalTab("estoque");
               setModalOpen(true);
@@ -561,7 +585,7 @@ export function App() {
             <Button
               variant="default"
               size="sm"
-              onClick={() => setPosModalOpen(true)}
+              onClick={handleOpenPos}
               className="bg-primary text-primary-foreground font-bold shadow-sm hover:bg-primary/90 gap-1.5 text-xs"
             >
               <QrCode className="h-4 w-4" />
@@ -683,7 +707,7 @@ export function App() {
 
                         <button
                           type="button"
-                          onClick={() => setPosModalOpen(true)}
+                          onClick={handleOpenPos}
                           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-500 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-rose-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
                         >
                           <QrCode className="h-5 w-5" />
@@ -761,7 +785,7 @@ export function App() {
                                   <div
                                     key={flavor.produto_id}
                                     className="flex items-center justify-between py-2.5 hover:bg-secondary/20 rounded-lg px-2 -mx-2 transition-colors cursor-pointer group"
-                                    onClick={() => setPosModalOpen(true)}
+                                    onClick={handleOpenPos}
                                     title="Clique para abrir venda deste sabor no PDV"
                                   >
                                     <div className="flex items-center gap-3">
@@ -910,7 +934,7 @@ export function App() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => setPosModalOpen(true)}
+                            onClick={handleOpenPos}
                             className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-primary px-3.5 py-1.5 font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all"
                           >
                             <QrCode className="h-3.5 w-3.5" />
@@ -1093,7 +1117,7 @@ export function App() {
           }
           setActiveSection(tab);
         }}
-        onOpenPos={() => setPosModalOpen(true)}
+        onOpenPos={handleOpenPos}
         userRole={currentUser?.role || "admin"}
         onOpenAuth={() => setAuthModalOpen(true)}
       />
@@ -1104,6 +1128,8 @@ export function App() {
           onClose={() => setPosModalOpen(false)}
           inventoryByFlavor={analytics.inventoryByFlavor}
           onSubmitSale={handleSubmitSale}
+          currentShift={currentShift}
+          onOpenCashShift={() => setCashShiftModalOpen(true)}
         />
       )}
 
@@ -1119,6 +1145,8 @@ export function App() {
           onCreateProduct={handleCreateProduct}
           onResetDemoData={handleResetDemo}
           dataSource={snapshot?.source || "demo_local"}
+          currentShift={currentShift}
+          onOpenCashShift={() => setCashShiftModalOpen(true)}
         />
       )}
 
@@ -1158,7 +1186,7 @@ export function App() {
           setAuthModalOpen(false);
           if (user.role === "operador_caixa") {
             setActiveSection("inicio");
-            setPosModalOpen(true);
+            handleOpenPos();
           }
         }}
         canDismiss={Boolean(currentUser)}
@@ -1170,7 +1198,12 @@ export function App() {
         currentShift={currentShift}
         operadorNome={currentUser?.name || "Operador"}
         vendas={analytics?.ultimasVendas || []}
-        onShiftUpdated={(shift) => setCurrentShift(shift)}
+        onShiftUpdated={(shift) => {
+          setCurrentShift(shift);
+          if (shift && shift.status === "aberto") {
+            setPosModalOpen(true);
+          }
+        }}
       />
 
       {/* Floating Refresh Success Toast */}
