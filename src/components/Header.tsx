@@ -32,6 +32,7 @@ interface HeaderProps {
   isRefreshing: boolean;
   dataSource: "supabase" | "demo_local";
   currentUser?: UserProfile | null;
+  companyName?: string;
   onOpenAuth?: () => void;
   onLogout?: () => void;
   onOpenMasterPanel?: () => void;
@@ -50,6 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
   isRefreshing,
   dataSource,
   currentUser,
+  companyName,
   onOpenAuth,
   onLogout,
   onOpenMasterPanel,
@@ -66,6 +68,8 @@ export const Header: React.FC<HeaderProps> = ({
     }
   }, [isRefreshing]);
 
+  const displayCompanyName = companyName || currentUser?.empresaNome || BRAND_CONFIG.companyName;
+
   return (
     <header className="sticky top-0 z-30 w-full border-b border-border/80 bg-card/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
@@ -81,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-base font-bold tracking-tight text-foreground sm:text-lg">
-                {currentUser?.empresaNome || BRAND_CONFIG.companyName}
+                {displayCompanyName}
               </h1>
               <Badge
                 variant={dataSource === "supabase" ? "success" : "secondary"}

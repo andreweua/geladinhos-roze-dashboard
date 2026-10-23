@@ -49,12 +49,35 @@ export function getLocalCompanies(): Company[] {
   return DEFAULT_COMPANIES;
 }
 
+// Sistema reativo de subscrição para mudanças na empresa ativa
+type CompanySubscriber = (activeCompany: Company) => void;
+const companySubscribers: Set<CompanySubscriber> = new Set();
+
+export function subscribeCompanyChange(callback: CompanySubscriber): () => void {
+  companySubscribers.add(callback);
+  return () => {
+    companySubscribers.delete(callback);
+  };
+}
+
+export function notifyCompanyChange(): void {
+  const active = getActiveCompany();
+  companySubscribers.forEach((cb) => {
+    try {
+      cb(active);
+    } catch (err) {
+      console.warn("Erro no listener de empresa:", err);
+    }
+  });
+}
+
 export function saveLocalCompanies(companies: Company[]): void {
   try {
     localStorage.setItem(COMPANIES_STORAGE_KEY, JSON.stringify(companies));
   } catch (err) {
     console.warn("Erro ao salvar empresas locais:", err);
   }
+  notifyCompanyChange();
 }
 
 export function getActiveCompanyId(): string {
@@ -71,6 +94,7 @@ export function setActiveCompanyId(companyId: string): void {
   } catch {
     // ignore
   }
+  notifyCompanyChange();
 }
 
 export function getActiveCompany(): Company {

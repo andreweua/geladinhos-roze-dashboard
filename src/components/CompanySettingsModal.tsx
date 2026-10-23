@@ -31,6 +31,8 @@ import {
   resetToCleanSlate,
   syncPendingLocalSalesToSupabase,
 } from "@/services/dataService";
+import { getActiveCompany, updateCompany } from "@/services/companyService";
+import { updateCurrentUserEmpresa } from "@/services/authService";
 
 interface CompanySettingsModalProps {
   isOpen: boolean;
@@ -50,20 +52,21 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [copiedSyncLink, setCopiedSyncLink] = useState(false);
 
-  // Load live config
+  // Load live config & active company
   const currentConfig = getCustomBrandConfig();
+  const currentActiveComp = getActiveCompany();
 
   // Form State
   const [formData, setFormData] = useState({
-    companyName: currentConfig.companyName || BRAND_CONFIG.companyName,
-    merchantName: currentConfig.tonConfig?.merchantName || BRAND_CONFIG.tonConfig.merchantName,
-    merchantCity: currentConfig.tonConfig?.merchantCity || BRAND_CONFIG.tonConfig.merchantCity,
-    tagline: currentConfig.tagline || BRAND_CONFIG.tagline,
-    whatsappNumber: currentConfig.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
+    companyName: currentActiveComp?.nome || currentConfig.companyName || BRAND_CONFIG.companyName,
+    merchantName: currentActiveComp?.responsavel || currentConfig.tonConfig?.merchantName || BRAND_CONFIG.tonConfig.merchantName,
+    merchantCity: currentActiveComp?.cidade || currentConfig.tonConfig?.merchantCity || BRAND_CONFIG.tonConfig.merchantCity,
+    tagline: currentActiveComp?.nicho || currentConfig.tagline || BRAND_CONFIG.tagline,
+    whatsappNumber: currentActiveComp?.whatsapp || currentConfig.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
 
     // Pix & TON
-    pixKey: currentConfig.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
-    pixKeyType: currentConfig.tonConfig?.pixKeyType || BRAND_CONFIG.tonConfig.pixKeyType,
+    pixKey: currentActiveComp?.chavePix || currentConfig.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
+    pixKeyType: currentActiveComp?.chavePixTipo || currentConfig.tonConfig?.pixKeyType || BRAND_CONFIG.tonConfig.pixKeyType,
     ratePix: currentConfig.tonConfig?.rates?.Pix ?? BRAND_CONFIG.tonConfig.rates.Pix,
     rateDinheiro: currentConfig.tonConfig?.rates?.Dinheiro ?? BRAND_CONFIG.tonConfig.rates.Dinheiro,
     rateDebito: currentConfig.tonConfig?.rates?.Cartao_Debito ?? BRAND_CONFIG.tonConfig.rates.Cartao_Debito,
@@ -93,14 +96,15 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       const live = getCustomBrandConfig();
+      const activeComp = getActiveCompany();
       setFormData({
-        companyName: live.companyName || BRAND_CONFIG.companyName,
-        merchantName: live.tonConfig?.merchantName || BRAND_CONFIG.tonConfig.merchantName,
-        merchantCity: live.tonConfig?.merchantCity || BRAND_CONFIG.tonConfig.merchantCity,
-        tagline: live.tagline || BRAND_CONFIG.tagline,
-        whatsappNumber: live.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
-        pixKey: live.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
-        pixKeyType: live.tonConfig?.pixKeyType || BRAND_CONFIG.tonConfig.pixKeyType,
+        companyName: activeComp?.nome || live.companyName || BRAND_CONFIG.companyName,
+        merchantName: activeComp?.responsavel || live.tonConfig?.merchantName || BRAND_CONFIG.tonConfig.merchantName,
+        merchantCity: activeComp?.cidade || live.tonConfig?.merchantCity || BRAND_CONFIG.tonConfig.merchantCity,
+        tagline: activeComp?.nicho || live.tagline || BRAND_CONFIG.tagline,
+        whatsappNumber: activeComp?.whatsapp || live.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
+        pixKey: activeComp?.chavePix || live.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
+        pixKeyType: activeComp?.chavePixTipo || live.tonConfig?.pixKeyType || BRAND_CONFIG.tonConfig.pixKeyType,
         ratePix: live.tonConfig?.rates?.Pix ?? BRAND_CONFIG.tonConfig.rates.Pix,
         rateDinheiro: live.tonConfig?.rates?.Dinheiro ?? BRAND_CONFIG.tonConfig.rates.Dinheiro,
         rateDebito: live.tonConfig?.rates?.Cartao_Debito ?? BRAND_CONFIG.tonConfig.rates.Cartao_Debito,
@@ -123,8 +127,27 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   }, [isOpen]);
 
   const handleSave = () => {
+    const newCompanyName = formData.companyName.trim() || BRAND_CONFIG.companyName;
+
+    // Atualiza empresa ativa no sistema multi-empresa
+    const activeComp = getActiveCompany();
+    if (activeComp) {
+      updateCompany(activeComp.id, {
+        nome: newCompanyName,
+        nicho: formData.tagline.trim() || activeComp.nicho,
+        whatsapp: formData.whatsappNumber.replace(/\D/g, "") || activeComp.whatsapp,
+        chavePix: formData.pixKey.trim() || activeComp.chavePix,
+        chavePixTipo: (formData.pixKeyType as any) || activeComp.chavePixTipo,
+        responsavel: formData.merchantName.trim() || activeComp.responsavel,
+        cidade: formData.merchantCity.trim().toUpperCase() || activeComp.cidade,
+      });
+    }
+
+    // Atualiza o perfil da sessão atual autenticada imediatamente
+    updateCurrentUserEmpresa(newCompanyName);
+
     const updated: Partial<BrandConfig> = {
-      companyName: formData.companyName.trim() || BRAND_CONFIG.companyName,
+      companyName: newCompanyName,
       tagline: formData.tagline.trim() || BRAND_CONFIG.tagline,
       tonConfig: {
         ...currentConfig.tonConfig,
@@ -190,6 +213,20 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   const handleResetDefaults = () => {
     if (window.confirm("Deseja restaurar as configurações originais padrão de fábrica?")) {
       localStorage.removeItem(`${BRAND_CONFIG.storagePrefix}_company_settings_v1`);
+
+      const activeComp = getActiveCompany();
+      if (activeComp) {
+        updateCompany(activeComp.id, {
+          nome: BRAND_CONFIG.companyName,
+          responsavel: BRAND_CONFIG.tonConfig.merchantName,
+          cidade: BRAND_CONFIG.tonConfig.merchantCity,
+          whatsapp: BRAND_CONFIG.tonConfig.whatsappNumber,
+          chavePix: BRAND_CONFIG.tonConfig.pixKey,
+          chavePixTipo: BRAND_CONFIG.tonConfig.pixKeyType,
+        });
+      }
+      updateCurrentUserEmpresa(BRAND_CONFIG.companyName);
+
       setFormData({
         companyName: BRAND_CONFIG.companyName,
         merchantName: BRAND_CONFIG.tonConfig.merchantName,

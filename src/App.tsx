@@ -42,6 +42,7 @@ import {
   getActiveCompany,
   getActiveCompanyId,
   setActiveCompanyId,
+  subscribeCompanyChange,
 } from "@/services/companyService";
 import { THEME_COLOR_PALETTES } from "@/types/multiTenant";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -282,12 +283,17 @@ export function App() {
   const [cashShiftModalOpen, setCashShiftModalOpen] = useState<boolean>(false);
   const [changelogModalOpen, setChangelogModalOpen] = useState<boolean>(false);
   const [masterModalOpen, setMasterModalOpen] = useState<boolean>(false);
-  const [activeCompanyId, setActiveCompanyIdState] = useState<string>(() =>
-    getActiveCompanyId()
-  );
-  const activeCompany = useMemo(() => getActiveCompany(), [activeCompanyId]);
+  const [activeCompany, setActiveCompany] = useState(() => getActiveCompany());
+  const activeCompanyId = activeCompany.id;
 
-  // Aplica dinamicamente o tema de cores da empresa ativa
+  // Sincronização reativa instantânea quando a empresa ativa mudar de nome, dados ou tema
+  useEffect(() => {
+    return subscribeCompanyChange((comp) => {
+      setActiveCompany(comp);
+    });
+  }, []);
+
+  // Aplica dinamicamente o tema de cores da empresa ativa e atualiza a aba do navegador
   useEffect(() => {
     const themeMeta =
       THEME_COLOR_PALETTES[activeCompany.corTema] || THEME_COLOR_PALETTES.dourado;
@@ -620,6 +626,7 @@ export function App() {
         isRefreshing={isRefreshing}
         dataSource={snapshot?.source || "demo_local"}
         currentUser={currentUser}
+        companyName={activeCompany.nome}
         onOpenAuth={() => setAuthModalOpen(true)}
         onLogout={handleLogout}
       />
@@ -630,6 +637,7 @@ export function App() {
         <div className="md:hidden">
           <Header
             isDark={isDark}
+            companyName={activeCompany.nome}
             onToggleTheme={() => setIsDark((prev) => !prev)}
             onOpenNewSale={handleOpenPos}
             onOpenStockModal={() => {
@@ -1396,7 +1404,7 @@ export function App() {
         onClose={() => setMasterModalOpen(false)}
         activeCompanyId={activeCompanyId}
         onSelectCompany={(id) => {
-          setActiveCompanyIdState(id);
+          setActiveCompanyId(id);
           loadData(true);
         }}
       />

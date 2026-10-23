@@ -13,7 +13,8 @@ import {
   ExternalLink,
   MessageCircle,
 } from "lucide-react";
-import { BRAND_CONFIG } from "@/config/brand.config";
+import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
+import { getActiveCompany } from "@/services/companyService";
 import { VendaDetalhada } from "@/types/dashboard";
 import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import {
@@ -96,10 +97,10 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
           </div>
 
           <h2 className="text-xl font-black tracking-tight text-foreground">
-            {BRAND_CONFIG.companyName}
+            {getActiveCompany()?.nome || getCustomBrandConfig()?.companyName || BRAND_CONFIG.companyName}
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {BRAND_CONFIG.tagline}
+            {getActiveCompany()?.nicho || getCustomBrandConfig()?.tagline || BRAND_CONFIG.tagline}
           </p>
 
           <div className="mt-3 flex items-center justify-center gap-2">

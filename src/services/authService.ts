@@ -72,6 +72,23 @@ export function getCurrentUser(): UserProfile | null {
   return session ? session.user : null;
 }
 
+/**
+ * Atualiza o nome da empresa na sessão atual autenticada e notifica subscribers
+ */
+export function updateCurrentUserEmpresa(empresaNome: string): UserProfile | null {
+  const current = getCurrentUser();
+  if (!current) return null;
+  const trimmed = empresaNome.trim();
+  if (!trimmed) return current;
+
+  const updated: UserProfile = {
+    ...current,
+    empresaNome: trimmed,
+  };
+  saveSession(updated);
+  return updated;
+}
+
 function saveSession(user: UserProfile, token?: string, expiresInMs = 1000 * 60 * 60 * 24 * 30): AuthSession {
   const session: AuthSession = {
     user,

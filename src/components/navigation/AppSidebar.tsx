@@ -41,6 +41,7 @@ interface AppSidebarProps {
   isRefreshing: boolean;
   dataSource: "supabase" | "demo_local";
   currentUser: UserProfile | null;
+  companyName?: string;
   onOpenAuth: () => void;
   onLogout: () => void;
 }
@@ -60,10 +61,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   isRefreshing,
   dataSource,
   currentUser,
+  companyName,
   onOpenAuth,
   onLogout,
 }) => {
   const isCashier = currentUser?.role === "operador_caixa";
+  const displayCompanyName = companyName || currentUser?.empresaNome || BRAND_CONFIG.companyName;
 
   return (
     <aside className="hidden md:flex w-64 lg:w-72 shrink-0 flex-col border-r border-border/80 bg-card/90 backdrop-blur-md h-screen sticky top-0 overflow-hidden">
@@ -78,7 +81,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-xs lg:text-sm font-bold tracking-tight text-foreground truncate">
-              {currentUser?.empresaNome || BRAND_CONFIG.companyName}
+              {displayCompanyName}
             </h2>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
