@@ -33,8 +33,13 @@ import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
 import { formatCurrency, formatNumber, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { generatePixPayload } from "@/lib/pix";
-import { EstoquePorProduto, PaymentMethod, VendaDetalhada } from "@/types/dashboard";
+import { EstoquePorProduto, PaymentMethod, VendaDetalhada, CanalVenda } from "@/types/dashboard";
 import { NewSalePayload } from "@/services/dataService";
+import {
+  searchCustomers,
+  formatPhoneBr,
+  ClienteRecorrente,
+} from "@/services/customerService";
 import {
   downloadReceiptPdf,
   downloadReceiptTxt,
@@ -66,9 +71,14 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   // Cart Quantities: produto_id -> quantity
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  // Customer details
+  // Customer details & CRM
   const [clienteNome, setClienteNome] = useState<string>("");
   const [clienteTelefone, setClienteTelefone] = useState<string>("");
+  const [selectedCustomer, setSelectedCustomer] = useState<ClienteRecorrente | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+
+  // Sales Channel (Origem da Venda)
+  const [canalVenda, setCanalVenda] = useState<CanalVenda>("Balcao");
 
   // Payment method
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Pix");
@@ -90,6 +100,13 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
   // Merchant Ton Config (dinâmico com overrides do painel de configurações)
   const ton = useMemo(() => getCustomBrandConfig().tonConfig, [isOpen]);
+
+  // Clientes sugeridos para autocomplete CRM
+  const matchingCustomers = useMemo(() => {
+    const query = clienteTelefone.trim() || clienteNome.trim();
+    if (!query) return [];
+    return searchCustomers(query);
+  }, [clienteTelefone, clienteNome]);
 
   // Selected items calculation
   const selectedItems = useMemo(() => {
@@ -186,6 +203,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
           forma_pagamento: "Pix",
           cliente_nome: clienteNome.trim() || undefined,
           cliente_telefone: clienteTelefone.trim() || undefined,
+          canal_venda: canalVenda,
           status: "concluida",
           pix_txid: stonePixData.txid,
           pix_copia_cola: stonePixData.copia_e_cola,
@@ -200,6 +218,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
           setQuantities({});
           setClienteNome("");
           setClienteTelefone("");
+          setSelectedCustomer(null);
+          setCanalVenda("Balcao");
           setStep("cart");
           setPaymentStatus("idle");
           onClose();
@@ -281,6 +301,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       data_venda: new Date().toISOString(),
       cliente_nome: clienteNome.trim() || undefined,
       cliente_telefone: clienteTelefone.trim() || undefined,
+      canal_venda: canalVenda,
       forma_pagamento: paymentMethod,
       valor_total: totalVenda,
       status: "concluida",
@@ -309,6 +330,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
         forma_pagamento: "Pix",
         cliente_nome: clienteNome.trim() || undefined,
         cliente_telefone: clienteTelefone.trim() || undefined,
+        canal_venda: canalVenda,
         status: "concluida",
         pix_txid: stonePixData.txid,
         pix_copia_cola: stonePixData.copia_e_cola,
@@ -323,6 +345,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
         setQuantities({});
         setClienteNome("");
         setClienteTelefone("");
+        setSelectedCustomer(null);
+        setCanalVenda("Balcao");
         setStep("cart");
         setPaymentStatus("idle");
         onClose();
@@ -343,6 +367,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
         forma_pagamento: paymentMethod,
         cliente_nome: clienteNome.trim() || undefined,
         cliente_telefone: clienteTelefone.trim() || undefined,
+        canal_venda: canalVenda,
         status: "concluida",
         pix_txid: paymentMethod === "Pix" ? activeTxId : undefined,
         pix_copia_cola: paymentMethod === "Pix" ? activePixPayload : undefined,
@@ -356,6 +381,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       setQuantities({});
       setClienteNome("");
       setClienteTelefone("");
+      setSelectedCustomer(null);
+      setCanalVenda("Balcao");
       setStep("cart");
       setPaymentStatus("idle");
       onClose();
@@ -461,36 +488,159 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-5">
           {step === "cart" ? (
-            <div className="space-y-5">
-              {/* Customer Contact Strip (Optional for WhatsApp receipt) */}
-              <div className="grid grid-cols-1 gap-3 rounded-xl border border-border/80 bg-background/60 p-3.5 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-semibold text-foreground flex items-center gap-1.5">
+            <div className="space-y-4">
+              {/* Channel / Origem da Venda */}
+              <div className="rounded-xl border border-border/80 bg-background/60 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <ShoppingBag className="h-3.5 w-3.5 text-primary" />
+                    Canal / Origem da Venda:
+                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground">
+                    Para métricas e relatórios da administração
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                  {(
+                    [
+                      { id: "Balcao", label: "🏪 Balcão", sub: "Presencial" },
+                      { id: "iFood", label: "🛵 iFood", sub: "Delivery" },
+                      { id: "WhatsApp", label: "📱 WhatsApp", sub: "Encomenda" },
+                      { id: "Instagram", label: "📸 Instagram", sub: "Direct" },
+                      { id: "Outro", label: "📦 Outros", sub: "Eventos" },
+                    ] as const
+                  ).map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setCanalVenda(c.id)}
+                      className={`flex flex-col items-center justify-center rounded-lg border py-2 px-1 text-center transition-all ${
+                        canalVenda === c.id
+                          ? "border-primary bg-primary/10 text-primary font-bold shadow-xs ring-1 ring-primary/40"
+                          : "border-border/70 bg-card/60 text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                      }`}
+                    >
+                      <span className="text-xs">{c.label}</span>
+                      <span className="text-[9px] opacity-75">{c.sub}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Customer Contact Strip & Automatic CRM Link */}
+              <div className="rounded-xl border border-border/80 bg-background/60 p-3.5 space-y-2 relative">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <User className="h-3.5 w-3.5 text-primary" />
-                    Nome do Cliente (Opcional):
-                  </label>
-                  <input
-                    type="text"
-                    value={clienteNome}
-                    onChange={(e) => setClienteNome(e.target.value)}
-                    placeholder="Ex: Mariana Silva"
-                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
-                  />
+                    Identificação do Cliente (CRM por WhatsApp):
+                  </span>
+                  {selectedCustomer && (
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+                      ⭐ Cliente Cadastrado ({selectedCustomer.totalPedidos} {selectedCustomer.totalPedidos === 1 ? "compra" : "compras"})
+                    </span>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Smartphone className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    WhatsApp com DDD (para envio do Pix e recibo):
-                  </label>
-                  <input
-                    type="tel"
-                    value={clienteTelefone}
-                    onChange={(e) => setClienteTelefone(e.target.value)}
-                    placeholder="Ex: 14988183327"
-                    className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
-                  />
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-[11px] font-medium text-muted-foreground mb-1">
+                      WhatsApp com DDD (Chave única do cliente):
+                    </label>
+                    <input
+                      type="tel"
+                      value={clienteTelefone}
+                      onChange={(e) => {
+                        setClienteTelefone(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      placeholder="Ex: 14988183327"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-medium text-muted-foreground mb-1">
+                      Nome do Cliente:
+                    </label>
+                    <input
+                      type="text"
+                      value={clienteNome}
+                      onChange={(e) => {
+                        setClienteNome(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      placeholder="Ex: Mariana Silva"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                    />
+                  </div>
                 </div>
+
+                {/* Auto-suggest dropdown when searching or typing */}
+                {showSuggestions && matchingCustomers.length > 0 && (
+                  <div className="absolute left-3 right-3 top-full z-20 mt-1 rounded-xl border border-border bg-card p-2 shadow-xl">
+                    <div className="flex items-center justify-between px-2 py-1 text-[11px] font-bold text-muted-foreground border-b border-border/50">
+                      <span>Clientes Sugeridos ({matchingCustomers.length})</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowSuggestions(false)}
+                        className="text-[10px] text-muted-foreground hover:text-foreground"
+                      >
+                        Fechar ✕
+                      </button>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto divide-y divide-border/40 mt-1">
+                      {matchingCustomers.map((cust) => (
+                        <button
+                          key={cust.telefone}
+                          type="button"
+                          onClick={() => {
+                            setClienteTelefone(cust.telefoneFormatado || cust.telefone);
+                            setClienteNome(cust.nome);
+                            setSelectedCustomer(cust);
+                            setShowSuggestions(false);
+                          }}
+                          className="w-full flex items-center justify-between p-2 text-left hover:bg-secondary/50 rounded-lg transition-colors"
+                        >
+                          <div>
+                            <p className="text-xs font-bold text-foreground">{cust.nome}</p>
+                            <p className="text-[11px] text-muted-foreground font-mono">
+                              {cust.telefoneFormatado || cust.telefone}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <span className="inline-block rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-extrabold text-primary">
+                              {cust.totalPedidos} {cust.totalPedidos === 1 ? "pedido" : "pedidos"}
+                            </span>
+                            <p className="text-[10px] text-muted-foreground">
+                              Total: {formatCurrency(cust.totalGasto)}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Loyalty Info Banner if selected */}
+                {selectedCustomer && (
+                  <div className="mt-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                        Histórico do Cliente:
+                      </span>{" "}
+                      <span className="text-muted-foreground">
+                        {selectedCustomer.totalPedidos} compras • Total: {formatCurrency(selectedCustomer.totalGasto)} • Ticket Médio: {formatCurrency(selectedCustomer.ticketMedio)}
+                      </span>
+                    </div>
+                    {selectedCustomer.saboresFavoritos.length > 0 && (
+                      <div className="text-[11px] text-muted-foreground">
+                        ❤️ Favorito: <strong className="text-foreground">{selectedCustomer.saboresFavoritos[0].sabor}</strong> ({selectedCustomer.saboresFavoritos[0].quantidade} un.)
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Flavor Selector & Stock Status */}

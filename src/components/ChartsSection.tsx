@@ -22,6 +22,7 @@ import {
   CreditCard,
   Package,
   Sparkles,
+  Store,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/primitives";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import {
+  ChannelPoint,
   DailySalesPoint,
   DreProdutoItem,
   EstoquePorProduto,
@@ -45,6 +47,7 @@ interface ChartsSectionProps {
   dailySales: DailySalesPoint[];
   topFlavors: TopFlavorPoint[];
   paymentDistribution: PaymentMethodPoint[];
+  channelDistribution?: ChannelPoint[];
   inventoryByFlavor: EstoquePorProduto[];
   drePorProduto?: DreProdutoItem[];
 }
@@ -53,11 +56,13 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
   dailySales,
   topFlavors,
   paymentDistribution,
+  channelDistribution = [],
   inventoryByFlavor,
   drePorProduto,
 }) => {
   const [dailyChartType, setDailyChartType] = useState<"area" | "bar">("area");
   const [marginViewMode, setMarginViewMode] = useState<"grafico" | "lista">("grafico");
+  const [distributionMode, setDistributionMode] = useState<"pagamento" | "canal">("pagamento");
 
   // Margin data for Chart 5 (Margem de Lucro % por Sabor)
   const marginChartData = React.useMemo(() => {
@@ -389,93 +394,208 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
           </CardContent>
         </Card>
 
-        {/* CHART 3 (Column 2 of 2): Divisão por Forma de Pagamento */}
+        {/* CHART 3 (Column 2 of 2): Divisão por Forma de Pagamento OU Canal/Origem */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-rose-500" />
-              Divisão por Forma de Pagamento
-            </CardTitle>
-            <CardDescription>
-              Participação no faturamento por Pix, Cartão de Crédito, Débito e
-              Dinheiro
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {paymentDistribution.every((p) => p.valor === 0) ? (
-              <div className="flex h-[250px] items-center justify-center text-xs text-muted-foreground">
-                Nenhum pagamento registrado no período selecionado.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-12">
-              <div className="h-[250px] sm:col-span-7">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={paymentDistribution}
-                      dataKey="valor"
-                      nameKey="label"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={58}
-                      outerRadius={88}
-                      paddingAngle={3}
-                    >
-                      {paymentDistribution.map((entry) => (
-                        <Cell key={entry.metodo} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        borderColor: "hsl(var(--border))",
-                        borderRadius: "0.75rem",
-                        fontSize: "12px",
-                      }}
-                      formatter={(value: number, name: string) => [
-                        formatCurrency(Number(value)),
-                        name,
-                      ]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  {distributionMode === "pagamento" ? (
+                    <>
+                      <CreditCard className="h-5 w-5 text-rose-500" />
+                      <span>Divisão por Forma de Pagamento</span>
+                    </>
+                  ) : (
+                    <>
+                      <Store className="h-5 w-5 text-emerald-500" />
+                      <span>Origem das Vendas (Canais)</span>
+                    </>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  {distributionMode === "pagamento"
+                    ? "Participação no faturamento por Pix, Cartão de Crédito, Débito e Dinheiro"
+                    : "Faturamento por Balcão Presencial, iFood Delivery, WhatsApp e Redes"}
+                </CardDescription>
               </div>
 
-              {/* Payment method legend & breakdown */}
-              <div className="space-y-2.5 sm:col-span-5">
-                {paymentDistribution.map((item) => (
-                  <div
-                    key={item.metodo}
-                    className="flex items-center justify-between rounded-lg border border-border/60 bg-secondary/30 px-3 py-2 text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-3 w-3 shrink-0 rounded-full"
-                        style={{ backgroundColor: item.fill }}
-                      />
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          {item.label}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {item.quantidadeVendas} vendas
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-foreground">
-                        {formatCurrency(item.valor)}
-                      </p>
-                      <p className="text-[11px] font-medium text-muted-foreground">
-                        {item.percentual}%
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-0.5 text-xs font-semibold self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setDistributionMode("pagamento")}
+                  className={`rounded-md px-2.5 py-1 transition-colors ${
+                    distributionMode === "pagamento"
+                      ? "bg-card text-foreground shadow-sm font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Pagamento
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDistributionMode("canal")}
+                  className={`rounded-md px-2.5 py-1 transition-colors ${
+                    distributionMode === "canal"
+                      ? "bg-card text-foreground shadow-sm font-bold"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Canal / Origem
+                </button>
               </div>
             </div>
-          )}
-        </CardContent>
+          </CardHeader>
+          <CardContent>
+            {distributionMode === "pagamento" ? (
+              paymentDistribution.every((p) => p.valor === 0) ? (
+                <div className="flex h-[250px] items-center justify-center text-xs text-muted-foreground">
+                  Nenhum pagamento registrado no período selecionado.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-12">
+                  <div className="h-[250px] sm:col-span-7">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={paymentDistribution}
+                          dataKey="valor"
+                          nameKey="label"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={58}
+                          outerRadius={88}
+                          paddingAngle={3}
+                        >
+                          {paymentDistribution.map((entry) => (
+                            <Cell key={entry.metodo} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                            borderRadius: "0.75rem",
+                            fontSize: "12px",
+                          }}
+                          formatter={(value: number, name: string) => [
+                            formatCurrency(Number(value)),
+                            name,
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Payment method legend & breakdown */}
+                  <div className="space-y-2.5 sm:col-span-5">
+                    {paymentDistribution.map((item) => (
+                      <div
+                        key={item.metodo}
+                        className="flex items-center justify-between rounded-lg border border-border/60 bg-secondary/30 px-3 py-2 text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-3 w-3 shrink-0 rounded-full"
+                            style={{ backgroundColor: item.fill }}
+                          />
+                          <div>
+                            <p className="font-semibold text-foreground">
+                              {item.label}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {item.quantidadeVendas} vendas
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-foreground">
+                            {formatCurrency(item.valor)}
+                          </p>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            {item.percentual}%
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            ) : (
+              channelDistribution.every((c) => c.valor === 0) ? (
+                <div className="flex h-[250px] items-center justify-center text-xs text-muted-foreground">
+                  Nenhuma venda por canal registrada no período selecionado.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-12">
+                  <div className="h-[250px] sm:col-span-7">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={channelDistribution}
+                          dataKey="valor"
+                          nameKey="label"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={58}
+                          outerRadius={88}
+                          paddingAngle={3}
+                        >
+                          {channelDistribution.map((entry) => (
+                            <Cell key={entry.canal} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                            borderRadius: "0.75rem",
+                            fontSize: "12px",
+                          }}
+                          formatter={(value: number, name: string) => [
+                            formatCurrency(Number(value)),
+                            name,
+                          ]}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Channel legend & breakdown */}
+                  <div className="space-y-2.5 sm:col-span-5">
+                    {channelDistribution.map((item) => (
+                      <div
+                        key={item.canal}
+                        className="flex items-center justify-between rounded-lg border border-border/60 bg-secondary/30 px-3 py-2 text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-3 w-3 shrink-0 rounded-full"
+                            style={{ backgroundColor: item.fill }}
+                          />
+                          <div>
+                            <p className="font-semibold text-foreground">
+                              {item.label}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {item.quantidadeVendas} vendas
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-foreground">
+                            {formatCurrency(item.valor)}
+                          </p>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            {item.percentual}%
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            )}
+          </CardContent>
         </Card>
       </div>
 

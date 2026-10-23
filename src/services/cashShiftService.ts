@@ -212,7 +212,7 @@ export function closeCashShift(params: {
   return closedShift;
 }
 
-// Formatar relatório de fechamento de caixa para WhatsApp / Impressão
+// Formatar relatório de fechamento de caixa para WhatsApp / Impressão estilo Cupom Fiscal
 export function formatShiftClosingReport(shift: CashShift): string {
   if (!shift.fechamento) return "";
 
@@ -220,52 +220,56 @@ export function formatShiftClosingReport(shift: CashShift): string {
   const a = shift.abertura;
   const dataAberturaFmt = formatDateTime(shift.dataAbertura);
   const dataFechamentoFmt = formatDateTime(f.dataFechamento);
+  const shortId = (shift.id.length > 8 ? shift.id.slice(-6) : shift.id).toUpperCase();
 
   const diffDinheiroLabel =
     f.diferencaDinheiro === 0
-      ? "✅ Exato (R$ 0,00)"
+      ? "✅ CONFERÊNCIA EXATA (R$ 0,00)"
       : f.diferencaDinheiro > 0
-      ? `🟢 Sobra de +${formatCurrency(f.diferencaDinheiro)}`
-      : `🔴 Falta de ${formatCurrency(f.diferencaDinheiro)}`;
+      ? `🟢 SOBRA DE CAIXA: +${formatCurrency(f.diferencaDinheiro)}`
+      : `🔴 FALTA DE CAIXA: ${formatCurrency(f.diferencaDinheiro)}`;
 
   const diffMaqLabel =
     f.diferencaMaquininha === 0
-      ? "✅ Exato (R$ 0,00)"
+      ? "✅ CONFERÊNCIA EXATA (R$ 0,00)"
       : f.diferencaMaquininha > 0
-      ? `🟢 Sobra de +${formatCurrency(f.diferencaMaquininha)}`
-      : `🔴 Falta de ${formatCurrency(f.diferencaMaquininha)}`;
+      ? `🟢 SOBRA NA MAQUININHA: +${formatCurrency(f.diferencaMaquininha)}`
+      : `🔴 FALTA NA MAQUININHA: ${formatCurrency(f.diferencaMaquininha)}`;
 
-  return `📊 *RELATÓRIO DE FECHAMENTO DE CAIXA*
-🏪 *${BRAND_CONFIG.companyName.toUpperCase()}*
+  return `🧾 *${BRAND_CONFIG.companyName.toUpperCase()}*
+_${BRAND_CONFIG.tagline}_
 ================================
-👤 *Operador:* ${shift.operadorNome}
-🕒 *Abertura:* ${dataAberturaFmt}
-🏁 *Fechamento:* ${dataFechamentoFmt}
+*FECHAMENTO DE CAIXA — NÃO FISCAL*
+*Turno ID:* #${shortId}
+*Operador:* ${shift.operadorNome}
+*Abertura:* ${dataAberturaFmt}
+*Fechamento:* ${dataFechamentoFmt}
 --------------------------------
-💰 *FUNDO DE TROCO INICIAL:*
-  • Cédulas: ${formatCurrency(a.dinheiroCedulas)}
-  • Moedas: ${formatCurrency(a.moedas)}
-  • Total Fundo: *${formatCurrency(a.totalFundoTroco)}*
-  • Maquininha Inicial: ${formatCurrency(a.maquininhaCartaoInicial)}
+*1. FUNDO DE TROCO INICIAL:*
+  • Cédulas em Dinheiro: ${formatCurrency(a.dinheiroCedulas)}
+  • Moedas em Gaveta: ${formatCurrency(a.moedas)}
+  • Total Fundo Inicial: *${formatCurrency(a.totalFundoTroco)}*
+  • Saldo Maquininha Inicial: ${formatCurrency(a.maquininhaCartaoInicial)}
 --------------------------------
-🛍️ *VENDAS DO TURNO (${f.totalPedidosTurno} pedidos):*
-  • 💵 Dinheiro: ${formatCurrency(f.vendasDinheiro)}
-  • ⚡ Pix Stone: ${formatCurrency(f.vendasPix)}
-  • 💳 Cartão Crédito: ${formatCurrency(f.vendasCartaoCredito)}
-  • 💳 Cartão Débito: ${formatCurrency(f.vendasCartaoDebito)}
-  • *TOTAL VENDIDO:* *${formatCurrency(f.totalVendidoTurno)}*
+*2. VENDAS DO TURNO (${f.totalPedidosTurno} pedidos):*
+  • 💵 Dinheiro Físico: ${formatCurrency(f.vendasDinheiro)}
+  • ⚡ Pix Stone OpenBank: ${formatCurrency(f.vendasPix)}
+  • 💳 Cartão de Crédito: ${formatCurrency(f.vendasCartaoCredito)}
+  • 💳 Cartão de Débito: ${formatCurrency(f.vendasCartaoDebito)}
+  *TOTAL VENDIDO NO TURNO:* *${formatCurrency(f.totalVendidoTurno)}*
 --------------------------------
-📥 *CONFERÊNCIA FÍSICA NA GAVETA:*
+*3. CONFERÊNCIA FÍSICA (GAVETA):*
   • Cédulas Contadas: ${formatCurrency(f.dinheiroCedulasInformado)}
   • Moedas Contadas: ${formatCurrency(f.moedasInformado)}
-  • Total Dinheiro na Gaveta: *${formatCurrency(f.totalDinheiroInformado)}*
-  • Saldo Esperado em Dinheiro: ${formatCurrency(f.saldoEsperadoDinheiro)}
-  • *Balanço Dinheiro:* *${diffDinheiroLabel}*
+  • Total Dinheiro Apurado: *${formatCurrency(f.totalDinheiroInformado)}*
+  • Saldo Teórico Esperado: ${formatCurrency(f.saldoEsperadoDinheiro)}
+  👉 *BALANÇO DINHEIRO:* *${diffDinheiroLabel}*
 --------------------------------
-📠 *MAQUININHA DE CARTÃO:*
-  • Total Informado na Maquininha: *${formatCurrency(f.maquininhaCartaoInformado)}*
-  • Saldo Esperado Maquininha: ${formatCurrency(f.saldoEsperadoMaquininha)}
-  • *Balanço Maquininha:* *${diffMaqLabel}*
+*4. CONFERÊNCIA MAQUININHA STONE/TON:*
+  • Total Informado da Maquininha: *${formatCurrency(f.maquininhaCartaoInformado)}*
+  • Saldo Teórico Esperado: ${formatCurrency(f.saldoEsperadoMaquininha)}
+  👉 *BALANÇO MAQUININHA:* *${diffMaqLabel}*
 ================================
-${f.observacoesFechamento ? `📝 Observações: ${f.observacoesFechamento}\n` : ""}Fechamento registrado com sucesso.`.trim();
+${f.observacoesFechamento ? `📝 *Observações:* ${f.observacoesFechamento}\n================================\n` : ""}✨ *Conferência de Caixa registrada no sistema.*
+Conferido por: *${shift.operadorNome}*`.trim();
 }

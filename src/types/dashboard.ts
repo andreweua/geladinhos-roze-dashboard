@@ -4,6 +4,8 @@ export type PaymentMethod =
   | "Cartao_Credito"
   | "Cartao_Debito";
 
+export type CanalVenda = "Balcao" | "iFood" | "WhatsApp" | "Instagram" | "Outro";
+
 export type SaleStatus = "concluida" | "pendente" | "cancelada";
 
 export interface IngredienteFicha {
@@ -83,6 +85,7 @@ export interface Venda {
   cliente_telefone?: string;
   data_venda: string;
   forma_pagamento: PaymentMethod;
+  canal_venda?: CanalVenda;
   valor_total: number;
   status: SaleStatus;
   pix_txid?: string;
@@ -191,6 +194,15 @@ export interface TopFlavorPoint {
 
 export interface PaymentMethodPoint {
   metodo: PaymentMethod;
+  label: string;
+  valor: number;
+  quantidadeVendas: number;
+  percentual: number;
+  fill: string;
+}
+
+export interface ChannelPoint {
+  canal: CanalVenda;
   label: string;
   valor: number;
   quantidadeVendas: number;

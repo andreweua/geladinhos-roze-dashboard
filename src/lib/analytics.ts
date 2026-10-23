@@ -2,6 +2,8 @@ import { BRAND_CONFIG } from "@/config/brand.config";
 import { formatShortDate, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { calculateUnitCostFromFicha } from "@/services/dataService";
 import {
+  CanalVenda,
+  ChannelPoint,
   DailySalesPoint,
   DashboardDataSnapshot,
   DateFilterRange,
@@ -173,6 +175,7 @@ export interface ComputedDashboardAnalytics {
   dailySales: DailySalesPoint[];
   topFlavors: TopFlavorPoint[];
   paymentDistribution: PaymentMethodPoint[];
+  channelDistribution: ChannelPoint[];
   inventoryByFlavor: EstoquePorProduto[];
   ultimasVendas: VendaDetalhada[];
   reposicaoEstoque: EstoquePorProduto[];
@@ -261,6 +264,17 @@ export function computeDashboardAnalytics(
     ["Dinheiro", { valor: 0, quantidadeVendas: 0 }],
   ]);
 
+  const channelStats = new Map<
+    CanalVenda,
+    { valor: number; quantidadeVendas: number }
+  >([
+    ["Balcao", { valor: 0, quantidadeVendas: 0 }],
+    ["iFood", { valor: 0, quantidadeVendas: 0 }],
+    ["WhatsApp", { valor: 0, quantidadeVendas: 0 }],
+    ["Instagram", { valor: 0, quantidadeVendas: 0 }],
+    ["Outro", { valor: 0, quantidadeVendas: 0 }],
+  ]);
+
   for (const venda of vendasConcluidas) {
     const items = itemsBySale.get(venda.id) || [];
     const feeRatePct =
@@ -320,6 +334,15 @@ export function computeDashboardAnalytics(
     payStat.valor = Number((payStat.valor + venda.valor_total).toFixed(2));
     payStat.quantidadeVendas += 1;
     paymentStats.set(venda.forma_pagamento, payStat);
+
+    const canal: CanalVenda = venda.canal_venda || "Balcao";
+    const chanStat = channelStats.get(canal) || {
+      valor: 0,
+      quantidadeVendas: 0,
+    };
+    chanStat.valor = Number((chanStat.valor + venda.valor_total).toFixed(2));
+    chanStat.quantidadeVendas += 1;
+    channelStats.set(canal, chanStat);
   }
 
   faturamentoTotal = Number(faturamentoTotal.toFixed(2));
@@ -370,6 +393,36 @@ export function computeDashboardAnalytics(
           ? Number(((st.valor / faturamentoTotal) * 100).toFixed(1))
           : 0,
       fill: BRAND_CONFIG.chartColors.paymentMethods[metodo],
+    }))
+    .sort((a, b) => b.valor - a.valor);
+
+  const CHANNEL_LABELS: Record<CanalVenda, string> = {
+    Balcao: "Balcão Presencial",
+    iFood: "iFood Delivery",
+    WhatsApp: "WhatsApp / Encomenda",
+    Instagram: "Instagram Direct",
+    Outro: "Outros Canais",
+  };
+
+  const CHANNEL_COLORS: Record<CanalVenda, string> = {
+    Balcao: "#be123c", // Berry Rose
+    iFood: "#ea1d2c", // Vermelho iFood
+    WhatsApp: "#10b981", // Verde WhatsApp
+    Instagram: "#ec4899", // Rosa/Roxo Instagram
+    Outro: "#64748b", // Slate
+  };
+
+  const channelDistribution: ChannelPoint[] = Array.from(channelStats.entries())
+    .map(([canal, st]) => ({
+      canal,
+      label: CHANNEL_LABELS[canal] || canal,
+      valor: st.valor,
+      quantidadeVendas: st.quantidadeVendas,
+      percentual:
+        faturamentoTotal > 0
+          ? Number(((st.valor / faturamentoTotal) * 100).toFixed(1))
+          : 0,
+      fill: CHANNEL_COLORS[canal] || "#64748b",
     }))
     .sort((a, b) => b.valor - a.valor);
 
@@ -636,6 +689,7 @@ export function computeDashboardAnalytics(
     dailySales,
     topFlavors,
     paymentDistribution,
+    channelDistribution,
     inventoryByFlavor,
     ultimasVendas,
     reposicaoEstoque,

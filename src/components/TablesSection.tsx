@@ -361,15 +361,28 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                         </td>
                         <td className="py-3 px-3">
                           <div className="flex flex-col">
-                            <span
-                              className={`text-xs font-semibold ${
-                                isCanceled
-                                  ? "line-through text-muted-foreground"
-                                  : "text-foreground"
-                              }`}
-                            >
-                              {venda.cliente_nome || "Balcão / Presencial"}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`text-xs font-semibold ${
+                                  isCanceled
+                                    ? "line-through text-muted-foreground"
+                                    : "text-foreground"
+                                }`}
+                              >
+                                {venda.cliente_nome || "Balcão / Presencial"}
+                              </span>
+                              <span className="rounded bg-secondary/80 border border-border/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                {venda.canal_venda === "iFood"
+                                  ? "🛵 iFood"
+                                  : venda.canal_venda === "WhatsApp"
+                                  ? "📱 WhatsApp"
+                                  : venda.canal_venda === "Instagram"
+                                  ? "📸 Instagram"
+                                  : venda.canal_venda === "Outro"
+                                  ? "📦 Outro"
+                                  : "🏪 Balcão"}
+                              </span>
+                            </div>
                             {venda.cliente_telefone && (
                               <span className="text-[11px] text-muted-foreground font-mono">
                                 {venda.cliente_telefone}

@@ -935,6 +935,7 @@ export function App() {
                         dailySales={analytics.dailySales}
                         topFlavors={analytics.topFlavors}
                         paymentDistribution={analytics.paymentDistribution}
+                        channelDistribution={analytics.channelDistribution}
                         inventoryByFlavor={analytics.inventoryByFlavor}
                         drePorProduto={analytics.drePorProduto}
                       />

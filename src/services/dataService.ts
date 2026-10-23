@@ -2,6 +2,7 @@ import { BRAND_CONFIG } from "@/config/brand.config";
 import { checkIsSupabaseConfigured, supabase } from "@/lib/supabase";
 import { addAuditLog } from "@/services/auditService";
 import {
+  CanalVenda,
   DashboardDataSnapshot,
   EstoqueLote,
   FichaTecnicaProduto,
@@ -10,6 +11,7 @@ import {
   Produto,
   Venda,
 } from "@/types/dashboard";
+import { saveOrUpdateCustomer } from "@/services/customerService";
 
 // Updated storage key to v3_clean_real to eliminate all fictitious/generated sales
 // Retaining strictly the real products, real recipes/technical sheets and user quotations.
@@ -627,6 +629,7 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
 
 export interface NewSalePayload {
   forma_pagamento: PaymentMethod;
+  canal_venda?: CanalVenda;
   cliente_nome?: string;
   cliente_telefone?: string;
   status?: "concluida" | "pendente" | "cancelada";
@@ -687,6 +690,7 @@ export async function createNewSale(
   if (current.source === "supabase" && supabase) {
     const saleInsertData: Record<string, unknown> = {
       forma_pagamento: payload.forma_pagamento,
+      canal_venda: payload.canal_venda || "Balcao",
       cliente_nome: payload.cliente_nome?.trim() || null,
       cliente_telefone: payload.cliente_telefone?.trim() || null,
       valor_total: valorTotal,
@@ -713,6 +717,19 @@ export async function createNewSale(
         preco_unitario: i.preco_unitario,
       }));
       await supabase.from("itens_venda").insert(itemsToInsert);
+
+      // Salva / atualiza histórico do cliente no CRM se houver dados
+      if (saleStatus === "concluida") {
+        saveOrUpdateCustomer({
+          nome: payload.cliente_nome,
+          telefone: payload.cliente_telefone,
+          valorCompra: valorTotal,
+          itens: preparedItems.map((i) => ({
+            produto_nome: productMap.get(i.produto_id)?.nome || "Geladinho Gourmet",
+            quantidade: i.quantidade,
+          })),
+        });
+      }
 
       // Apenas baixa estoque se a venda estiver concluída imediatamente
       if (saleStatus === "concluida") {
@@ -747,6 +764,7 @@ export async function createNewSale(
     id: newVendaId,
     cliente_nome: payload.cliente_nome?.trim() || undefined,
     cliente_telefone: payload.cliente_telefone?.trim() || undefined,
+    canal_venda: payload.canal_venda || "Balcao",
     data_venda: nowIso,
     forma_pagamento: payload.forma_pagamento,
     valor_total: valorTotal,
@@ -755,6 +773,19 @@ export async function createNewSale(
     pix_qrcode: payload.pix_qrcode,
     pix_copia_cola: payload.pix_copia_cola,
   };
+
+  // Salva / atualiza histórico do cliente no CRM local se houver dados
+  if (saleStatus === "concluida") {
+    saveOrUpdateCustomer({
+      nome: payload.cliente_nome,
+      telefone: payload.cliente_telefone,
+      valorCompra: valorTotal,
+      itens: preparedItems.map((i) => ({
+        produto_nome: productMap.get(i.produto_id)?.nome || "Geladinho Gourmet",
+        quantidade: i.quantidade,
+      })),
+    });
+  }
 
   const novosItens: ItemVenda[] = preparedItems.map((i, idx) => ({
     id: `item-${Date.now()}-${idx}`,
