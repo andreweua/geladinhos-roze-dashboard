@@ -5,8 +5,10 @@ import {
   QrCode,
   Store,
   Sparkles,
-  ShieldCheck,
+  User,
+  LogOut,
 } from "lucide-react";
+import { UserRole } from "@/types/auth";
 
 export type NavTab = "inicio" | "fichas" | "cotacoes" | "gestao";
 
@@ -14,13 +16,19 @@ interface AppBottomNavProps {
   activeTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   onOpenPos: () => void;
+  userRole?: UserRole;
+  onOpenAuth?: () => void;
 }
 
 export const AppBottomNav: React.FC<AppBottomNavProps> = ({
   activeTab,
   onSelectTab,
   onOpenPos,
+  userRole = "admin",
+  onOpenAuth,
 }) => {
+  const isCashier = userRole === "operador_caixa";
+
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/80 bg-card/95 backdrop-blur-lg md:hidden"
@@ -28,7 +36,7 @@ export const AppBottomNav: React.FC<AppBottomNavProps> = ({
       aria-label="Navegação móvel principal"
     >
       <div className="flex h-16 items-center justify-around px-2">
-        {/* 1. Início */}
+        {/* 1. Início / Vendas */}
         <button
           type="button"
           onClick={() => onSelectTab("inicio")}
@@ -47,30 +55,34 @@ export const AppBottomNav: React.FC<AppBottomNavProps> = ({
           >
             <LayoutDashboard className="h-4 w-4" />
           </div>
-          <span className="text-[10px] tracking-tight">Início</span>
+          <span className="text-[10px] tracking-tight">
+            {isCashier ? "Vendas" : "Início"}
+          </span>
         </button>
 
-        {/* 2. Fichas & DRE */}
-        <button
-          type="button"
-          onClick={() => onSelectTab("fichas")}
-          className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-all ${
-            activeTab === "fichas"
-              ? "text-primary font-bold scale-105"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <div
-            className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+        {/* 2. Produção (Apenas Admin) */}
+        {!isCashier && (
+          <button
+            type="button"
+            onClick={() => onSelectTab("fichas")}
+            className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-all ${
               activeTab === "fichas"
-                ? "bg-primary/15 text-primary shadow-sm"
-                : "text-muted-foreground"
+                ? "text-primary font-bold scale-105"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <ChefHat className="h-4 w-4" />
-          </div>
-          <span className="text-[10px] tracking-tight">Produção</span>
-        </button>
+            <div
+              className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+                activeTab === "fichas"
+                  ? "bg-primary/15 text-primary shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <ChefHat className="h-4 w-4" />
+            </div>
+            <span className="text-[10px] tracking-tight">Produção</span>
+          </button>
+        )}
 
         {/* 3. Botão Central em Destaque: PDV / Caixa */}
         <div className="flex flex-1 items-center justify-center">
@@ -88,49 +100,64 @@ export const AppBottomNav: React.FC<AppBottomNavProps> = ({
           </button>
         </div>
 
-        {/* 4. Cotações & Mercados */}
-        <button
-          type="button"
-          onClick={() => onSelectTab("cotacoes")}
-          className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-all ${
-            activeTab === "cotacoes"
-              ? "text-primary font-bold scale-105"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <div
-            className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+        {/* 4. Cotações & Mercados (Apenas Admin) */}
+        {!isCashier && (
+          <button
+            type="button"
+            onClick={() => onSelectTab("cotacoes")}
+            className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-all ${
               activeTab === "cotacoes"
-                ? "bg-primary/15 text-primary shadow-sm"
-                : "text-muted-foreground"
+                ? "text-primary font-bold scale-105"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Store className="h-4 w-4" />
-          </div>
-          <span className="text-[10px] tracking-tight">Compras</span>
-        </button>
+            <div
+              className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+                activeTab === "cotacoes"
+                  ? "bg-primary/15 text-primary shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <Store className="h-4 w-4" />
+            </div>
+            <span className="text-[10px] tracking-tight">Compras</span>
+          </button>
+        )}
 
-        {/* 5. Gestão & IA */}
-        <button
-          type="button"
-          onClick={() => onSelectTab("gestao")}
-          className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-all ${
-            activeTab === "gestao"
-              ? "text-primary font-bold scale-105"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <div
-            className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+        {/* 5. Gestão & IA (Admin) OU Botão de Trocar Usuário (Caixa) */}
+        {!isCashier ? (
+          <button
+            type="button"
+            onClick={() => onSelectTab("gestao")}
+            className={`flex flex-1 flex-col items-center justify-center gap-1 py-1 transition-all ${
               activeTab === "gestao"
-                ? "bg-primary/15 text-primary shadow-sm"
-                : "text-muted-foreground"
+                ? "text-primary font-bold scale-105"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <Sparkles className="h-4 w-4" />
-          </div>
-          <span className="text-[10px] tracking-tight">Gestão</span>
-        </button>
+            <div
+              className={`flex h-8 w-8 items-center justify-center rounded-xl transition-all ${
+                activeTab === "gestao"
+                  ? "bg-primary/15 text-primary shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <span className="text-[10px] tracking-tight">Gestão</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onOpenAuth}
+            className="flex flex-1 flex-col items-center justify-center gap-1 py-1 text-muted-foreground hover:text-foreground transition-all"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-secondary text-muted-foreground">
+              <User className="h-4 w-4" />
+            </div>
+            <span className="text-[10px] tracking-tight">Trocar</span>
+          </button>
+        )}
       </div>
     </nav>
   );

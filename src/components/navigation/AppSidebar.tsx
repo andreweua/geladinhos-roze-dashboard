@@ -13,14 +13,15 @@ import {
   Moon,
   Sun,
   RefreshCw,
-  Database,
   IceCreamCone,
-  Check,
   Smartphone,
+  LogOut,
+  User,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
-import { Badge, Button } from "@/components/ui/primitives";
+import { Badge } from "@/components/ui/primitives";
 import { NavTab } from "./AppBottomNav";
+import { UserProfile } from "@/types/auth";
 
 export type SidebarTab = NavTab | "completo" | "auditoria" | "ia";
 
@@ -38,6 +39,9 @@ interface AppSidebarProps {
   onRefresh: () => void;
   isRefreshing: boolean;
   dataSource: "supabase" | "demo_local";
+  currentUser: UserProfile | null;
+  onOpenAuth: () => void;
+  onLogout: () => void;
 }
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
@@ -54,7 +58,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onRefresh,
   isRefreshing,
   dataSource,
+  currentUser,
+  onOpenAuth,
+  onLogout,
 }) => {
+  const isCashier = currentUser?.role === "operador_caixa";
+
   return (
     <aside className="hidden md:flex w-64 lg:w-72 shrink-0 flex-col border-r border-border/80 bg-card/90 backdrop-blur-md h-screen sticky top-0">
       {/* Brand Header */}
@@ -68,7 +77,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           </div>
           <div className="overflow-hidden">
             <h2 className="text-sm font-bold tracking-tight text-foreground truncate">
-              {BRAND_CONFIG.companyName}
+              {currentUser?.empresaNome || BRAND_CONFIG.companyName}
             </h2>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -108,7 +117,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         {/* Operação */}
         <div>
           <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1.5">
-            Operação
+            {isCashier ? "Frente de Caixa" : "Operação"}
           </p>
           <div className="space-y-1">
             <button
@@ -121,7 +130,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               }`}
             >
               <LayoutDashboard className="h-4 w-4 shrink-0" />
-              <span>Visão Geral & Vendas</span>
+              <span>{isCashier ? "Vendas do Turno" : "Visão Geral & Vendas"}</span>
             </button>
 
             <button
@@ -140,99 +149,114 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           </div>
         </div>
 
-        {/* Suprimentos & Mercados */}
-        <div>
-          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1.5">
-            Suprimentos & Compras
-          </p>
-          <div className="space-y-1">
-            <button
-              type="button"
-              onClick={() => onSelectTab("cotacoes")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
-                activeTab === "cotacoes"
-                  ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                  : "text-foreground/80 hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <Store className="h-4 w-4 shrink-0" />
-              <span>Cotações & Scanner GTIN</span>
-            </button>
+        {/* Módulos do Administrador (Protegidos) */}
+        {!isCashier ? (
+          <>
+            {/* Suprimentos & Mercados */}
+            <div>
+              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1.5">
+                Suprimentos & Compras
+              </p>
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => onSelectTab("cotacoes")}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                    activeTab === "cotacoes"
+                      ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                      : "text-foreground/80 hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <Store className="h-4 w-4 shrink-0" />
+                  <span>Cotações & Scanner GTIN</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={onOpenInvoiceModal}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium text-foreground/80 hover:bg-secondary hover:text-foreground transition-all"
-            >
-              <Receipt className="h-4 w-4 shrink-0 text-primary" />
-              <span>Importar Nota Fiscal (NF-e)</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={onOpenInvoiceModal}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium text-foreground/80 hover:bg-secondary hover:text-foreground transition-all"
+                >
+                  <Receipt className="h-4 w-4 shrink-0 text-primary" />
+                  <span>Importar Nota Fiscal (NF-e)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Produção & Fichas */}
+            <div>
+              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1.5">
+                Produção & Fichas
+              </p>
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => onSelectTab("fichas")}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                    activeTab === "fichas"
+                      ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                      : "text-foreground/80 hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <ChefHat className="h-4 w-4 shrink-0" />
+                  <span>Fichas Técnicas & DRE</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onOpenStockModal}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium text-foreground/80 hover:bg-secondary hover:text-foreground transition-all"
+                >
+                  <PackagePlus className="h-4 w-4 shrink-0 text-primary" />
+                  <span>Repor Estoque de Sabores</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Inteligência & Auditoria */}
+            <div>
+              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1.5">
+                Inteligência & Auditoria
+              </p>
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => onSelectTab("gestao")}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                    activeTab === "gestao" || activeTab === "ia" || activeTab === "auditoria"
+                      ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                      : "text-foreground/80 hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span>PereiraLabs IA & Auditoria</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onSelectTab("completo")}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                    activeTab === "completo"
+                      ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <Layers className="h-4 w-4 shrink-0" />
+                  <span>Visão Completa (Tudo)</span>
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3.5 text-xs text-amber-700 dark:text-amber-400">
+            <p className="font-bold flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4" />
+              <span>Modo Caixa Operacional</span>
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Acesso exclusivo à frente de caixa e registro de pedidos para segurança financeira da empresa.
+            </p>
           </div>
-        </div>
-
-        {/* Produção & Fichas */}
-        <div>
-          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1.5">
-            Produção & Fichas
-          </p>
-          <div className="space-y-1">
-            <button
-              type="button"
-              onClick={() => onSelectTab("fichas")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
-                activeTab === "fichas"
-                  ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                  : "text-foreground/80 hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <ChefHat className="h-4 w-4 shrink-0" />
-              <span>Fichas Técnicas & DRE</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenStockModal}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium text-foreground/80 hover:bg-secondary hover:text-foreground transition-all"
-            >
-              <PackagePlus className="h-4 w-4 shrink-0 text-primary" />
-              <span>Repor Estoque de Sabores</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Inteligência & Auditoria */}
-        <div>
-          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1.5">
-            Inteligência & Auditoria
-          </p>
-          <div className="space-y-1">
-            <button
-              type="button"
-              onClick={() => onSelectTab("gestao")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
-                activeTab === "gestao" || activeTab === "ia" || activeTab === "auditoria"
-                  ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                  : "text-foreground/80 hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
-              <span>PereiraLabs IA & Auditoria</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onSelectTab("completo")}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
-                activeTab === "completo"
-                  ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <Layers className="h-4 w-4 shrink-0" />
-              <span>Visão Completa (Tudo)</span>
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Footer / User Profile & Settings */}
@@ -249,29 +273,39 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         )}
 
         <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-rose-600 to-amber-500 text-xs font-bold text-white">
-              {BRAND_CONFIG.userProfile.avatarInitials}
+          <button
+            type="button"
+            onClick={onOpenAuth}
+            title="Clique para alternar de usuário ou fazer login"
+            className="flex items-center gap-2.5 overflow-hidden text-left hover:opacity-85 transition-opacity"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-rose-600 to-amber-500 text-xs font-bold text-white shadow-sm">
+              {currentUser?.avatarInitials || BRAND_CONFIG.userProfile.avatarInitials}
             </div>
             <div className="overflow-hidden">
               <p className="text-xs font-bold text-foreground truncate">
-                {BRAND_CONFIG.userProfile.name}
+                {currentUser?.name || BRAND_CONFIG.userProfile.name}
               </p>
-              <p className="text-[10px] text-muted-foreground truncate">
-                {BRAND_CONFIG.userProfile.role}
-              </p>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] text-muted-foreground truncate">
+                  {currentUser?.role === "operador_caixa" ? "🛍️ Caixa" : "👑 Admin"}
+                </span>
+              </div>
             </div>
-          </div>
+          </button>
 
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={onOpenSettingsModal}
-              title="Configurações da Empresa & Pix"
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
+            {!isCashier && (
+              <button
+                type="button"
+                onClick={onOpenSettingsModal}
+                title="Configurações da Empresa & Pix"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onToggleTheme}
@@ -283,6 +317,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               ) : (
                 <Moon className="h-4 w-4 text-rose-600" />
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={onLogout}
+              title="Trocar de Usuário / Sair"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>

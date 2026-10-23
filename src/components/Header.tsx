@@ -3,7 +3,6 @@ import {
   IceCreamCone,
   Moon,
   Sun,
-  PlusCircle,
   PackagePlus,
   RefreshCw,
   Database,
@@ -13,9 +12,12 @@ import {
   QrCode,
   Settings,
   Check,
+  User,
+  LogOut,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
+import { UserProfile } from "@/types/auth";
 
 interface HeaderProps {
   isDark: boolean;
@@ -29,6 +31,9 @@ interface HeaderProps {
   onRefresh: () => void;
   isRefreshing: boolean;
   dataSource: "supabase" | "demo_local";
+  currentUser?: UserProfile | null;
+  onOpenAuth?: () => void;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -43,8 +48,12 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   isRefreshing,
   dataSource,
+  currentUser,
+  onOpenAuth,
+  onLogout,
 }) => {
   const [justRefreshed, setJustRefreshed] = useState(false);
+  const isCashier = currentUser?.role === "operador_caixa";
 
   useEffect(() => {
     if (isRefreshing) {
@@ -54,97 +63,100 @@ export const Header: React.FC<HeaderProps> = ({
       return () => clearTimeout(timer);
     }
   }, [isRefreshing]);
+
   return (
     <header className="sticky top-0 z-30 w-full border-b border-border/80 bg-card/85 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         {/* Left: Brand Identity */}
-        <div className="flex items-center gap-3.5">
-          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <IceCreamCone className="h-6 w-6" />
-            <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] text-white shadow">
-              <Sparkles className="h-2.5 w-2.5" />
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+            <IceCreamCone className="h-5 w-5" />
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 text-[9px] text-white shadow">
+              <Sparkles className="h-2 w-2" />
             </span>
           </div>
 
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl">
-                {BRAND_CONFIG.companyName}
+              <h1 className="text-base font-bold tracking-tight text-foreground sm:text-lg">
+                {currentUser?.empresaNome || BRAND_CONFIG.companyName}
               </h1>
               <Badge
                 variant={dataSource === "supabase" ? "success" : "secondary"}
-                className="hidden sm:inline-flex gap-1 text-[11px]"
+                className="hidden sm:inline-flex gap-1 text-[10px]"
                 title={
                   dataSource === "supabase"
-                    ? "Conectado ao banco PostgreSQL no Supabase (Sincronização em Tempo Real)"
-                    : "Modo Local Offline (Dados salvos isoladamente na memória deste dispositivo)"
+                    ? "Conectado ao banco PostgreSQL no Supabase"
+                    : "Modo Local Offline"
                 }
               >
-                <Database className="h-3 w-3" />
-                {dataSource === "supabase"
-                  ? "Nuvem Supabase Ativa"
-                  : "Modo Local (Dispositivo)"}
+                <Database className="h-2.5 w-2.5" />
+                {dataSource === "supabase" ? "Nuvem Ativa" : "Local"}
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground truncate max-w-[200px] sm:max-w-none">
               {BRAND_CONFIG.tagline}
             </p>
           </div>
         </div>
 
         {/* Right: Quick Actions, PWA Install, Theme Toggle & Logged User */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-2">
           <Button
             variant="default"
             size="sm"
             onClick={onOpenNewSale}
-            className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 flex items-center gap-1.5 font-bold"
+            className="bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 flex items-center gap-1.5 font-bold text-xs"
           >
             <QrCode className="h-4 w-4" />
             <span>Novo Pedido / PDV</span>
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenStockModal}
-            className="hidden sm:inline-flex"
-          >
-            <PackagePlus className="h-4 w-4 text-primary" />
-            <span>Repor Estoque</span>
-          </Button>
+          {!isCashier && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenStockModal}
+              className="hidden sm:inline-flex text-xs"
+            >
+              <PackagePlus className="h-4 w-4 text-primary" />
+              <span>Repor Estoque</span>
+            </Button>
+          )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenInvoiceModal}
-            title="Importar Nota Fiscal ou Cupom para atualizar preços de insumos"
-            className="hidden md:inline-flex items-center gap-1.5"
-          >
-            <Receipt className="h-4 w-4 text-primary" />
-            <span>Atualizar Insumos (NF-e)</span>
-          </Button>
+          {!isCashier && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenInvoiceModal}
+              title="Importar Nota Fiscal ou Cupom"
+              className="hidden md:inline-flex items-center gap-1.5 text-xs"
+            >
+              <Receipt className="h-4 w-4 text-primary" />
+              <span>NF-e</span>
+            </Button>
+          )}
 
           {!isPwaInstalled && (
             <Button
               variant="secondary"
               size="sm"
               onClick={onOpenInstallModal}
-              title="Instalar aplicativo no Android, iOS ou Desktop"
-              className="border border-rose-500/25"
+              title="Instalar aplicativo"
+              className="border border-rose-500/25 hidden sm:inline-flex text-xs"
             >
               <Smartphone className="h-4 w-4 text-rose-500" />
-              <span className="hidden md:inline">Instalar App</span>
+              <span>Instalar</span>
             </Button>
           )}
 
-          {onOpenSettingsModal && (
+          {!isCashier && onOpenSettingsModal && (
             <Button
               variant="outline"
               size="sm"
               onClick={onOpenSettingsModal}
-              title="Configurar Dados da Empresa, Chave Pix, Taxas e Stone API"
-              className="hidden lg:inline-flex items-center gap-1.5 border-border"
+              title="Configurar Dados da Empresa & Pix"
+              className="hidden lg:inline-flex items-center gap-1.5 border-border text-xs"
             >
               <Settings className="h-4 w-4 text-muted-foreground" />
               <span>Dados & Pix</span>
@@ -157,20 +169,14 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onRefresh}
             title={justRefreshed && !isRefreshing ? "Atualizado com sucesso!" : "Atualizar dados"}
             aria-label="Atualizar dados"
-            className="relative"
+            className="relative h-8 w-8"
           >
             {isRefreshing ? (
-              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+              <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
             ) : justRefreshed ? (
-              <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 animate-in zoom-in" />
+              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             ) : (
-              <RefreshCw className="h-4 w-4 text-muted-foreground hover:text-foreground transition-transform active:rotate-180" />
-            )}
-            {justRefreshed && !isRefreshing && (
-              <span className="absolute top-1 right-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
+              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
             )}
           </Button>
 
@@ -180,29 +186,46 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onToggleTheme}
             title={isDark ? "Mudar para modo claro" : "Mudar para modo escuro"}
             aria-label="Alternar tema claro/escuro"
+            className="h-8 w-8"
           >
             {isDark ? (
-              <Sun className="h-4 w-4 text-amber-400" />
+              <Sun className="h-3.5 w-3.5 text-amber-400" />
             ) : (
-              <Moon className="h-4 w-4 text-rose-700" />
+              <Moon className="h-3.5 w-3.5 text-rose-700" />
             )}
           </Button>
 
-          <div className="hidden h-6 w-px bg-border md:block" />
+          {/* User Profile Pill */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={onOpenAuth}
+              title="Clique para alternar de usuário ou fazer login"
+              className="flex items-center gap-2 rounded-full border border-border/80 bg-secondary/60 py-1 pl-1 pr-2.5 hover:bg-secondary transition-colors"
+            >
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-tr from-rose-600 to-amber-500 text-[10px] font-bold text-white shadow-sm">
+                {currentUser?.avatarInitials || BRAND_CONFIG.userProfile.avatarInitials}
+              </div>
+              <div className="hidden text-left leading-tight sm:block">
+                <p className="text-[11px] font-bold text-foreground">
+                  {currentUser?.name || BRAND_CONFIG.userProfile.name}
+                </p>
+                <p className="text-[9px] text-muted-foreground">
+                  {isCashier ? "🛍️ Caixa" : "👑 Admin"}
+                </p>
+              </div>
+            </button>
 
-          {/* Logged User Info */}
-          <div className="flex items-center gap-2.5 rounded-full border border-border/70 bg-secondary/50 py-1 pl-1.5 pr-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-rose-600 to-amber-500 text-xs font-bold text-white">
-              {BRAND_CONFIG.userProfile.avatarInitials}
-            </div>
-            <div className="hidden text-left leading-tight md:block">
-              <p className="text-xs font-semibold text-foreground">
-                {BRAND_CONFIG.userProfile.name}
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                {BRAND_CONFIG.userProfile.role}
-              </p>
-            </div>
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                title="Sair do Usuário"
+                className="p-1 rounded-lg text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10 transition-colors hidden sm:inline-flex"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>

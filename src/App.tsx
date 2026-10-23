@@ -28,6 +28,14 @@ import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
+import { AuthScreen } from "@/components/auth/AuthScreen";
+import {
+  getCurrentUser,
+  logout as performLogout,
+  subscribeAuthChange,
+} from "@/services/authService";
+import { UserProfile } from "@/types/auth";
+import { formatCurrency } from "@/lib/utils";
 import { saveCustomBrandConfig } from "@/config/brand.config";
 import { Button } from "@/components/ui/primitives";
 import {
@@ -185,6 +193,36 @@ export function App() {
   const [installModalOpen, setInstallModalOpen] = useState<boolean>(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState<boolean>(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState<boolean>(false);
+
+  // Authenticated User & Session State (Admin vs Operador de Caixa)
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() =>
+    getCurrentUser()
+  );
+  const [authModalOpen, setAuthModalOpen] = useState<boolean>(
+    () => !getCurrentUser()
+  );
+
+  useEffect(() => {
+    return subscribeAuthChange((updatedUser) => {
+      setCurrentUser(updatedUser);
+      if (!updatedUser) {
+        setAuthModalOpen(true);
+      }
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    await performLogout();
+    setCurrentUser(null);
+    setAuthModalOpen(true);
+  };
+
+  // Se o usuário logado for Operador de Caixa, restringe a navegação apenas para Início/Vendas
+  useEffect(() => {
+    if (currentUser?.role === "operador_caixa" && activeSection !== "inicio") {
+      setActiveSection("inicio");
+    }
+  }, [currentUser, activeSection]);
 
   // PWA Install Prompt state (Android / Chrome / Edge)
   const [deferredPrompt, setDeferredPrompt] =
@@ -345,6 +383,10 @@ export function App() {
       <AppSidebar
         activeTab={activeSection}
         onSelectTab={(tab) => {
+          if (currentUser?.role === "operador_caixa") {
+            setActiveSection("inicio");
+            return;
+          }
           if (tab === "ia") {
             setActiveSection("gestao");
             setGestaoSubTab("ia");
@@ -369,6 +411,9 @@ export function App() {
         onRefresh={() => loadData(true)}
         isRefreshing={isRefreshing}
         dataSource={snapshot?.source || "demo_local"}
+        currentUser={currentUser}
+        onOpenAuth={() => setAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* 2. Main Body Container (Adaptive to Sidebar) */}
@@ -390,6 +435,9 @@ export function App() {
             onRefresh={() => loadData(true)}
             isRefreshing={isRefreshing}
             dataSource={snapshot?.source || "demo_local"}
+            currentUser={currentUser}
+            onOpenAuth={() => setAuthModalOpen(true)}
+            onLogout={handleLogout}
           />
         </div>
 
@@ -397,51 +445,62 @@ export function App() {
         <header className="hidden md:flex items-center justify-between border-b border-border/80 bg-card/75 backdrop-blur-md px-6 py-3.5 sticky top-0 z-20">
           <div>
             <h2 className="text-base font-bold text-foreground">
-              {activeSection === "inicio" && "Visão Geral & Faturamento"}
-              {activeSection === "fichas" && "Fichas Técnicas & DRE por Produto"}
-              {activeSection === "cotacoes" && "Cotações de Preços & Mercados Locais"}
-              {activeSection === "gestao" &&
-                (gestaoSubTab === "ia"
+              {currentUser?.role === "operador_caixa"
+                ? "Frente de Caixa & Pedidos do Turno"
+                : activeSection === "inicio"
+                ? "Visão Geral & Faturamento"
+                : activeSection === "fichas"
+                ? "Fichas Técnicas & DRE por Produto"
+                : activeSection === "cotacoes"
+                ? "Cotações de Preços & Mercados Locais"
+                : activeSection === "gestao"
+                ? gestaoSubTab === "ia"
                   ? "PereiraLabs IA (Previsão & Lucro)"
-                  : "Auditoria Física de Estoque")}
-              {activeSection === "completo" && "Painel Completo Unificado"}
+                  : "Auditoria Física de Estoque"
+                : "Painel Completo Unificado"}
             </h2>
             <p className="text-xs text-muted-foreground">
-              {activeSection === "inicio" &&
-                "Indicadores do dia, gráficos de vendas e reposição de estoque"}
-              {activeSection === "fichas" &&
-                "Custos dos ingredientes, margem iFood vs Balcão e engenharia de receitas"}
-              {activeSection === "cotacoes" &&
-                "Pesquisa de preços com scanner GTIN, listas de compras e NF-e"}
-              {activeSection === "gestao" &&
-                "Consultoria de inteligência artificial e controle de perdas no estoque"}
-              {activeSection === "completo" && "Visão panorâmica de todos os módulos"}
+              {currentUser?.role === "operador_caixa"
+                ? "Lançamento ágil de vendas, recebimento via Pix Stone e impressão térmica"
+                : activeSection === "inicio"
+                ? "Indicadores do dia, gráficos de vendas e reposição de estoque"
+                : activeSection === "fichas"
+                ? "Custos dos ingredientes, margem iFood vs Balcão e engenharia de receitas"
+                : activeSection === "cotacoes"
+                ? "Pesquisa de preços com scanner GTIN, listas de compras e NF-e"
+                : activeSection === "gestao"
+                ? "Consultoria de inteligência artificial e controle de perdas no estoque"
+                : "Visão panorâmica de todos os módulos"}
             </p>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setModalTab("estoque");
-                setModalOpen(true);
-              }}
-              className="gap-1.5 text-xs font-semibold"
-            >
-              <PackagePlus className="h-4 w-4 text-primary" />
-              <span>Repor Estoque</span>
-            </Button>
+            {currentUser?.role !== "operador_caixa" && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setModalTab("estoque");
+                    setModalOpen(true);
+                  }}
+                  className="gap-1.5 text-xs font-semibold"
+                >
+                  <PackagePlus className="h-4 w-4 text-primary" />
+                  <span>Repor Estoque</span>
+                </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setInvoiceModalOpen(true)}
-              className="gap-1.5 text-xs font-semibold"
-            >
-              <Receipt className="h-4 w-4 text-primary" />
-              <span>Importar NF-e</span>
-            </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setInvoiceModalOpen(true)}
+                  className="gap-1.5 text-xs font-semibold"
+                >
+                  <Receipt className="h-4 w-4 text-primary" />
+                  <span>Importar NF-e</span>
+                </Button>
+              </>
+            )}
 
             <Button
               variant="default"
@@ -466,75 +525,159 @@ export function App() {
               {/* TELA 1: INÍCIO (Overview) */}
               {(activeSection === "inicio" || activeSection === "completo") && (
                 <div className="space-y-6">
-                  {/* Global Date Filter Bar */}
-                  <DateFilterBar
-                    dateFilter={dateFilter}
-                    onSelectPreset={handleSelectPreset}
-                    onCustomDateChange={handleCustomDateChange}
-                    onOpenStockModal={() => {
-                      setModalTab("estoque");
-                      setModalOpen(true);
-                    }}
-                  />
-
-                  {/* Real Data Clean Slate Banner */}
-                  {analytics.kpis.totalPedidosConcluidos === 0 && (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4 text-xs">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          <ShieldCheck className="h-4 w-4" />
+                  {currentUser?.role === "operador_caixa" ? (
+                    <>
+                      {/* Cashier Welcome & Fast Action Banner */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-primary/30 bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-rose-500/5 p-6 shadow-sm">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                              Frente de Caixa Ativo
+                            </span>
+                          </div>
+                          <h3 className="text-lg font-black text-foreground">
+                            Olá, {currentUser.name}!
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            Registre novos pedidos de geladinhos com cálculo automático, Pix Stone e impressão.
+                          </p>
                         </div>
-                        <div>
-                          <h4 className="font-bold text-foreground">
-                            Modo 100% Dados Reais Ativado
-                          </h4>
-                          <p className="text-muted-foreground">
-                            Todos os dados fictícios foram excluídos. Lance vendas reais no botão <strong>"Novo Pedido / Frente de Caixa (PDV)"</strong> para movimentar seus gráficos e relatórios!
+
+                        <button
+                          type="button"
+                          onClick={() => setPosModalOpen(true)}
+                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-500 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-rose-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                        >
+                          <QrCode className="h-5 w-5" />
+                          <span>Abrir Novo Pedido / PDV</span>
+                        </button>
+                      </div>
+
+                      {/* Cashier Operational Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                            Pedidos Concluídos
+                          </p>
+                          <p className="text-3xl font-black text-foreground mt-2">
+                            {analytics.kpis.totalPedidosConcluidos}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Total de vendas registradas no período
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                            Faturamento do Caixa
+                          </p>
+                          <p className="text-3xl font-black text-rose-600 dark:text-rose-400 mt-2">
+                            {formatCurrency(analytics.kpis.faturamentoTotal)}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Recebido em Pix, Dinheiro e Cartão
+                          </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm sm:col-span-2 lg:col-span-1">
+                          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                            Ticket Médio
+                          </p>
+                          <p className="text-3xl font-black text-foreground mt-2">
+                            {formatCurrency(analytics.kpis.ticketMedio)}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Média por pedido atendido
                           </p>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setPosModalOpen(true)}
-                        className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-primary px-3.5 py-1.5 font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all"
-                      >
-                        <QrCode className="h-3.5 w-3.5" />
-                        <span>Novo Pedido / PDV</span>
-                      </button>
-                    </div>
+
+                      {/* Cashier Recent Sales Table */}
+                      <TablesSection
+                        ultimasVendas={analytics.ultimasVendas}
+                        reposicaoEstoque={analytics.reposicaoEstoque}
+                        onQuickStockChange={handleUpdateStock}
+                        onOpenStockModal={() => {
+                          setModalTab("estoque");
+                          setModalOpen(true);
+                        }}
+                        onCancelSale={handleCancelSale}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      {/* Global Date Filter Bar */}
+                      <DateFilterBar
+                        dateFilter={dateFilter}
+                        onSelectPreset={handleSelectPreset}
+                        onCustomDateChange={handleCustomDateChange}
+                        onOpenStockModal={() => {
+                          setModalTab("estoque");
+                          setModalOpen(true);
+                        }}
+                      />
+
+                      {/* Real Data Clean Slate Banner */}
+                      {analytics.kpis.totalPedidosConcluidos === 0 && (
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4 text-xs">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                              <ShieldCheck className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-foreground">
+                                Modo 100% Dados Reais Ativado
+                              </h4>
+                              <p className="text-muted-foreground">
+                                Todos os dados fictícios foram excluídos. Lance vendas reais no botão <strong>"Novo Pedido / Frente de Caixa (PDV)"</strong> para movimentar seus gráficos e relatórios!
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPosModalOpen(true)}
+                            className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-primary px-3.5 py-1.5 font-bold text-primary-foreground shadow-sm hover:opacity-90 transition-all"
+                          >
+                            <QrCode className="h-3.5 w-3.5" />
+                            <span>Novo Pedido / PDV</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* 5 KPIs */}
+                      <KpiCards
+                        kpis={analytics.kpis}
+                        onClickLowStock={() => {
+                          setTimeout(() => {
+                            const el = document.getElementById("tabelas-operacionais");
+                            el?.scrollIntoView({ behavior: "smooth" });
+                          }, 50);
+                        }}
+                      />
+
+                      {/* 5 Charts */}
+                      <ChartsSection
+                        dailySales={analytics.dailySales}
+                        topFlavors={analytics.topFlavors}
+                        paymentDistribution={analytics.paymentDistribution}
+                        inventoryByFlavor={analytics.inventoryByFlavor}
+                        drePorProduto={analytics.drePorProduto}
+                      />
+
+                      {/* 2 Operational Tables */}
+                      <TablesSection
+                        ultimasVendas={analytics.ultimasVendas}
+                        reposicaoEstoque={analytics.reposicaoEstoque}
+                        onQuickStockChange={handleUpdateStock}
+                        onOpenStockModal={() => {
+                          setModalTab("estoque");
+                          setModalOpen(true);
+                        }}
+                        onCancelSale={handleCancelSale}
+                      />
+                    </>
                   )}
-
-                  {/* 5 KPIs */}
-                  <KpiCards
-                    kpis={analytics.kpis}
-                    onClickLowStock={() => {
-                      setTimeout(() => {
-                        const el = document.getElementById("tabelas-operacionais");
-                        el?.scrollIntoView({ behavior: "smooth" });
-                      }, 50);
-                    }}
-                  />
-
-                  {/* 5 Charts */}
-                  <ChartsSection
-                    dailySales={analytics.dailySales}
-                    topFlavors={analytics.topFlavors}
-                    paymentDistribution={analytics.paymentDistribution}
-                    inventoryByFlavor={analytics.inventoryByFlavor}
-                    drePorProduto={analytics.drePorProduto}
-                  />
-
-                  {/* 2 Operational Tables */}
-                  <TablesSection
-                    ultimasVendas={analytics.ultimasVendas}
-                    reposicaoEstoque={analytics.reposicaoEstoque}
-                    onQuickStockChange={handleUpdateStock}
-                    onOpenStockModal={() => {
-                      setModalTab("estoque");
-                      setModalOpen(true);
-                    }}
-                    onCancelSale={handleCancelSale}
-                  />
                 </div>
               )}
 
@@ -663,8 +806,15 @@ export function App() {
             ? "gestao"
             : "inicio"
         }
-        onSelectTab={(tab) => setActiveSection(tab)}
+        onSelectTab={(tab) => {
+          if (currentUser?.role === "operador_caixa" && tab !== "inicio") {
+            return;
+          }
+          setActiveSection(tab);
+        }}
         onOpenPos={() => setPosModalOpen(true)}
+        userRole={currentUser?.role || "admin"}
+        onOpenAuth={() => setAuthModalOpen(true)}
       />
 
       {analytics && (
@@ -711,6 +861,20 @@ export function App() {
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
         onConfigSaved={loadData}
+      />
+
+      <AuthScreen
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={(user) => {
+          setCurrentUser(user);
+          setAuthModalOpen(false);
+          if (user.role === "operador_caixa") {
+            setActiveSection("inicio");
+            setPosModalOpen(true);
+          }
+        }}
+        canDismiss={Boolean(currentUser)}
       />
 
       {/* Floating Refresh Success Toast */}
