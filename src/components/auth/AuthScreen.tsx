@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  IceCreamCone,
   Sparkles,
   Lock,
   Mail,
@@ -10,18 +9,21 @@ import {
   User,
   ArrowRight,
   AlertCircle,
-  CheckCircle2,
+  Eye,
+  EyeOff,
+  Store,
+  HelpCircle,
+  MessageCircle,
   Building2,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
   loginWithSupabase,
   loginWithPin,
-  loginAsRole,
-  getCashierPin,
 } from "@/services/authService";
-import { UserProfile, UserRole } from "@/types/auth";
-import { Badge, Button } from "@/components/ui/primitives";
+import { UserProfile } from "@/types/auth";
+import { Button } from "@/components/ui/primitives";
+import { getActiveCompany, getLocalCompanies } from "@/services/companyService";
 
 interface AuthScreenProps {
   onSuccess: (user: UserProfile) => void;
@@ -37,12 +39,47 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   canDismiss = false,
 }) => {
   const [tab, setTab] = useState<"admin" | "pin">("admin");
-  const [email, setEmail] = useState("andreweua@gmail.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [pin, setPin] = useState("");
   const [cashierName, setCashierName] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [forgotModalOpen, setForgotModalOpen] = useState(false);
+
+  const activeComp = getActiveCompany();
+
+  // Verifica se há Link Mágico de 1 clique na URL (?magic_auth=...)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const magicAuthParam = params.get("magic_auth");
+      if (magicAuthParam) {
+        const decoded = JSON.parse(atob(decodeURIComponent(magicAuthParam)));
+        if (decoded?.empresaId && decoded?.email) {
+          const companies = getLocalCompanies();
+          const target = companies.find((c) => c.id === decoded.empresaId);
+          if (target) {
+            const user: UserProfile = {
+              id: `usr-${target.id}`,
+              name: target.responsavel || target.nome,
+              email: target.adminEmail,
+              role: "admin",
+              empresaId: target.id,
+              empresaNome: target.nome,
+              avatarInitials: target.nome.substring(0, 2).toUpperCase(),
+            };
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            onSuccess(user);
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [onSuccess]);
 
   if (!isOpen) return null;
 
@@ -59,7 +96,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         onSuccess(res.user);
       }
     } catch {
-      setErrorMsg("Erro inesperado ao autenticar. Tente novamente.");
+      setErrorMsg("Erro ao autenticar. Verifique sua conexão e tente novamente.");
     } finally {
       setIsLoading(false);
     }
@@ -84,19 +121,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
   };
 
-  const handleQuickDemo = async (role: UserRole) => {
-    setIsLoading(true);
-    try {
-      const user = await loginAsRole(role);
-      onSuccess(user);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleWhatsAppSupport = () => {
+    const zapText = `Olá, equipe PereiraLabs! Preciso de ajuda para recuperar a senha de acesso da minha empresa no sistema. (E-mail: ${email || "não informado"})`;
+    const zapUrl = `https://wa.me/5514988183327?text=${encodeURIComponent(zapText)}`;
+    window.open(zapUrl, "_blank");
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border/80 bg-card/95 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border/80 bg-card p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
         {canDismiss && onClose && (
           <button
             type="button"
@@ -110,8 +143,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         {/* Brand Header */}
         <div className="text-center mb-6">
           <div className="inline-flex relative mb-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-600 to-amber-500 text-white shadow-lg shadow-rose-500/25">
-              <IceCreamCone className="h-7 w-7" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 via-rose-600 to-indigo-600 text-white shadow-lg">
+              <Store className="h-7 w-7" />
             </div>
             <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] text-white shadow">
               <Sparkles className="h-3 w-3" />
@@ -119,10 +152,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           </div>
 
           <h3 className="text-xl font-black tracking-tight text-foreground">
-            {BRAND_CONFIG.companyName}
+            PereiraLabs PDV - Foods
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Sistema Gerencial e Ponto de Venda Seguro
+            {activeComp?.nome || "Sistema Integrado de Gestão Comercial"}
           </p>
         </div>
 
@@ -140,7 +173,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <ShieldCheck className="h-4 w-4 text-rose-500" />
+            <ShieldCheck className="h-4 w-4 text-primary" />
             <span>Administrador</span>
           </button>
 
@@ -173,7 +206,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           <form onSubmit={handleAdminSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1.5">
-                E-mail do Administrador
+                E-mail de Acesso
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -182,7 +215,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@geladinhosdaroze.com.br"
+                  placeholder="seu-email@confeitaria.com.br"
                   className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
@@ -191,25 +224,34 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-semibold text-foreground">
-                  Senha de Acesso
+                  Senha
                 </label>
-                <span className="text-[11px] text-primary font-bold">
-                  Padrão: admin
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setForgotModalOpen(true)}
+                  className="text-[11px] text-primary hover:underline font-semibold"
+                >
+                  Esqueci minha senha
+                </button>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="admin"
-                  className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-10 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                💡 Digite <strong>admin</strong> ou simplesmente clique no botão abaixo.
-              </p>
             </div>
 
             <Button
@@ -217,7 +259,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               disabled={isLoading}
               className="w-full bg-primary text-primary-foreground font-bold shadow-md hover:bg-primary/90 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2"
             >
-              <span>{isLoading ? "Validando..." : "Entrar como Administrador"}</span>
+              <span>{isLoading ? "Validando credenciais..." : "Entrar no Sistema"}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
           </form>
@@ -228,7 +270,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           <form onSubmit={handlePinSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1.5">
-                Nome do Operador de Caixa
+                Identificação do Atendente / Caixa
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -236,7 +278,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   type="text"
                   value={cashierName}
                   onChange={(e) => setCashierName(e.target.value)}
-                  placeholder="Ex: Operador(a) da Tarde"
+                  placeholder="Ex: Balcão da Tarde"
                   className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
@@ -244,7 +286,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1.5">
-                PIN de 4 Dígitos do Caixa
+                PIN de Segurança
               </label>
               <div className="relative">
                 <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -254,13 +296,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   required
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  placeholder="1234"
+                  placeholder="••••"
                   className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-center tracking-[0.5em] text-lg font-black text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground text-center mt-1">
-                PIN padrão: <span className="font-bold text-foreground">1234</span>
-              </p>
             </div>
 
             <Button
@@ -274,38 +313,54 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           </form>
         )}
 
-        {/* Quick Demo Switcher */}
-        <div className="mt-6 pt-5 border-t border-border/70 text-center">
-          <p className="text-[11px] font-semibold text-muted-foreground mb-2.5">
-            Acesso Rápido de Demonstração (1 Clique):
+        {/* Rodapé institucional PereiraLabs */}
+        <div className="mt-6 pt-4 border-t border-border/70 text-center">
+          <p className="text-[11px] font-semibold text-foreground">
+            Desenvolvido por PereiraLabs
           </p>
-          <div className="flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickDemo("admin")}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-all"
-            >
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Entrar como Admin</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickDemo("operador_caixa")}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all"
-            >
-              <QrCode className="h-3.5 w-3.5" />
-              <span>Entrar como Caixa</span>
-            </button>
-          </div>
-        </div>
-
-        {/* SaaS / Multi-tenant notice */}
-        <div className="mt-4 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground/80">
-          <Building2 className="h-3 w-3" />
-          <span>Isolamento Seguro Multi-Empresa com Supabase PostgreSQL</span>
+          <p className="text-[10px] text-muted-foreground">
+            Divisão de Tecnologia e IA • Louzada & Pereira - Soluções Digitais
+          </p>
         </div>
       </div>
+
+      {/* Modal de Recuperação de Senha */}
+      {forgotModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 animate-in fade-in">
+          <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-2xl">
+            <div className="text-center mb-4">
+              <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-2">
+                <HelpCircle className="h-6 w-6" />
+              </div>
+              <h4 className="text-base font-bold text-foreground">
+                Recuperação de Acesso
+              </h4>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Para total segurança contábil e fiscal da sua empresa, a redefinição de senhas é feita com verificação de identidade pela equipe oficial da PereiraLabs.
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <Button
+                type="button"
+                onClick={handleWhatsAppSupport}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="h-4 w-4" />
+                <span>Solicitar Nova Senha no WhatsApp</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setForgotModalOpen(false)}
+                className="w-full text-xs py-2 rounded-xl"
+              >
+                Voltar ao Login
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

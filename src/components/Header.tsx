@@ -34,6 +34,7 @@ interface HeaderProps {
   currentUser?: UserProfile | null;
   onOpenAuth?: () => void;
   onLogout?: () => void;
+  onOpenMasterPanel?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -51,6 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onOpenAuth,
   onLogout,
+  onOpenMasterPanel,
 }) => {
   const [justRefreshed, setJustRefreshed] = useState(false);
   const isCashier = currentUser?.role === "operador_caixa";
@@ -164,6 +166,19 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Settings className="h-4 w-4 text-muted-foreground" />
               <span>Dados & Pix</span>
+            </Button>
+          )}
+
+          {onOpenMasterPanel && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenMasterPanel}
+              title="Painel Master PereiraLabs (Gestão Multi-Empresa)"
+              className="inline-flex items-center gap-1.5 border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs hover:bg-amber-500/20 shadow-sm"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Painel Master</span>
             </Button>
           )}
 

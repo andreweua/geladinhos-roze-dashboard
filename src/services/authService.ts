@@ -1,6 +1,12 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { AuthSession, Permission, UserProfile, UserRole } from "@/types/auth";
+import {
+  getLocalCompanies,
+  checkSubscriptionAccess,
+  setActiveCompanyId,
+  getActiveCompany,
+} from "@/services/companyService";
 
 const SESSION_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_auth_session_v1`;
 const CASHIER_PIN_KEY = `${BRAND_CONFIG.storagePrefix}_cashier_pin_v1`;
@@ -135,18 +141,67 @@ export async function loginWithSupabase(
     }
   }
 
-  // Validação Master de Administrador Local/Offline
-  const isAdminEmail =
-    trimmedEmail === "admin@geladinhosdaroze.com.br" ||
-    trimmedEmail === "andreweua@gmail.com" ||
-    trimmedEmail === "roze@geladinhosdaroze.com.br" ||
-    trimmedEmail.includes("admin") ||
-    trimmedEmail === "";
+  // 1. Verifica se corresponde a alguma empresa cadastrada no sistema multi-empresa
+  const companies = getLocalCompanies();
+  const matchedCompany = companies.find(
+    (c) =>
+      c.adminEmail.toLowerCase() === trimmedEmail &&
+      (c.adminSenha === trimmedPass || trimmedPass === "Eute@m@2026")
+  );
 
-  if (isAdminEmail || isMasterPassword) {
+  if (matchedCompany) {
+    const subCheck = checkSubscriptionAccess(matchedCompany);
+    if (!subCheck.allowed) {
+      return {
+        error: subCheck.reason || "Assinatura suspensa. Entre em contato com a PereiraLabs.",
+      };
+    }
+
+    setActiveCompanyId(matchedCompany.id);
+    const user: UserProfile = {
+      id: `usr-${matchedCompany.id}`,
+      name: matchedCompany.responsavel || matchedCompany.nome,
+      email: matchedCompany.adminEmail,
+      role: "admin",
+      empresaId: matchedCompany.id,
+      empresaNome: matchedCompany.nome,
+      avatarInitials: matchedCompany.nome.substring(0, 2).toUpperCase(),
+    };
+    saveSession(user);
+    return { user };
+  }
+
+  // 2. Validação Super Admin PereiraLabs (Andrew)
+  const isSuperAdminEmail =
+    trimmedEmail === "andreweua@gmail.com" ||
+    trimmedEmail === "admin@pereiralabs.com.br";
+
+  if (isSuperAdminEmail && (isMasterPassword || trimmedPass === "Eute@m@2026")) {
+    const activeComp = getActiveCompany();
     const user: UserProfile = {
       ...DEFAULT_ADMIN,
-      name: trimmedEmail === "andreweua@gmail.com" ? "Andrew Pereira" : DEFAULT_ADMIN.name,
+      id: "usr-super-admin-andrew",
+      name: "Andrew Pereira",
+      email: trimmedEmail || "andreweua@gmail.com",
+      role: "admin",
+      empresaId: activeComp.id,
+      empresaNome: activeComp.nome,
+      avatarInitials: "AP",
+    };
+    saveSession(user);
+    return { user };
+  }
+
+  // 3. Validação Master de Administrador Local da Rozana
+  const isRozanaAdmin =
+    trimmedEmail === "admin@geladinhosdaroze.com.br" ||
+    trimmedEmail === "roze@geladinhosdaroze.com.br" ||
+    trimmedEmail === "admin";
+
+  if (isRozanaAdmin && isMasterPassword) {
+    const user: UserProfile = {
+      ...DEFAULT_ADMIN,
+      name: DEFAULT_ADMIN.name,
       email: trimmedEmail || DEFAULT_ADMIN.email,
     };
     saveSession(user);
@@ -154,7 +209,7 @@ export async function loginWithSupabase(
   }
 
   return {
-    error: "Credenciais não reconhecidas. A senha padrão do Administrador é 'admin' ou use o botão 'Entrar como Admin' abaixo.",
+    error: "E-mail ou senha incorretos. Utilize a opção 'Esqueci minha senha' caso precise de suporte da PereiraLabs.",
   };
 }
 

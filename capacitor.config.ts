@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.geladinhosroze.app",
-  appName: "Roze Gourmet",
+  appName: "PereiraLabs PDV - Foods",
   webDir: "dist",
   server: {
     url: "https://andreweua.github.io/geladinhos-roze-dashboard/",

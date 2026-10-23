@@ -35,6 +35,13 @@ import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
 import { ChangelogModal } from "@/components/ChangelogModal";
+import { PereiraLabsMasterModal } from "@/components/master/PereiraLabsMasterModal";
+import {
+  getActiveCompany,
+  getActiveCompanyId,
+  setActiveCompanyId,
+} from "@/services/companyService";
+import { THEME_COLOR_PALETTES } from "@/types/multiTenant";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CashShiftModal } from "@/components/cash/CashShiftModal";
 import { CashShift, getCurrentShift } from "@/services/cashShiftService";
@@ -272,6 +279,22 @@ export function App() {
   const [settingsModalOpen, setSettingsModalOpen] = useState<boolean>(false);
   const [cashShiftModalOpen, setCashShiftModalOpen] = useState<boolean>(false);
   const [changelogModalOpen, setChangelogModalOpen] = useState<boolean>(false);
+  const [masterModalOpen, setMasterModalOpen] = useState<boolean>(false);
+  const [activeCompanyId, setActiveCompanyIdState] = useState<string>(() =>
+    getActiveCompanyId()
+  );
+  const activeCompany = useMemo(() => getActiveCompany(), [activeCompanyId]);
+
+  // Aplica dinamicamente o tema de cores da empresa ativa
+  useEffect(() => {
+    const themeMeta =
+      THEME_COLOR_PALETTES[activeCompany.corTema] || THEME_COLOR_PALETTES.dourado;
+    if (themeMeta?.hslPrimary) {
+      document.documentElement.style.setProperty("--primary", themeMeta.hslPrimary);
+      document.documentElement.style.setProperty("--ring", themeMeta.hslPrimary);
+    }
+    document.title = `${activeCompany.nome} | PereiraLabs PDV - Foods`;
+  }, [activeCompany]);
   const [currentShift, setCurrentShift] = useState<CashShift | null>(() =>
     getCurrentShift()
   );
@@ -562,6 +585,7 @@ export function App() {
             currentUser={currentUser}
             onOpenAuth={() => setAuthModalOpen(true)}
             onLogout={handleLogout}
+            onOpenMasterPanel={() => setMasterModalOpen(true)}
           />
         </div>
 
@@ -656,6 +680,17 @@ export function App() {
             >
               <QrCode className="h-4 w-4" />
               <span>Novo Pedido / PDV</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setMasterModalOpen(true)}
+              title="Painel Master PereiraLabs (Gestão Multi-Empresa SaaS)"
+              className="gap-1.5 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+            >
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              <span>Painel Master</span>
             </Button>
           </div>
         </header>
@@ -1284,6 +1319,16 @@ export function App() {
         isOpen={changelogModalOpen}
         onClose={() => setChangelogModalOpen(false)}
         onForceReload={handleHardReload}
+      />
+
+      <PereiraLabsMasterModal
+        isOpen={masterModalOpen}
+        onClose={() => setMasterModalOpen(false)}
+        activeCompanyId={activeCompanyId}
+        onSelectCompany={(id) => {
+          setActiveCompanyIdState(id);
+          loadData(true);
+        }}
       />
 
       {/* Floating Refresh Success Toast */}

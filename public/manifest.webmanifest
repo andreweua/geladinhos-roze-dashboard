@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Geladinhos Gourmet da Roze — Dashboard",
-  "short_name": "Roze Gourmet",
-  "description": "Painel gerencial de vendas, estoque e indicadores financeiros — Geladinhos Gourmet da Roze",
+  "name": "PereiraLabs PDV - Foods",
+  "short_name": "PLabs Foods",
+  "description": "Sistema de Gestão Comercial, Ponto de Venda (PDV) e Estoque em Tempo Real — PereiraLabs",
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "./",
