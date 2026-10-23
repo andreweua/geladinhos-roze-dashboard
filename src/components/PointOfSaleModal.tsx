@@ -24,13 +24,22 @@ import {
   Zap,
   Building2,
   AlertCircle,
+  FileText,
+  FileSpreadsheet,
+  Download,
+  Receipt,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
 import { formatCurrency, formatNumber, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { generatePixPayload } from "@/lib/pix";
-import { EstoquePorProduto, PaymentMethod } from "@/types/dashboard";
+import { EstoquePorProduto, PaymentMethod, VendaDetalhada } from "@/types/dashboard";
 import { NewSalePayload } from "@/services/dataService";
+import {
+  downloadReceiptPdf,
+  downloadReceiptTxt,
+  downloadReceiptCsv,
+} from "@/lib/receiptExporter";
 import {
   createStonePixCharge,
   subscribeToPixSettlement,
@@ -264,6 +273,27 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       : `https://wa.me/?text=${encodeURIComponent(message)}`;
 
     window.open(targetUrl, "_blank");
+  };
+
+  const buildCurrentTempSale = (): VendaDetalhada => {
+    return {
+      id: `PED-${Date.now().toString().slice(-6)}`,
+      data_venda: new Date().toISOString(),
+      cliente_nome: clienteNome.trim() || undefined,
+      cliente_telefone: clienteTelefone.trim() || undefined,
+      forma_pagamento: paymentMethod,
+      valor_total: totalVenda,
+      status: "concluida",
+      pix_txid: activeTxId || undefined,
+      itens: selectedItems.map((i, idx) => ({
+        id: `item-${idx}`,
+        produto_id: i.produto_id,
+        produto_nome: i.nome,
+        quantidade: i.qtdSelecionada,
+        preco_unitario: i.preco_venda,
+        custo_unitario: i.custo_estimado || 0,
+      })),
+    };
   };
 
   // Simulação imediata do Webhook Stone OpenBank para testes
@@ -736,6 +766,37 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                         >
                           <Send className="h-4 w-4" />
                           <span>Enviar pelo WhatsApp</span>
+                        </button>
+                      </div>
+
+                      {/* Download Receipt in PDF, TXT or CSV */}
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => downloadReceiptPdf(buildCurrentTempSale())}
+                          title="Baixar Cupom em PDF"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-colors"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          <span>Baixar PDF</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadReceiptTxt(buildCurrentTempSale())}
+                          title="Baixar Cupom em Texto / Lista de Compras"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary/50 px-3 py-1.5 text-xs font-bold text-foreground hover:bg-secondary transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          <span>Texto (.txt)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadReceiptCsv(buildCurrentTempSale())}
+                          title="Exportar para Controle Financeiro / Excel"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                        >
+                          <FileSpreadsheet className="h-3.5 w-3.5" />
+                          <span>CSV Finanças</span>
                         </button>
                       </div>
 

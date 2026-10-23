@@ -14,6 +14,8 @@ import {
   HelpCircle,
   Check,
   ChefHat,
+  Receipt,
+  FileText,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
@@ -33,6 +35,7 @@ import {
 import { EstoquePorProduto, FichaTecnicaProduto, VendaDetalhada } from "@/types/dashboard";
 import { UserRole } from "@/types/auth";
 import { formatFiscalReceiptText } from "@/lib/receiptFormatter";
+import { ReceiptExportModal } from "@/components/ReceiptExportModal";
 
 interface TablesSectionProps {
   ultimasVendas: VendaDetalhada[];
@@ -64,6 +67,9 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
   const [returnStock, setReturnStock] = useState<boolean>(true);
   const [isSubmittingRefund, setIsSubmittingRefund] = useState<boolean>(false);
   const [refundFeedback, setRefundFeedback] = useState<string | null>(null);
+
+  // Receipt Export Modal State (PDF, TXT, CSV, OFX, WhatsApp)
+  const [selectedReceiptSale, setSelectedReceiptSale] = useState<VendaDetalhada | null>(null);
 
   const handleOpenWhatsAppReceipt = (venda: VendaDetalhada) => {
     const phone = venda.cliente_telefone ? venda.cliente_telefone.replace(/\D/g, "") : "";
@@ -291,6 +297,13 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
         </div>
       )}
 
+      {/* Modal de Exportação de Cupom (PDF, TXT, CSV, OFX, WhatsApp) */}
+      <ReceiptExportModal
+        isOpen={Boolean(selectedReceiptSale)}
+        onClose={() => setSelectedReceiptSale(null)}
+        venda={selectedReceiptSale}
+      />
+
       {/* TABELA 1: Tabela de Últimas Vendas (7 cols on lg) */}
       <Card className="lg:col-span-7">
         <CardHeader>
@@ -416,6 +429,18 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                         </td>
                         <td className="whitespace-nowrap py-3 pl-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {!isCanceled && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedReceiptSale(venda)}
+                                title="Baixar cupom em PDF, TXT, CSV financeiro ou enviar pelo WhatsApp"
+                                className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors shadow-sm"
+                              >
+                                <Receipt className="h-3.5 w-3.5" />
+                                <span>Cupom</span>
+                              </button>
+                            )}
+
                             {!isCanceled && (
                               <button
                                 type="button"
