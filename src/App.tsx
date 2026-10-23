@@ -1058,16 +1058,20 @@ export function App() {
                 v{BRAND_CONFIG.appVersion}
               </span>
             </div>
-            <p className="font-medium text-foreground/90">
-              Desenvolvido por{" "}
-              <span className="font-bold text-primary">
+            <div className="flex flex-col items-center gap-0.5 text-center mt-1">
+              <p className="text-[11px] font-medium text-muted-foreground">
+                Desenvolvido por:
+              </p>
+              <p className="text-xs font-bold text-primary">
                 {BRAND_CONFIG.developerCredit.studio}
-              </span>{" "}
-              <span className="mx-1 text-muted-foreground">|</span>{" "}
-              <span className="font-semibold">
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {BRAND_CONFIG.developerCredit.division}
+              </p>
+              <p className="text-[11px] font-semibold text-foreground/85">
                 {BRAND_CONFIG.developerCredit.company}
-              </span>
-            </p>
+              </p>
+            </div>
           </div>
         </footer>
       </div>

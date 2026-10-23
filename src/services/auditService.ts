@@ -279,7 +279,10 @@ export function generateAuditEmailContent(log: AuditoriaEstoqueLog): {
     (log.observacoes ? `Observações Adicionais: ${log.observacoes}\n` : "") +
     `Destinatários Registrados: ${log.emails_notificados.join(", ")}\n` +
     `------------------------------------------------------------\n` +
-    `Mensagem gerada pelo Painel de Controle PereiraLabs IA`;
+    `Desenvolvido por:\n` +
+    `PereiraLabs\n` +
+    `Divisão de Tecnologia e IA\n` +
+    `Louzada & Pereira - Soluções Digitais`;
 
   const recipientsStr = log.emails_notificados.join(",");
   const mailtoUrl = `mailto:${encodeURIComponent(recipientsStr)}?subject=${encodeURIComponent(

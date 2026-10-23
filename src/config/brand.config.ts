@@ -102,8 +102,10 @@ export interface BrandConfig {
   };
   developerCredit: {
     studio: string;
+    division: string;
     company: string;
     fullText: string;
+    receiptBlock: string;
   };
 }
 
@@ -203,10 +205,13 @@ export const BRAND_CONFIG: BrandConfig = {
     autoAuth: true,
   },
   developerCredit: {
-    studio: "PereiraLabs - Divisão de Tecnologia e IA",
+    studio: "PereiraLabs",
+    division: "Divisão de Tecnologia e IA",
     company: "Louzada & Pereira - Soluções Digitais",
     fullText:
       "Desenvolvido por PereiraLabs - Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais",
+    receiptBlock:
+      "Desenvolvido por:\nPereiraLabs\nDivisão de Tecnologia e IA\nLouzada & Pereira - Soluções Digitais",
   },
 };
 

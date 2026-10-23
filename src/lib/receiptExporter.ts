@@ -360,9 +360,18 @@ export function downloadReceiptPdf(
   y += 4;
 
   doc.setFont("helvetica", "normal");
-  doc.text("Controle Financeiro & Gestao PereiraLabs IA", pageWidth / 2, y, {
-    align: "center",
-  });
+  doc.setFontSize(5.5);
+  doc.text("Desenvolvido por:", pageWidth / 2, y, { align: "center" });
+  y += 3;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.text("PereiraLabs", pageWidth / 2, y, { align: "center" });
+  y += 3;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5.5);
+  doc.text("Divisao de Tecnologia e IA", pageWidth / 2, y, { align: "center" });
+  y += 2.8;
+  doc.text("Louzada & Pereira - Solucoes Digitais", pageWidth / 2, y, { align: "center" });
 
   // Salva o PDF no dispositivo
   doc.save(`cupom-fiscal-venda-${shortId}.pdf`);

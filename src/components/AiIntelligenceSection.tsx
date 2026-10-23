@@ -232,7 +232,7 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
       `🎉 *Economia com Sobras na Despensa:* -${formatCurrency(report.shoppingList.economiaComSobras)}\n` +
       `💵 *Desembolso Estimado no Mercado:* *${formatCurrency(report.shoppingList.desembolsoLiquidoEstimado)}*\n\n` +
       `*ITENS DA LISTA:*\n${itemsText}\n\n` +
-      `✨ _Gerado automaticamente pela Central PereiraLabs IA_`;
+      `✨ _Desenvolvido por PereiraLabs — Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais_`;
 
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");

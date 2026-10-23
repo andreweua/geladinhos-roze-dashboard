@@ -79,7 +79,12 @@ ${options.receiptUrl ? `\n📥 *Acesse seu cupom e baixe em PDF / Excel a qualqu
 ${doubleDivider}
 ✨ *Agradecemos imensamente pela preferência!*
 Esperamos que você se delicie com nossos geladinhos artesanais gourmet de 150ml feitos com muito carinho! ❤️🍦
-${options.instagram ? `📸 Instagram: ${options.instagram}` : ""}`.trim();
+${options.instagram ? `📸 Instagram: ${options.instagram}\n` : ""}
+${divider}
+_Desenvolvido por:_
+*PereiraLabs*
+_Divisão de Tecnologia e IA_
+_Louzada & Pereira - Soluções Digitais_`.trim();
 
   return receipt;
 }

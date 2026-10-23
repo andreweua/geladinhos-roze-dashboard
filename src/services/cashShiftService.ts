@@ -271,5 +271,10 @@ _${BRAND_CONFIG.tagline}_
   👉 *BALANÇO MAQUININHA:* *${diffMaqLabel}*
 ================================
 ${f.observacoesFechamento ? `📝 *Observações:* ${f.observacoesFechamento}\n================================\n` : ""}✨ *Conferência de Caixa registrada no sistema.*
-Conferido por: *${shift.operadorNome}*`.trim();
+Conferido por: *${shift.operadorNome}*
+--------------------------------
+_Desenvolvido por:_
+*PereiraLabs*
+_Divisão de Tecnologia e IA_
+_Louzada & Pereira - Soluções Digitais_`.trim();
 }
