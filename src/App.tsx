@@ -597,6 +597,7 @@ export function App() {
                       <TablesSection
                         ultimasVendas={analytics.ultimasVendas}
                         reposicaoEstoque={analytics.reposicaoEstoque}
+                        fichasTecnicas={snapshot?.fichasTecnicas || []}
                         onQuickStockChange={handleUpdateStock}
                         onOpenStockModal={() => {
                           setModalTab("estoque");
@@ -669,6 +670,7 @@ export function App() {
                       <TablesSection
                         ultimasVendas={analytics.ultimasVendas}
                         reposicaoEstoque={analytics.reposicaoEstoque}
+                        fichasTecnicas={snapshot?.fichasTecnicas || []}
                         onQuickStockChange={handleUpdateStock}
                         onOpenStockModal={() => {
                           setModalTab("estoque");
@@ -832,6 +834,7 @@ export function App() {
           initialTab={modalTab}
           onClose={() => setModalOpen(false)}
           inventoryByFlavor={analytics.inventoryByFlavor}
+          fichasTecnicas={snapshot?.fichasTecnicas || []}
           onSubmitSale={handleSubmitSale}
           onUpdateStock={handleUpdateStock}
           onCreateProduct={handleCreateProduct}

@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   HelpCircle,
   Check,
+  ChefHat,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
@@ -29,11 +30,12 @@ import {
   formatDateTime,
   PAYMENT_METHOD_LABELS,
 } from "@/lib/utils";
-import { EstoquePorProduto, VendaDetalhada } from "@/types/dashboard";
+import { EstoquePorProduto, FichaTecnicaProduto, VendaDetalhada } from "@/types/dashboard";
 
 interface TablesSectionProps {
   ultimasVendas: VendaDetalhada[];
   reposicaoEstoque: EstoquePorProduto[];
+  fichasTecnicas?: FichaTecnicaProduto[];
   onQuickStockChange: (produtoId: string, newQty: number) => void;
   onOpenStockModal: () => void;
   onCancelSale?: (
@@ -46,6 +48,7 @@ interface TablesSectionProps {
 export const TablesSection: React.FC<TablesSectionProps> = ({
   ultimasVendas,
   reposicaoEstoque,
+  fichasTecnicas = [],
   onQuickStockChange,
   onOpenStockModal,
   onCancelSale,
@@ -495,104 +498,117 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {reposicaoEstoque.map((item) => (
-                  <tr
-                    key={item.produto_id}
-                    className={`transition-colors ${
-                      item.abaixo_do_minimo
-                        ? "bg-amber-500/[0.05] hover:bg-amber-500/[0.1]"
-                        : "hover:bg-secondary/35"
-                    }`}
-                  >
-                    <td className="py-3 pr-2">
-                      <p className="font-semibold text-foreground">
-                        {item.nome}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {formatCurrency(item.preco_venda)} / un.
-                      </p>
-                    </td>
+                {reposicaoEstoque.map((item) => {
+                  const ficha = fichasTecnicas.find(
+                    (f) => f.produto_id === item.produto_id
+                  );
+                  const rendimento = ficha?.rendimento_unidades || 8;
 
-                    <td className="py-3 px-2 text-center">
-                      <span
-                        className={`text-sm font-extrabold ${
-                          item.abaixo_do_minimo
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-foreground"
-                        }`}
-                      >
-                        {item.quantidade_disponivel}
-                      </span>{" "}
-                      <span className="text-[11px] text-muted-foreground">
-                        un.
-                      </span>
-                    </td>
+                  return (
+                    <tr
+                      key={item.produto_id}
+                      className={`transition-colors ${
+                        item.abaixo_do_minimo
+                          ? "bg-amber-500/[0.05] hover:bg-amber-500/[0.1]"
+                          : "hover:bg-secondary/35"
+                      }`}
+                    >
+                      <td className="py-3 pr-2">
+                        <p className="font-semibold text-foreground">
+                          {item.nome}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                          <span>{formatCurrency(item.preco_venda)} / un.</span>
+                          <span>•</span>
+                          <span className="text-primary font-medium inline-flex items-center gap-0.5">
+                            <ChefHat className="h-2.5 w-2.5" />
+                            {rendimento} un./rec.
+                          </span>
+                        </p>
+                      </td>
 
-                    <td className="py-3 px-2 text-center">
-                      {item.abaixo_do_minimo ? (
-                        <Badge
-                          variant="warning"
-                          className="inline-flex items-center gap-1 text-[10px]"
+                      <td className="py-3 px-2 text-center">
+                        <span
+                          className={`text-sm font-extrabold ${
+                            item.abaixo_do_minimo
+                              ? "text-amber-600 dark:text-amber-400"
+                              : "text-foreground"
+                          }`}
                         >
-                          <AlertCircle className="h-3 w-3" />
-                          Repor (&lt;{BRAND_CONFIG.lowStockThreshold})
-                        </Badge>
-                      ) : (
-                        <Badge
-                          variant="success"
-                          className="inline-flex items-center gap-1 text-[10px]"
-                        >
-                          <CheckCircle2 className="h-3 w-3" />
-                          OK
-                        </Badge>
-                      )}
-                    </td>
+                          {item.quantidade_disponivel}
+                        </span>{" "}
+                        <span className="text-[11px] text-muted-foreground">
+                          un.
+                        </span>
+                      </td>
 
-                    <td className="py-3 pl-2 text-right">
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onQuickStockChange(
-                              item.produto_id,
-                              Math.max(0, item.quantidade_disponivel - 1)
-                            )
-                          }
-                          title="Diminuir 1 unidade"
-                          className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onQuickStockChange(
-                              item.produto_id,
-                              item.quantidade_disponivel + 1
-                            )
-                          }
-                          title="Adicionar 1 unidade"
-                          className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onQuickStockChange(
-                              item.produto_id,
-                              item.quantidade_disponivel + 10
-                            )
-                          }
-                          title="Repor lote de +10 unidades"
-                          className="rounded-md bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-500/20 dark:text-rose-400"
-                        >
-                          +10
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="py-3 px-2 text-center">
+                        {item.abaixo_do_minimo ? (
+                          <Badge
+                            variant="warning"
+                            className="inline-flex items-center gap-1 text-[10px]"
+                          >
+                            <AlertCircle className="h-3 w-3" />
+                            Repor (&lt;{BRAND_CONFIG.lowStockThreshold})
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="success"
+                            className="inline-flex items-center gap-1 text-[10px]"
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                            OK
+                          </Badge>
+                        )}
+                      </td>
+
+                      <td className="py-3 pl-2 text-right">
+                        <div className="inline-flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onQuickStockChange(
+                                item.produto_id,
+                                Math.max(0, item.quantidade_disponivel - 1)
+                              )
+                            }
+                            title="Diminuir 1 unidade"
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onQuickStockChange(
+                                item.produto_id,
+                                item.quantidade_disponivel + 1
+                              )
+                            }
+                            title="Adicionar 1 unidade"
+                            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onQuickStockChange(
+                                item.produto_id,
+                                item.quantidade_disponivel + rendimento
+                              )
+                            }
+                            title={`Repor 1 receita completa (+${rendimento} unidades)`}
+                            className="rounded-md bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-500/20 dark:text-rose-400 inline-flex items-center gap-1 shadow-sm"
+                          >
+                            <ChefHat className="h-3 w-3" />
+                            <span>+{rendimento}</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

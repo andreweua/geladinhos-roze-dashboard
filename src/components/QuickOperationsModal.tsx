@@ -7,10 +7,12 @@ import {
   RotateCcw,
   Sparkles,
   Check,
+  ChefHat,
+  CheckCircle2,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/primitives";
 import { formatCurrency, PAYMENT_METHOD_LABELS } from "@/lib/utils";
-import { EstoquePorProduto, PaymentMethod } from "@/types/dashboard";
+import { EstoquePorProduto, FichaTecnicaProduto, PaymentMethod } from "@/types/dashboard";
 import { NewProductPayload, NewSalePayload } from "@/services/dataService";
 
 interface QuickOperationsModalProps {
@@ -18,6 +20,7 @@ interface QuickOperationsModalProps {
   initialTab: "venda" | "estoque";
   onClose: () => void;
   inventoryByFlavor: EstoquePorProduto[];
+  fichasTecnicas?: FichaTecnicaProduto[];
   onSubmitSale: (payload: NewSalePayload) => Promise<void>;
   onUpdateStock: (produtoId: string, newQty: number) => Promise<void>;
   onCreateProduct: (payload: NewProductPayload) => Promise<void>;
@@ -30,6 +33,7 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
   initialTab,
   onClose,
   inventoryByFlavor,
+  fichasTecnicas = [],
   onSubmitSale,
   onUpdateStock,
   onCreateProduct,
@@ -39,6 +43,8 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
   const [activeTab, setActiveTab] = useState<"venda" | "estoque">(initialTab);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("Pix");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [customValues, setCustomValues] = useState<Record<string, string>>({});
+  const [stockSuccessMsg, setStockSuccessMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New flavor form state
@@ -365,9 +371,14 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
               {/* Quick Inventory List */}
               <div>
                 <div className="mb-2.5 flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Ajuste Direto de Lotes em Estoque
-                  </h3>
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Reposição por Receita & Ajuste de Lotes
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Adicione o rendimento exato da batelada ou digite um valor livre.
+                    </p>
+                  </div>
                   {dataSource === "demo_local" && (
                     <button
                       type="button"
@@ -380,55 +391,163 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  {inventoryByFlavor.map((item) => (
-                    <div
-                      key={item.produto_id}
-                      className="flex items-center justify-between rounded-xl border border-border/70 bg-background px-3.5 py-2.5 text-xs"
-                    >
-                      <div>
-                        <span className="font-bold text-foreground">
-                          {item.nome}
-                        </span>
-                        {item.abaixo_do_minimo && (
-                          <Badge variant="warning" className="ml-2 text-[10px]">
-                            Estoque Baixo
-                          </Badge>
-                        )}
+                {stockSuccessMsg && (
+                  <div className="mb-3 flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 animate-in fade-in">
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    <span>{stockSuccessMsg}</span>
+                  </div>
+                )}
+
+                <div className="space-y-2.5">
+                  {inventoryByFlavor.map((item) => {
+                    const ficha = fichasTecnicas.find(
+                      (f) => f.produto_id === item.produto_id
+                    );
+                    const rendimento = ficha?.rendimento_unidades || 8;
+                    const customVal = customValues[item.produto_id] || "";
+
+                    const handleAddYield = async (multiplier = 1) => {
+                      const added = rendimento * multiplier;
+                      await onUpdateStock(
+                        item.produto_id,
+                        item.quantidade_disponivel + added
+                      );
+                      setStockSuccessMsg(
+                        `+${added} un. (${multiplier}x receita de ${item.nome}) adicionadas ao estoque!`
+                      );
+                      setTimeout(() => setStockSuccessMsg(null), 3500);
+                    };
+
+                    const handleApplyCustom = async (mode: "somar" | "definir") => {
+                      const num = parseInt(customVal, 10);
+                      if (isNaN(num) || num < 0) return;
+                      const targetQty =
+                        mode === "somar" ? item.quantidade_disponivel + num : num;
+                      await onUpdateStock(item.produto_id, targetQty);
+                      setCustomValues((prev) => ({
+                        ...prev,
+                        [item.produto_id]: "",
+                      }));
+                      setStockSuccessMsg(
+                        mode === "somar"
+                          ? `+${num} un. somadas ao estoque de ${item.nome} (Total: ${targetQty} un.)`
+                          : `Estoque de ${item.nome} ajustado para exatamente ${targetQty} un.`
+                      );
+                      setTimeout(() => setStockSuccessMsg(null), 3500);
+                    };
+
+                    return (
+                      <div
+                        key={item.produto_id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/90 p-3.5 transition-all hover:border-primary/40 shadow-sm"
+                      >
+                        {/* Flavor Info & Recipe Yield */}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-xs sm:text-sm text-foreground">
+                              {item.nome}
+                            </span>
+                            {item.abaixo_do_minimo ? (
+                              <Badge variant="warning" className="text-[10px]">
+                                Estoque Baixo
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="text-[10px]">
+                                OK
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-muted-foreground">
+                            <span>
+                              Disponível:{" "}
+                              <strong
+                                className={
+                                  item.abaixo_do_minimo
+                                    ? "text-amber-600 dark:text-amber-400 font-black"
+                                    : "text-foreground font-black"
+                                }
+                              >
+                                {item.quantidade_disponivel} un.
+                              </strong>
+                            </span>
+                            <span>•</span>
+                            <span className="inline-flex items-center gap-1 text-primary font-semibold">
+                              <ChefHat className="h-3 w-3" />
+                              Receita rende: <strong>{rendimento} un.</strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Actions: Recipe Yield Buttons & Custom Input */}
+                        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                          {/* Opção 1: Repor Quantidade da Receita */}
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleAddYield(1)}
+                              title={`Adicionar 1 receita de ${rendimento} unidades`}
+                              className="bg-primary text-primary-foreground font-bold text-xs gap-1 shadow-sm px-2.5 py-1"
+                            >
+                              <ChefHat className="h-3 w-3" />
+                              <span>+1 Rec. (+{rendimento})</span>
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAddYield(2)}
+                              title={`Adicionar 2 receitas (+${rendimento * 2} unidades)`}
+                              className="text-xs font-semibold px-2 py-1"
+                            >
+                              <span>+2x (+{rendimento * 2})</span>
+                            </Button>
+                          </div>
+
+                          {/* Opção 2: Valor Digitado Livre pelo Administrador */}
+                          <div className="flex items-center gap-1 pl-1.5 border-l border-border/80">
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="Qtd..."
+                              value={customVal}
+                              onChange={(e) =>
+                                setCustomValues((prev) => ({
+                                  ...prev,
+                                  [item.produto_id]: e.target.value,
+                                }))
+                              }
+                              className="w-16 rounded-xl border border-input bg-card px-2 py-1 text-center text-xs font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              disabled={!customVal || parseInt(customVal, 10) <= 0}
+                              onClick={() => handleApplyCustom("somar")}
+                              title="Somar quantidade digitada ao estoque atual"
+                              className="text-xs font-bold px-2 py-1"
+                            >
+                              + Somar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={!customVal || parseInt(customVal, 10) < 0}
+                              onClick={() => handleApplyCustom("definir")}
+                              title="Definir saldo exato em estoque para o valor digitado"
+                              className="text-[10px] text-muted-foreground px-1.5 py-1"
+                            >
+                              Definir
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-muted-foreground">
-                          {item.quantidade_disponivel} un.
-                        </span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            onUpdateStock(
-                              item.produto_id,
-                              item.quantidade_disponivel + 15
-                            )
-                          }
-                        >
-                          +15 un.
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() =>
-                            onUpdateStock(
-                              item.produto_id,
-                              item.quantidade_disponivel + 30
-                            )
-                          }
-                        >
-                          +30 un.
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
