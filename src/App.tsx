@@ -37,6 +37,8 @@ import { CompanySettingsModal } from "@/components/CompanySettingsModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CashShiftModal } from "@/components/cash/CashShiftModal";
 import { CashShift, getCurrentShift } from "@/services/cashShiftService";
+import { CustomerReceiptView } from "@/components/CustomerReceiptView";
+import { parsePermanentReceiptFromUrl } from "@/lib/receiptExporter";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import {
   getCurrentUser,
@@ -68,6 +70,7 @@ import {
   DateFilterRange,
   DatePreset,
   FichaTecnicaProduto,
+  VendaDetalhada,
 } from "@/types/dashboard";
 
 const THEME_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_theme`;
@@ -208,11 +211,14 @@ export function App() {
   );
 
   // Authenticated User & Session State (Admin vs Operador de Caixa)
+  const [customerReceipt, setCustomerReceipt] = useState<VendaDetalhada | null>(() =>
+    parsePermanentReceiptFromUrl()
+  );
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() =>
     getCurrentUser()
   );
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(
-    () => !getCurrentUser()
+    () => !getCurrentUser() && !parsePermanentReceiptFromUrl()
   );
 
   useEffect(() => {
@@ -389,6 +395,21 @@ export function App() {
     if (!snapshot) return null;
     return computeDashboardAnalytics(snapshot, dateFilter, ifoodFeePct);
   }, [snapshot, dateFilter, ifoodFeePct]);
+
+  // Se o link aberto for um Comprovante Digital do Cliente (?recibo_d=...)
+  if (customerReceipt) {
+    return (
+      <CustomerReceiptView
+        venda={customerReceipt}
+        onClose={() => {
+          setCustomerReceipt(null);
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }}
+        isStandalone={true}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">

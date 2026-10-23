@@ -367,3 +367,81 @@ export function downloadReceiptPdf(
   // Salva o PDF no dispositivo
   doc.save(`cupom-fiscal-venda-${shortId}.pdf`);
 }
+
+/**
+ * 5. GERAÇÃO DE LINK PERMANENTE DO CUPOM
+ * Sem custo de armazenamento de arquivos em servidor:
+ * Os dados do pedido são codificados no próprio link (URL) em Base64 compactado,
+ * permitindo que o cliente abra, visualize e baixe seu comprovante em PDF/CSV a qualquer momento
+ * mesmo meses ou anos depois, em qualquer celular, sem gerar custos de nuvem ou storage!
+ */
+export function generatePermanentReceiptUrl(venda: VendaDetalhada): string {
+  const payload = {
+    i: venda.id,
+    d: venda.data_venda,
+    c: venda.cliente_nome || "",
+    t: venda.cliente_telefone || "",
+    p: venda.forma_pagamento,
+    v: venda.valor_total,
+    x: venda.pix_txid || "",
+    it: venda.itens.map((item) => [
+      item.produto_id,
+      item.produto_nome,
+      item.quantidade,
+      item.preco_unitario,
+      item.custo_unitario,
+    ]),
+  };
+
+  try {
+    const json = JSON.stringify(payload);
+    const encoded = btoa(unescape(encodeURIComponent(json)));
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shortId = (venda.id.length > 8 ? venda.id.slice(-6) : venda.id).toUpperCase();
+    return `${baseUrl}?recibo_d=${encoded}&id=${shortId}`;
+  } catch (err) {
+    console.warn("Erro ao gerar link de cupom codificado:", err);
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?recibo=${venda.id}`;
+  }
+}
+
+/**
+ * Reconstrói a venda detalhada a partir do link codificado na URL
+ */
+export function parsePermanentReceiptFromUrl(): VendaDetalhada | null {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const rawData = params.get("recibo_d");
+    if (!rawData) return null;
+
+    const json = decodeURIComponent(escape(atob(rawData)));
+    const p = JSON.parse(json);
+
+    const venda: VendaDetalhada = {
+      id: p.i || `PED-${Date.now().toString().slice(-6)}`,
+      data_venda: p.d || new Date().toISOString(),
+      cliente_nome: p.c || undefined,
+      cliente_telefone: p.t || undefined,
+      forma_pagamento: p.p || "Dinheiro",
+      valor_total: Number(p.v) || 0,
+      status: "concluida",
+      pix_txid: p.x || undefined,
+      itens: Array.isArray(p.it)
+        ? p.it.map((item: [string, string, number, number, number], idx: number) => ({
+            id: `item-${idx}`,
+            produto_id: item[0],
+            produto_nome: item[1],
+            quantidade: Number(item[2]) || 1,
+            preco_unitario: Number(item[3]) || 0,
+            custo_unitario: Number(item[4]) || 0,
+          }))
+        : [],
+    };
+
+    return venda;
+  } catch (err) {
+    console.warn("Erro ao parsear dados do cupom na URL:", err);
+    return null;
+  }
+}

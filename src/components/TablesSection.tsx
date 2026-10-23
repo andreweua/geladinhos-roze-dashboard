@@ -35,6 +35,7 @@ import {
 import { EstoquePorProduto, FichaTecnicaProduto, VendaDetalhada } from "@/types/dashboard";
 import { UserRole } from "@/types/auth";
 import { formatFiscalReceiptText } from "@/lib/receiptFormatter";
+import { generatePermanentReceiptUrl } from "@/lib/receiptExporter";
 import { ReceiptExportModal } from "@/components/ReceiptExportModal";
 
 interface TablesSectionProps {
@@ -73,7 +74,8 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
 
   const handleOpenWhatsAppReceipt = (venda: VendaDetalhada) => {
     const phone = venda.cliente_telefone ? venda.cliente_telefone.replace(/\D/g, "") : "";
-    const text = formatFiscalReceiptText(venda);
+    const receiptUrl = generatePermanentReceiptUrl(venda);
+    const text = formatFiscalReceiptText(venda, { receiptUrl });
     const url = phone
       ? `https://wa.me/55${phone}?text=${encodeURIComponent(text)}`
       : `https://wa.me/?text=${encodeURIComponent(text)}`;

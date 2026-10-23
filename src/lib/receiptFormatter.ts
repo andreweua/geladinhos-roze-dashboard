@@ -9,6 +9,7 @@ export interface FiscalReceiptOptions {
   empresaEndereco?: string;
   pixKey?: string;
   instagram?: string;
+  receiptUrl?: string;
 }
 
 /**
@@ -74,6 +75,7 @@ Qtd. Total de Itens: *${totalQuantity} unidade(s)*
 ${divider}
 *DETALHES DO PAGAMENTO:*
 ${paymentDetails}
+${options.receiptUrl ? `\n📥 *Acesse seu cupom e baixe em PDF / Excel a qualquer momento:*\n${options.receiptUrl}\n` : ""}
 ${doubleDivider}
 ✨ *Agradecemos imensamente pela preferência!*
 Esperamos que você se delicie com nossos geladinhos artesanais gourmet de 150ml feitos com muito carinho! ❤️🍦
