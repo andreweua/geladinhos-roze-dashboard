@@ -31,11 +31,14 @@ import {
   PAYMENT_METHOD_LABELS,
 } from "@/lib/utils";
 import { EstoquePorProduto, FichaTecnicaProduto, VendaDetalhada } from "@/types/dashboard";
+import { UserRole } from "@/types/auth";
+import { formatFiscalReceiptText } from "@/lib/receiptFormatter";
 
 interface TablesSectionProps {
   ultimasVendas: VendaDetalhada[];
   reposicaoEstoque: EstoquePorProduto[];
   fichasTecnicas?: FichaTecnicaProduto[];
+  userRole?: UserRole;
   onQuickStockChange: (produtoId: string, newQty: number) => void;
   onOpenStockModal: () => void;
   onCancelSale?: (
@@ -49,6 +52,7 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
   ultimasVendas,
   reposicaoEstoque,
   fichasTecnicas = [],
+  userRole = "admin",
   onQuickStockChange,
   onOpenStockModal,
   onCancelSale,
@@ -63,18 +67,7 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
 
   const handleOpenWhatsAppReceipt = (venda: VendaDetalhada) => {
     const phone = venda.cliente_telefone ? venda.cliente_telefone.replace(/\D/g, "") : "";
-    const customerName = venda.cliente_nome ? venda.cliente_nome : "Cliente";
-    const itemsText = venda.itens
-      .map(
-        (i) =>
-          `• ${i.quantidade}x ${i.produto_nome} (${formatCurrency(i.preco_unitario)})`
-      )
-      .join("\n");
-    const text = `🍧 *GELADINHOS GOURMET DA ROZE — RECIBO DE COMPRA* 🍧\n\nOlá, *${customerName}*! Agradecemos pela preferência:\n\n${itemsText}\n\n💰 *Total: ${formatCurrency(
-      venda.valor_total
-    )}*\nForma de Pagamento: *${PAYMENT_METHOD_LABELS[venda.forma_pagamento]}*\nData: ${formatDateTime(
-      venda.data_venda
-    )}\n\nEsperamos que aprecie muito nossos geladinhos artesanais de 150ml! 🤤💖`;
+    const text = formatFiscalReceiptText(venda);
     const url = phone
       ? `https://wa.me/55${phone}?text=${encodeURIComponent(text)}`
       : `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -480,9 +473,11 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                 {BRAND_CONFIG.lowStockThreshold} un.)
               </CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={onOpenStockModal}>
-              Gerenciar
-            </Button>
+            {userRole === "admin" && (
+              <Button variant="outline" size="sm" onClick={onOpenStockModal}>
+                Gerenciar
+              </Button>
+            )}
           </div>
         </CardHeader>
 
@@ -494,7 +489,9 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                   <th className="pb-3 pr-2">Sabor Gourmet</th>
                   <th className="pb-3 px-2 text-center">Disponível</th>
                   <th className="pb-3 px-2 text-center">Status</th>
-                  <th className="pb-3 pl-2 text-right">Ajuste Rápido</th>
+                  <th className="pb-3 pl-2 text-right">
+                    {userRole === "admin" ? "Ajuste Rápido" : "Disponibilidade"}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
@@ -563,48 +560,54 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
                       </td>
 
                       <td className="py-3 pl-2 text-right">
-                        <div className="inline-flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onQuickStockChange(
-                                item.produto_id,
-                                Math.max(0, item.quantidade_disponivel - 1)
-                              )
-                            }
-                            title="Diminuir 1 unidade"
-                            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onQuickStockChange(
-                                item.produto_id,
-                                item.quantidade_disponivel + 1
-                              )
-                            }
-                            title="Adicionar 1 unidade"
-                            className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onQuickStockChange(
-                                item.produto_id,
-                                item.quantidade_disponivel + rendimento
-                              )
-                            }
-                            title={`Repor 1 receita completa (+${rendimento} unidades)`}
-                            className="rounded-md bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-500/20 dark:text-rose-400 inline-flex items-center gap-1 shadow-sm"
-                          >
-                            <ChefHat className="h-3 w-3" />
-                            <span>+{rendimento}</span>
-                          </button>
-                        </div>
+                        {userRole === "admin" ? (
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onQuickStockChange(
+                                  item.produto_id,
+                                  Math.max(0, item.quantidade_disponivel - 1)
+                                )
+                              }
+                              title="Diminuir 1 unidade"
+                              className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onQuickStockChange(
+                                  item.produto_id,
+                                  item.quantidade_disponivel + 1
+                                )
+                              }
+                              title="Adicionar 1 unidade"
+                              className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onQuickStockChange(
+                                  item.produto_id,
+                                  item.quantidade_disponivel + rendimento
+                                )
+                              }
+                              title={`Repor 1 receita completa (+${rendimento} unidades)`}
+                              className="rounded-md bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-500/20 dark:text-rose-400 inline-flex items-center gap-1 shadow-sm"
+                            >
+                              <ChefHat className="h-3 w-3" />
+                              <span>+{rendimento}</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] font-medium text-muted-foreground italic">
+                            Disponível no freezer
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );

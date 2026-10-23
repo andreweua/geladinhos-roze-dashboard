@@ -538,10 +538,10 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
                               size="sm"
                               disabled={!customVal || parseInt(customVal, 10) < 0}
                               onClick={() => handleApplyCustom("definir")}
-                              title="Definir saldo exato em estoque para o valor digitado"
-                              className="text-[10px] text-muted-foreground px-1.5 py-1"
+                              title="Acertar o saldo exato em estoque para a quantidade digitada"
+                              className="text-[10px] text-muted-foreground hover:text-foreground font-semibold px-2 py-1"
                             >
-                              Definir
+                              Acertar Estoque
                             </Button>
                           </div>
                         </div>

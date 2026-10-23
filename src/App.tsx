@@ -10,6 +10,12 @@ import {
   CheckCircle2,
   PackagePlus,
   Receipt,
+  Lock,
+  Unlock,
+  Award,
+  CreditCard,
+  Banknote,
+  Coins,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Header } from "@/components/Header";
@@ -28,6 +34,8 @@ import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
+import { CashShiftModal } from "@/components/cash/CashShiftModal";
+import { CashShift, getCurrentShift } from "@/services/cashShiftService";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import {
   getCurrentUser,
@@ -193,6 +201,10 @@ export function App() {
   const [installModalOpen, setInstallModalOpen] = useState<boolean>(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState<boolean>(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState<boolean>(false);
+  const [cashShiftModalOpen, setCashShiftModalOpen] = useState<boolean>(false);
+  const [currentShift, setCurrentShift] = useState<CashShift | null>(() =>
+    getCurrentShift()
+  );
 
   // Authenticated User & Session State (Admin vs Operador de Caixa)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() =>
@@ -475,6 +487,28 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* Indicador de Status do Caixa / Abertura & Fechamento */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCashShiftModalOpen(true)}
+              className="gap-2 text-xs font-semibold"
+            >
+              {currentShift ? (
+                <>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                    Caixa Aberto ({currentShift.operadorNome})
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Lock className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-muted-foreground">Caixa Fechado</span>
+                </>
+              )}
+            </Button>
+
             {currentUser?.role !== "operador_caixa" && (
               <>
                 <Button
@@ -525,6 +559,87 @@ export function App() {
               {/* TELA 1: INÍCIO (Overview) */}
               {(activeSection === "inicio" || activeSection === "completo") && (
                 <div className="space-y-6">
+                  {/* Turno de Caixa Bar (Abertura / Fechamento de Caixa) */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-border/80 bg-card p-5 shadow-sm">
+                    <div className="flex items-center gap-3.5">
+                      <div
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                          currentShift
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25"
+                            : "bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25"
+                        }`}
+                      >
+                        {currentShift ? (
+                          <Unlock className="h-6 w-6" />
+                        ) : (
+                          <Lock className="h-6 w-6" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                              currentShift
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                            }`}
+                          >
+                            {currentShift ? "Caixa Aberto" : "Caixa Fechado"}
+                          </span>
+                          {currentShift && (
+                            <span className="text-xs text-muted-foreground">
+                              Turno de <strong>{currentShift.operadorNome}</strong> • Aberto às{" "}
+                              {new Date(currentShift.dataAbertura).toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {currentShift
+                            ? `Fundo de troco inicial: ${formatCurrency(
+                                currentShift.abertura.totalFundoTroco
+                              )} (Cédulas: ${formatCurrency(
+                                currentShift.abertura.dinheiroCedulas
+                              )} | Moedas: ${formatCurrency(
+                                currentShift.abertura.moedas
+                              )}${
+                                currentShift.abertura.maquininhaCartaoInicial > 0
+                                  ? ` | Maquininha: ${formatCurrency(
+                                      currentShift.abertura.maquininhaCartaoInicial
+                                    )}`
+                                  : ""
+                              })`
+                            : "Nenhum turno de vendas ativo no momento. Faça a conferência de troco para abrir."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant={currentShift ? "outline" : "default"}
+                      size="sm"
+                      onClick={() => setCashShiftModalOpen(true)}
+                      className={
+                        currentShift
+                          ? "border-rose-500/30 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400 font-bold gap-1.5 self-start sm:self-auto"
+                          : "bg-emerald-600 text-white hover:bg-emerald-700 font-bold gap-1.5 shadow-sm self-start sm:self-auto"
+                      }
+                    >
+                      {currentShift ? (
+                        <>
+                          <Lock className="h-4 w-4" />
+                          <span>Encerrar / Fechar Caixa</span>
+                        </>
+                      ) : (
+                        <>
+                          <Unlock className="h-4 w-4" />
+                          <span>Abrir Caixa (Contagem de Troco)</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
                   {currentUser?.role === "operador_caixa" ? (
                     <>
                       {/* Cashier Welcome & Fast Action Banner */}
@@ -540,7 +655,7 @@ export function App() {
                             Olá, {currentUser.name}!
                           </h3>
                           <p className="text-xs text-muted-foreground">
-                            Registre novos pedidos de geladinhos com cálculo automático, Pix Stone e impressão.
+                            Registre novos pedidos de geladinhos com cálculo automático, Pix Stone e comprovante.
                           </p>
                         </div>
 
@@ -593,11 +708,147 @@ export function App() {
                         </div>
                       </div>
 
-                      {/* Cashier Recent Sales Table */}
+                      {/* Cashier Dual Assistance: Top 5 Sabores Mais Vendidos & Divisão por Forma de Pagamento */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {/* 1. Top 5 Sabores Mais Vendidos (Sugestões para o Cliente) */}
+                        <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/15 text-amber-500">
+                                  <Award className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-bold text-foreground">
+                                    Top 5 Sabores Mais Vendidos
+                                  </h4>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    Sugira estes campeões de venda para clientes indecisos
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full uppercase">
+                                Sugestões
+                              </span>
+                            </div>
+
+                            <div className="divide-y divide-border/50 mt-2">
+                              {analytics.topFlavors.slice(0, 5).map((flavor, index) => {
+                                const medals = ["🥇", "🥈", "🥉", "4º", "5º"];
+                                return (
+                                  <div
+                                    key={flavor.produto_id}
+                                    className="flex items-center justify-between py-2.5 hover:bg-secondary/20 rounded-lg px-2 -mx-2 transition-colors cursor-pointer group"
+                                    onClick={() => setPosModalOpen(true)}
+                                    title="Clique para abrir venda deste sabor no PDV"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <span className="text-base font-extrabold w-6 text-center">
+                                        {medals[index] || `${index + 1}º`}
+                                      </span>
+                                      <div>
+                                        <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                                          {flavor.nome}
+                                        </p>
+                                        <p className="text-[11px] text-muted-foreground">
+                                          {flavor.quantidade} vendidos • {formatCurrency(flavor.faturamento)}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <span className="text-[11px] font-bold text-primary group-hover:underline">
+                                      + Vender
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                              {analytics.topFlavors.length === 0 && (
+                                <p className="text-xs text-muted-foreground py-4 text-center italic">
+                                  Nenhum sabor vendido ainda no período.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="pt-3 border-t border-border/50 text-[11px] text-muted-foreground italic flex items-center justify-between">
+                            <span>💡 Dica: Geladinhos artesanais de 150ml da Roze encantam pelo sabor!</span>
+                          </div>
+                        </div>
+
+                        {/* 2. Divisão por Forma de Pagamento */}
+                        <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between pb-3 border-b border-border/60">
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                                  <CreditCard className="h-4 w-4" />
+                                </div>
+                                <div>
+                                  <h4 className="text-sm font-bold text-foreground">
+                                    Divisão por Forma de Pagamento
+                                  </h4>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    Resumo das entradas do caixa por meio de recebimento
+                                  </p>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase">
+                                Resumo
+                              </span>
+                            </div>
+
+                            <div className="space-y-3 mt-3">
+                              {analytics.paymentDistribution.map((pay) => {
+                                const icons: Record<string, string> = {
+                                  Pix: "📱",
+                                  Dinheiro: "💵",
+                                  Cartao_Credito: "💳",
+                                  Cartao_Debito: "💳",
+                                };
+                                return (
+                                  <div key={pay.metodo} className="space-y-1">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                        <span>{icons[pay.metodo] || "💰"}</span>
+                                        <span>{pay.label}</span>
+                                        <span className="text-[11px] text-muted-foreground font-normal">
+                                          ({pay.quantidadeVendas} {pay.quantidadeVendas === 1 ? "venda" : "vendas"})
+                                        </span>
+                                      </span>
+                                      <span className="font-extrabold text-foreground">
+                                        {formatCurrency(pay.valor)} ({pay.percentual}%)
+                                      </span>
+                                    </div>
+                                    <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+                                      <div
+                                        className="h-full bg-primary rounded-full transition-all"
+                                        style={{ width: `${Math.min(100, Math.max(0, pay.percentual))}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {analytics.paymentDistribution.length === 0 && (
+                                <p className="text-xs text-muted-foreground py-4 text-center italic">
+                                  Nenhum pagamento registrado no período.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-border/50 flex items-center justify-between text-xs font-bold text-foreground">
+                            <span>Total Geral em Caixa:</span>
+                            <span className="text-rose-600 dark:text-rose-400 text-sm font-black">
+                              {formatCurrency(analytics.kpis.faturamentoTotal)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cashier Recent Sales & Stock Availability Table */}
                       <TablesSection
                         ultimasVendas={analytics.ultimasVendas}
                         reposicaoEstoque={analytics.reposicaoEstoque}
                         fichasTecnicas={snapshot?.fichasTecnicas || []}
+                        userRole={currentUser?.role}
                         onQuickStockChange={handleUpdateStock}
                         onOpenStockModal={() => {
                           setModalTab("estoque");
@@ -671,6 +922,7 @@ export function App() {
                         ultimasVendas={analytics.ultimasVendas}
                         reposicaoEstoque={analytics.reposicaoEstoque}
                         fichasTecnicas={snapshot?.fichasTecnicas || []}
+                        userRole={currentUser?.role}
                         onQuickStockChange={handleUpdateStock}
                         onOpenStockModal={() => {
                           setModalTab("estoque");
@@ -878,6 +1130,15 @@ export function App() {
           }
         }}
         canDismiss={Boolean(currentUser)}
+      />
+
+      <CashShiftModal
+        isOpen={cashShiftModalOpen}
+        onClose={() => setCashShiftModalOpen(false)}
+        currentShift={currentShift}
+        operadorNome={currentUser?.name || "Operador"}
+        vendas={analytics?.ultimasVendas || []}
+        onShiftUpdated={(shift) => setCurrentShift(shift)}
       />
 
       {/* Floating Refresh Success Toast */}
