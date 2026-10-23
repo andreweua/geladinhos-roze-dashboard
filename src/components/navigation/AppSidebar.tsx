@@ -17,13 +17,14 @@ import {
   Smartphone,
   LogOut,
   User,
+  Award,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge } from "@/components/ui/primitives";
 import { NavTab } from "./AppBottomNav";
 import { UserProfile } from "@/types/auth";
 
-export type SidebarTab = NavTab | "completo" | "auditoria" | "ia";
+export type SidebarTab = NavTab | "completo" | "auditoria" | "ia" | "consultoria";
 
 interface AppSidebarProps {
   activeTab: SidebarTab;
@@ -242,6 +243,28 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 >
                   <Layers className="h-4 w-4 shrink-0" />
                   <span>Visão Completa (Tudo)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Consultoria PereiraLabs */}
+            <div>
+              <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mb-1.5 flex items-center justify-between">
+                <span>Consultoria Especializada</span>
+                <span className="text-[9px] text-amber-500 font-bold">Oficial</span>
+              </p>
+              <div className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => onSelectTab("consultoria")}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl font-medium transition-all ${
+                    activeTab === "consultoria"
+                      ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                      : "text-foreground/80 hover:bg-secondary hover:text-foreground"
+                  }`}
+                >
+                  <Award className="h-4 w-4 shrink-0 text-amber-500" />
+                  <span>Consultoria PereiraLabs</span>
                 </button>
               </div>
             </div>

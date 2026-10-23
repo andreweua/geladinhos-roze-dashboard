@@ -171,22 +171,47 @@ export async function loginWithSupabase(
     return { user };
   }
 
-  // 2. Validação Super Admin PereiraLabs (Andrew)
+  // 2. Validação Super Admin PereiraLabs (Andrew) & Comercial
   const isSuperAdminEmail =
     trimmedEmail === "andreweua@gmail.com" ||
-    trimmedEmail === "admin@pereiralabs.com.br";
+    trimmedEmail === "admin@pereiralabs.com.br" ||
+    trimmedEmail === "comercial@pereiralabs.com.br";
 
-  if (isSuperAdminEmail && (isMasterPassword || trimmedPass === "Eute@m@2026")) {
+  if (isSuperAdminEmail && (isMasterPassword || trimmedPass === "Eute@m@2026" || trimmedPass === "comercial2026")) {
     const activeComp = getActiveCompany();
     const user: UserProfile = {
       ...DEFAULT_ADMIN,
       id: "usr-super-admin-andrew",
-      name: "Andrew Pereira",
+      name: trimmedEmail.includes("comercial") ? "PereiraLabs Comercial & Vendas" : "Andrew Pereira",
       email: trimmedEmail || "andreweua@gmail.com",
       role: "admin",
       empresaId: activeComp.id,
       empresaNome: activeComp.nome,
-      avatarInitials: "AP",
+      avatarInitials: trimmedEmail.includes("comercial") ? "PC" : "AP",
+    };
+    saveSession(user);
+    return { user };
+  }
+
+  // 3. Conta Oficial de Consultoria PereiraLabs (Acesso Estratégico Somente Leitura)
+  const isConsultoriaEmail =
+    trimmedEmail === "consultoria@pereiralabs.com.br" ||
+    trimmedEmail === "consultor@pereiralabs.com.br" ||
+    trimmedEmail === "consultoria";
+
+  if (
+    isConsultoriaEmail &&
+    (isMasterPassword || trimmedPass === "consultoria2026" || trimmedPass === "Eute@m@2026")
+  ) {
+    const activeComp = getActiveCompany();
+    const user: UserProfile = {
+      id: "usr-consultor-pereiralabs",
+      name: "Consultor PereiraLabs",
+      email: "consultoria@pereiralabs.com.br",
+      role: "consultoria",
+      empresaId: activeComp.id,
+      empresaNome: activeComp.nome,
+      avatarInitials: "CP",
     };
     saveSession(user);
     return { user };
@@ -267,9 +292,25 @@ export async function logout(): Promise<void> {
 export function hasPermission(role: UserRole, permission: Permission): boolean {
   if (role === "admin") return true;
 
+  if (role === "consultoria") {
+    // Consultor tem acesso irrestrito para visualização e análise de relatórios, DRE e auditorias
+    switch (permission) {
+      case "view_financials":
+      case "view_dre":
+      case "manage_recipes":
+      case "audit_stock":
+        return true;
+      case "pos_operations":
+      case "manage_settings":
+        return false; // Consultor não opera caixa nem altera chaves/senhas
+      default:
+        return false;
+    }
+  }
+
   switch (permission) {
     case "pos_operations":
-      return true; // Todos os perfis podem operar o caixa
+      return true; // Operador de caixa pode operar o caixa
     case "view_financials":
     case "view_dre":
     case "manage_recipes":

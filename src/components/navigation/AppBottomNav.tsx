@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { UserRole } from "@/types/auth";
 
-export type NavTab = "inicio" | "fichas" | "cotacoes" | "gestao";
+export type NavTab = "inicio" | "fichas" | "cotacoes" | "gestao" | "consultoria";
 
 interface AppBottomNavProps {
   activeTab: NavTab;

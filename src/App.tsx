@@ -36,6 +36,8 @@ import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
 import { ChangelogModal } from "@/components/ChangelogModal";
 import { PereiraLabsMasterModal } from "@/components/master/PereiraLabsMasterModal";
+import { ConsultingSection } from "@/components/ConsultingSection";
+import { logConsultingActivity } from "@/services/consultingService";
 import {
   getActiveCompany,
   getActiveCompanyId,
@@ -147,9 +149,9 @@ export function App() {
     getDateRangeForPreset("7dias")
   );
 
-  // Active App Section: "inicio" (default) | "fichas" | "cotacoes" | "gestao" | "completo"
+  // Active App Section: "inicio" (default) | "fichas" | "cotacoes" | "gestao" | "completo" | "consultoria"
   const [activeSection, setActiveSection] = useState<
-    "inicio" | "fichas" | "cotacoes" | "gestao" | "completo"
+    "inicio" | "fichas" | "cotacoes" | "gestao" | "completo" | "consultoria"
   >("inicio");
 
   // Sub-aba de Gestão & Inteligência ("ia" | "auditoria")
@@ -295,6 +297,7 @@ export function App() {
     }
     document.title = `${activeCompany.nome} | PereiraLabs PDV - Foods`;
   }, [activeCompany]);
+
   const [currentShift, setCurrentShift] = useState<CashShift | null>(() =>
     getCurrentShift()
   );
@@ -309,6 +312,49 @@ export function App() {
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(
     () => !getCurrentUser() && !parsePermanentReceiptFromUrl()
   );
+
+  // Se o usuário logado for Consultor PereiraLabs, registra log transparente de visualização
+  useEffect(() => {
+    if (currentUser?.role === "consultoria") {
+      const sectionMap: Record<string, { acao: string; categoria: any }> = {
+        inicio: {
+          acao: "Visualizou Painel Geral & Indicadores de Faturamento",
+          categoria: "vendas",
+        },
+        fichas: {
+          acao: "Analisou Fichas Técnicas & Demonstrativo DRE",
+          categoria: "fichas_tecnicas",
+        },
+        cotacoes: {
+          acao: "Inspecionou Cotações de Insumos & Mercados Locais",
+          categoria: "estoque",
+        },
+        gestao: {
+          acao: "Acessou Auditoria Física & Previsões de IA",
+          categoria: "inteligencia_ia",
+        },
+        consultoria: {
+          acao: "Acessou Painel de Consultoria & Diagnósticos",
+          categoria: "dre",
+        },
+        completo: {
+          acao: "Inspecionou Visão Panorâmica Completa do Estabelecimento",
+          categoria: "vendas",
+        },
+      };
+      const info = sectionMap[activeSection] || {
+        acao: `Visualizou seção ${activeSection}`,
+        categoria: "vendas",
+      };
+      logConsultingActivity({
+        empresaId: activeCompany.id,
+        consultorNome: currentUser.name || "Consultor PereiraLabs",
+        consultorEmail: currentUser.email || "consultoria@pereiralabs.com.br",
+        acao: info.acao,
+        categoria: info.categoria,
+      });
+    }
+  }, [activeSection, currentUser, activeCompany.id]);
 
   useEffect(() => {
     return subscribeAuthChange((updatedUser) => {
@@ -402,6 +448,10 @@ export function App() {
   };
 
   const handleOpenPos = useCallback(() => {
+    if (currentUser?.role === "consultoria") {
+      alert("Acesso Somente Leitura: Usuários do perfil Consultoria possuem permissão estritamente analítica e não podem operar vendas.");
+      return;
+    }
     // Validação estrita: nem o administrador nem o operador podem vender sem antes abrir o caixa
     const activeShift = getCurrentShift();
     if (!activeShift) {
@@ -410,9 +460,12 @@ export function App() {
       return;
     }
     setPosModalOpen(true);
-  }, []);
+  }, [currentUser]);
 
   const handleSubmitSale = async (payload: NewSalePayload) => {
+    if (currentUser?.role === "consultoria") {
+      throw new Error("Acesso Somente Leitura: O perfil de Consultoria não pode registrar vendas.");
+    }
     // Validação estrita: trava caso o caixa esteja fechado
     const activeShift = getCurrentShift();
     if (!activeShift) {
@@ -430,6 +483,10 @@ export function App() {
     motivo: string,
     devolverAoEstoque: boolean
   ) => {
+    if (currentUser?.role === "consultoria") {
+      alert("Acesso Somente Leitura: Consultores não podem cancelar ou estornar vendas.");
+      return;
+    }
     const updated = await cancelOrRefundSale(vendaId, motivo, devolverAoEstoque);
     setSnapshot(updated);
   };
@@ -443,6 +500,10 @@ export function App() {
       observacoes?: string;
     }
   ) => {
+    if (currentUser?.role === "consultoria") {
+      alert("Acesso Somente Leitura: O perfil de Consultoria não tem permissão para alterar saldos de estoque.");
+      return;
+    }
     const updated = await updateProductStock(produtoId, newQty, auditInfo);
     setSnapshot(updated);
   };
@@ -1165,6 +1226,15 @@ export function App() {
                     />
                   )}
                 </div>
+              )}
+
+              {/* TELA 6: CONSULTORIA PEREIRALABS */}
+              {activeSection === "consultoria" && (
+                <ConsultingSection
+                  empresaId={activeCompany.id}
+                  empresaNome={activeCompany.nome}
+                  currentUser={currentUser}
+                />
               )}
             </>
           )}

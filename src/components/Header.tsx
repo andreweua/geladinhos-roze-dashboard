@@ -230,7 +230,11 @@ export const Header: React.FC<HeaderProps> = ({
                   {currentUser?.name || BRAND_CONFIG.userProfile.name}
                 </p>
                 <p className="text-[9px] text-muted-foreground">
-                  {isCashier ? "🛍️ Caixa" : "👑 Admin"}
+                  {isCashier
+                    ? "🛍️ Caixa"
+                    : currentUser?.role === "consultoria"
+                    ? "👁️ Consultor PereiraLabs (Leitura)"
+                    : "👑 Admin"}
                 </p>
               </div>
             </button>
