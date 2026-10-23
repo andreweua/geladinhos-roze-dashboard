@@ -1,90 +1,121 @@
-# 🍧 Geladinhos Gourmet da Roze — Dashboard Gerencial (PWA & White-Label)
+# 🍧 Geladinhos Gourmet da Roze — Sistema de Gestão, PDV & Inteligência Artificial
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-1.9.0-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-3.1.0-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Praças](https://img.shields.io/badge/Pra%C3%A7as-Ja%C3%BA%20(SP)%20%7C%20Tr%C3%AAs%20Pontas%20(MG)-2563eb)
-![Atacado & Varejo](https://img.shields.io/badge/Atacado%20%26%20Varejo-Mart%20Minas%20%7C%20Atacad%C3%A3o-f59e0b)
-![Anti-Inflação](https://img.shields.io/badge/Validade%20%26%20Radar-Anti--Infla%C3%A7%C3%A3o-10b981)
+![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK-38bdf8)
+![Segurança de Caixa](https://img.shields.io/badge/Caixa-Abertura%20Obrigat%C3%B3ria-10b981)
+![Stone OpenBank](https://img.shields.io/badge/Stone%20OpenBank-Pix%20Din%C3%A2mico-00a868)
+![CRM WhatsApp](https://img.shields.io/badge/CRM-WhatsApp%20por%20Telefone-25d366)
 
-Dashboard financeiro, operacional, de Frente de Caixa (PDV) e Inteligência Artificial desenvolvido em **React + Vite + TypeScript + Tailwind CSS + Shadcn/UI + Recharts + Supabase (PostgreSQL) + PereiraLabs IA**, com suporte a **Pix QR Code Ton (BR Code EMV dinâmico)**, integração com **WhatsApp**, **Pesquisa de Mercados em Jaú (SP) e Três Pontas (MG)**, **Controle de Validade de Ofertas**, **Radar de Inflação & Oportunidade de Estocar**, **Preços Pagos Reais via Cupom/NF-e** e instalação como **PWA**.
+Sistema integrado de gestão financeira, frente de caixa (PDV), controle de estoque, auditoria e inteligência artificial desenvolvido em **React 18 + Vite 6 + TypeScript + Tailwind CSS + Capacitor (Android) + Supabase (PostgreSQL) + PereiraLabs IA**.
 
-- 🌐 **Acesse a Demonstração Online (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
-- 📋 **Histórico de Versões**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
-
----
-
-## 📊 Funcionalidades Principais
-
-1. **Pré-Cadastro Regional Jaú (SP) e Três Pontas (MG) + Atacado e Varejo (`v1.9.0`)**:
-   - Estabelecimentos pré-cadastrados com endereços físicos completos e canais eletrônicos: *Mart Minas Atacado & Varejo (Sul de Minas)*, *Atacadão Jaú*, *Jaú Serve Supermercados*, *Tenda Atacado*, *Supermercado Moacyr*, *Alvorada Supermercados* e *Jaú Embalagens*.
-   - Suporte oficial ao tipo **"Atacado e Varejo"** (Atacarejos).
-2. **Validade de Ofertas & Radar Anti-Inflação (`v1.9.0`)**:
-   - Bloqueio automático: cotações expiradas não concorrem ao "Menor Preço Vigente Hoje".
-   - Histórico permanente com cálculo de inflação acumulada ao longo dos meses e anos.
-   - Alerta inteligente: `🔥 Oportunidade de Estocar` acionado quando o preço vigente está $\ge 12\%$ a $15\%$ mais barato que a média histórica.
-3. **Gestão de Custos de Insumos: Custo de Reposição vs. Custo Médio Ponderado (CMP)**:
-   - Permite escolher entre precificar pelo custo da última reposição (recomendado para proteger a margem contra a inflação) ou pelo CMP (para compras em grande escala).
-4. **100% Dados Reais**:
-   - Sem vendas fictícias. O painel opera exclusivamente com as 8 receitas reais dos PDFs e vendas reais lançadas pela Rozana no Frente de Caixa (PDV).
-5. **Frente de Caixa (PDV) com Pix Ton Dinâmico & WhatsApp**:
-   - QR Code Pix BACEN EMV Payload oficial com chave Ton da titular `ROZANA HELENA MIGUEL` (`+5514988183327`), botão Copiar Pix e envio direto para WhatsApp.
-4. **Arquitetura de Navegação**:
-   - **1. Visão Geral de Vendas**: 5 KPIs, 5 Gráficos Analíticos, Tabelas de Últimas Vendas e Reposição.
-   - **2. Ficha Técnica & DRE por Produto**: Matriz comparativa dos 8 sabores, precificação iFood dinâmica (`Preço Local / 0,738`) e editor de receitas.
-   - **3. Pesquisa de Mercados & Preços Pagos**: Estabelecimentos, Cotações Locais e Cupons Fiscais Reais.
-   - **4. Central de Inteligência PereiraLabs IA**: Planejador de produção anti-ruptura, Lista de compras com sobras, Matriz BCG e simulador financeiro.
-4. **2 Tabelas Operacionais + Central Rápida**:
-   - **Tabela de Últimas Vendas** e **Tabela de Reposição de Estoque** (com ajuste rápido `-1`, `+1`, `+10`)
-   - **Modal Central Rápida** para lançar novas vendas (abatendo estoque automaticamente) e cadastrar novos sabores.
-5. **Filtros Globais de Período**:
-   - *Hoje, Ontem, 7 dias, Este mês, Mês passado, 3 meses e Personalizado*.
+- 🌐 **Demonstração Online (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
+- 📋 **Histórico Completo de Alterações**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
 
 ---
 
-## 📱 Suporte PWA (Android & iOS)
+## 🚀 Novidades da Versão 3.1.0
 
-- **Android (Chrome / Edge / Samsung Internet)**: Gera instalação nativa (**WebAPK**) via `manifest.webmanifest`, ícones PNG `192x192` e `512x512` (*maskable*) e botão **Instalar App** com suporte ao evento `beforeinstallprompt`.
-- **iOS (iPhone / iPad no Safari)**: Meta tags `apple-mobile-web-app-capable`, `apple-touch-icon.png` (`180x180`), suporte a `viewport-fit=cover` e guia interativo passo a passo (*Compartilhar -> Adicionar à Tela de Início*).
-- **Atalhos na Tela Inicial**: Segure o ícone do app instalado para acessar diretamente **Nova Venda** ou **Repor Estoque**.
+### 1. 🔒 Segurança Operacional & Controle Estrito de Caixa
+- **Abertura Obrigatória de Caixa**: Tanto o **Administrador** quanto o **Operador de Caixa** são impedidos de lançar vendas sem antes abrir o turno de caixa informando a contagem de fundo de troco inicial. Qualquer tentativa de acesso ao PDV redireciona automaticamente para a abertura de caixa.
+- **Fechamento de Caixa estilo Cupom Fiscal**: Relatório para envio via WhatsApp com padrão de cupom não fiscal (`===`), contagem de gaveta (cédulas/moedas), total de vendas por forma de recebimento, conferência da maquininha de cartão e balanço automático de sobra ou falta no caixa.
+
+### 2. 🛵 Rastreamento de Canais de Venda (Origem)
+- **Seleção no PDV**: Identificação com um clique do canal de onde veio o pedido:
+  - 🏪 **Balcão** (Presencial)
+  - 🛵 **iFood** (Delivery)
+  - 📱 **WhatsApp** (Encomendas)
+  - 📸 **Instagram** (Direct)
+  - 📦 **Outros** (Eventos e parceiros)
+- **Gráfico Analítico de Origem**: No painel do Administrador, o **Gráfico 3** permite alternar instantaneamente entre **"Pagamento"** e **"Canal / Origem"**, demonstrando o faturamento e volume de cada canal de venda.
+- **Histórico com Tags**: A tabela de últimas vendas exibe a origem de cada venda realizada.
+
+### 3. 👥 CRM Inteligente com Chave Única por Telefone (WhatsApp)
+- **Cadastro Automático & Zero Fricção**: O número de WhatsApp do cliente serve como chave primária única sem exigir senhas ou cadastros prévios demorados.
+- **Autocomplete em Tempo Real**: Ao digitar o telefone ou o nome do cliente no PDV, o sistema busca e sugere clientes cadastrados, exibindo o número de compras acumuladas e badge de fidelidade.
+- **Histórico & Sabores Favoritos**: O sistema calcula automaticamente o ticket médio, valor total gasto e o ranking dos sabores que o cliente mais compra.
+
+### 4. 🧾 Emissão e Exportação de Cupons Permanentes (Sem Custo de Storage)
+- **Links Permanentes Auto-Contidos**: Os dados da venda são compactados e codificados na própria URL (Base64), permitindo que o cliente abra e baixe o cupom meses ou anos depois sem custos de hospedagem de arquivos em nuvem.
+- **4 Formatos de Exportação**:
+  - 📄 **PDF Térmico (80mm)**: Formatado para leitura no celular ou impressoras térmicas não fiscais de balcão.
+  - 📝 **Texto (.txt)**: Texto estruturado com lista de compras limpa para anotações e controles pessoais.
+  - 📊 **CSV Financeiro (.csv)**: Com delimitador padrão e UTF-8 BOM, pronto para abrir no Excel, Google Sheets, Mobills, Organizze e Notion.
+  - 🏦 **OFX Bancário (.ofx)**: Padrão universal para importação em softwares de contabilidade e ERPs.
 
 ---
 
-## 🚀 Como Rodar Localmente
+## 📊 Principais Módulos da Aplicação
+
+1. **Frente de Caixa (PDV) & Meios de Pagamento**:
+   - Pix Dinâmico Stone OpenBank com liquidação em tempo real via Webhook e WebSocket.
+   - Fallback dinâmico Ton Pix BACEN (chave oficial) com QR Code EMV e chave Copia e Cola.
+   - Venda no Cartão de Crédito, Débito e Dinheiro com calculadora automática de troco.
+2. **Visão Geral & Inteligência Analítica**:
+   - 5 KPIs Financeiros em tempo real (Faturamento, Lucro Líquido, Unidades Vendidas, Ticket Médio e Alerta de Estoque Baixo).
+   - 5 Gráficos Recharts (Evolução Diária, Top 5 Sabores, Pagamento vs. Canal, Nível de Estoque e Margem de Contribuição).
+3. **Fichas Técnicas & Engenharia de Receitas (150ml)**:
+   - 8 Fichas Técnicas reais dos cadernos oficiais da confeitaria.
+   - Precificação dinâmica para o iFood ($\text{Preço} / 0,738$) garantindo lucro idêntico ao balcão.
+   - DRE individual por produto e matriz comparativa de rentabilidade.
+4. **Pesquisa de Mercados & Radar Anti-Inflação**:
+   - Cotações com cálculo de preço normalizado por Kg e Litro nas praças de Jaú (SP) e Três Pontas (MG).
+   - Alerta `🔥 Oportunidade de Estocar` e validação de ofertas vigentes.
+   - Scanner de código de barras físico (EAN / GTIN) via câmera do celular.
+5. **Auditoria de Estoque & Controle de Perdas**:
+   - Reposição por rendimento de receitas inteiras ou ajuste administrativo manual.
+   - Registro formal de perdas/avarias com justificativa e disparo de alerta por e-mail.
+6. **Central de Inteligência PereiraLabs IA**:
+   - Planejamento de produção anti-ruptura ("O que produzir hoje?").
+   - Lista de compras com dedução automática de sobras disponíveis na despensa.
+   - Consultor Financeiro e Operacional 24h (Motor local + Google Gemini 2.0 Flash).
+
+---
+
+## 📱 Suporte PWA e Aplicativo Android Nativo
+
+- **Aplicativo Android Nativo (Capacitor)**:
+  - Projeto integrado via `@capacitor/android` e `@capacitor-mlkit/barcode-scanning`.
+  - Sincronização automatizada com `npx cap copy android`.
+- **PWA (Progressive Web App)**:
+  - Instalação nativa em Android (WebAPK) e iOS (Safari Adicionar à Tela de Início).
+  - Suporte offline via Service Worker (`public/sw.js`).
+  - Atalhos na tela de início para "Nova Venda" e "Repor Estoque".
+
+---
+
+## 🚀 Como Executar o Projeto
 
 ```bash
+# Instalar dependências
 npm install
+
+# Iniciar servidor de desenvolvimento local
 npm run dev
-```
 
-Para gerar o pacote de produção ou regerar os ícones PNG do PWA:
-
-```bash
-node scripts/generate-pwa-icons.mjs
+# Compilar para produção e validar tipos TypeScript
 npm run build
+
+# Sincronizar alterações com o projeto Android Capacitor
+npx cap copy android
 ```
 
 ---
 
-## 🔄 Como Replicar para Outro Cliente (Arquitetura White-Label)
+## 🔄 Arquitetura White-Label
 
-Toda a configuração de marca, rótulos de produtos, limites de estoque e cores está centralizada em **2 arquivos**:
+A personalização de marca e configurações centrais pode ser feita tanto via código quanto diretamente pela interface da empresa:
 
-1. **[`src/config/brand.config.ts`](./src/config/brand.config.ts)**:
-   - Altere `companyName`, `shortName`, `tagline`, `lowStockThreshold`, `userProfile`, `labels` e `chartColors`.
-2. **[`src/index.css`](./src/index.css)**:
-   - Ajuste as variáveis CSS HSL (`--primary`, `--secondary`, `--accent`) para alterar o tema claro e escuro.
-
----
-
-## 🗄️ Conexão com Supabase (Modo Híbrido)
-
-- **Sem `.env` (Modo Demo Ativo)**: Funciona imediatamente com dados realistas de 90 dias e salva novas vendas e reposições no `localStorage`.
-- **Com Supabase Online**:
-  1. Execute o script [`supabase/schema_and_seed.sql`](./supabase/schema_and_seed.sql) no SQL Editor do seu projeto Supabase.
-  2. Copie `.env.example` para `.env` e preencha `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
+1. **Via Painel de Configurações**: Ícone de engrenagem no cabeçalho com salvamento persistente.
+2. **Via Código-Fonte**: [`src/config/brand.config.ts`](./src/config/brand.config.ts) e [`src/index.css`](./src/index.css).
 
 ---
 
 ## ✒️ Créditos e Autoria
 
-**Desenvolvido por PereiraLabs - Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais**
+```text
+Desenvolvido por:
+PereiraLabs
+Divisão de Tecnologia e IA
+Louzada & Pereira - Soluções Digitais
+```

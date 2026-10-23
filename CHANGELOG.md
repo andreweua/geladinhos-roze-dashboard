@@ -7,6 +7,67 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.1.0] - 2026-10-23
+
+### Segurança & Controle Operacional
+- **Abertura Obrigatória de Caixa**: Bloqueio rigoroso de vendas para qualquer perfil (Administrador e Operador de Caixa) caso o caixa esteja fechado. Tentativas de acesso ao PDV redirecionam automaticamente para a contagem de fundo de troco inicial.
+- **Fechamento de Caixa estilo Cupom Fiscal**: Relatório para envio via WhatsApp totalmente reformatado com cabeçalho oficial, divisórias duplas `===`, apuração física na gaveta (dinheiro/moedas), conferência da maquininha de cartão e balanço automático de sobra/falta.
+- **Rastreamento de Origem das Vendas (Canais)**:
+  - Seleção ágil no PDV do canal da venda (*Balcão Presencial, iFood Delivery, WhatsApp Encomenda, Instagram Direct, Outros Canais*).
+  - Novo gráfico analítico e seletor alternável no Dashboard Gerencial (Gráfico 3: *Pagamento vs. Canal / Origem*), detalhando faturamento e volume por canal.
+  - Tag de origem exibida em cada registro da tabela de últimas vendas.
+- **CRM Automático do Cliente pelo WhatsApp**:
+  - Telefone como identificador exclusivo (ID único) sem fricção de senhas.
+  - Autocomplete inteligente no PDV ao digitar o telefone ou o nome, exibindo total de compras acumuladas e badge de cliente cadastrado.
+  - Gravação automática a cada venda, atualizando ticket médio, data da última compra e ranking dos sabores favoritos do cliente.
+- **Padronização da Assinatura de Desenvolvimento**:
+  - Inclusão oficial do crédito formatado em todos os cupons (PDF, TXT), relatórios de caixa e rodapé:
+    ```text
+    Desenvolvido por:
+    PereiraLabs
+    Divisão de Tecnologia e IA
+    Louzada & Pereira - Soluções Digitais
+    ```
+
+---
+
+## [3.0.0] - 2026-10-22
+
+### Adicionado & Aprimorado
+- **Módulo de Turnos de Caixa (Abertura e Fechamento)**:
+  - Abertura de turno com registro do operador e fundo de troco inicial detalhado (cédulas, moedas e saldo prévio na maquininha).
+  - Fechamento com contagem física, conferência cega contra o saldo teórico do sistema e cálculo de diferença.
+- **Pix Dinâmico Stone OpenBank com Liquidação em Tempo Real**:
+  - Geração de cobranças Pix via API Stone OpenBank com QR Code dinâmico e txid exclusivo.
+  - Monitoramento em tempo real via WebSocket / Realtime para baixa e liquidação imediata da venda com webhook bancário.
+- **Emissão e Exportação de Cupons Não Fiscais Permanentes**:
+  - Exportação em **PDF térmico profissional de 80mm** (padrão impressora não fiscal).
+  - Exportação em **TXT** para envio por chat ou impressão térmica direta.
+  - Exportação em **CSV** para importação em Excel, Google Sheets, Mobills, Organizze e apps de finanças.
+  - Exportação em **OFX** (formato bancário universal) para softwares ERP e contábeis.
+  - **Links Permanentes sem Custo de Storage**: Dados do cupom compactados e codificados na URL (Base64), permitindo que o cliente abra e baixe seu comprovante meses após a compra com custo zero de infraestrutura e hospedagem.
+- **Perfil Exclusivo de Operador de Caixa**:
+  - Sistema de permissões restringindo o operador à tela de vendas e operações de turno, protegendo margens, fichas técnicas e relatórios gerenciais da administração.
+- **Reposição Inteligente de Estoque**:
+  - Reposição em múltiplos exatos do rendimento de cada receita (ex: +8, +10, +14 un.) ou valor digitado pelo administrador com a ação renomeada para *"Acertar Estoque"*.
+  - Exibição dos Top 5 sabores mais vendidos na tela do vendedor para apoio a vendas e sugestão a clientes.
+
+---
+
+## [2.0.0] - 2026-10-21
+
+### Adicionado & Aprimorado
+- **Auditoria de Estoque & Controle de Perdas**:
+  - Registro de ajustes manuais de estoque com motivo obrigatório (*avaria de embalagem, vencimento, descarte de calda, consumo interno*).
+  - Disparo de e-mails automáticos de auditoria para os sócios e administradores com dados do delta e operador responsável.
+- **Scanner de Código de Barras (EAN / GTIN)**:
+  - Integração nativa com a câmera do dispositivo via ZXing no navegador e `@capacitor-mlkit/barcode-scanning` no Android para escaneamento físico de insumos no mercado.
+  - Integração com a base de dados pública RSC GTIN para preenchimento de nome do produto e foto.
+- **Painel de Configurações White-Label em Tempo Real**:
+  - Modal interativo para edição de nome da empresa, taxas da maquininha Ton, credenciais do Supabase, bases operacionais e chaves Pix diretamente no navegador.
+
+---
+
 ## [1.9.0] - 2026-10-20
 
 ### Adicionado & Aprimorado
