@@ -65,22 +65,22 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const isCashier = currentUser?.role === "operador_caixa";
 
   return (
-    <aside className="hidden md:flex w-64 lg:w-72 shrink-0 flex-col border-r border-border/80 bg-card/90 backdrop-blur-md h-screen sticky top-0">
+    <aside className="hidden md:flex w-64 lg:w-72 shrink-0 flex-col border-r border-border/80 bg-card/90 backdrop-blur-md h-screen sticky top-0 overflow-hidden">
       {/* Brand Header */}
-      <div className="p-4 lg:p-5 border-b border-border/70 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="p-3.5 lg:p-4 border-b border-border/70 flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
             <IceCreamCone className="h-5 w-5" />
             <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 text-[9px] text-white shadow">
               <Sparkles className="h-2 w-2" />
             </span>
           </div>
-          <div className="overflow-hidden">
-            <h2 className="text-sm font-bold tracking-tight text-foreground truncate">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xs lg:text-sm font-bold tracking-tight text-foreground truncate">
               {currentUser?.empresaNome || BRAND_CONFIG.companyName}
             </h2>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
               <p className="text-[11px] text-muted-foreground truncate">
                 {dataSource === "supabase" ? "Nuvem Ativa" : "Modo Local"}
               </p>
@@ -91,8 +91,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         <button
           type="button"
           onClick={onRefresh}
-          title="Sincronizar Dados"
-          className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          title="Sincronizar / Atualizar Dados"
+          className="shrink-0 rounded-xl p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors border border-border/60 hover:border-border"
         >
           <RefreshCw
             className={`h-4 w-4 ${isRefreshing ? "animate-spin text-primary" : ""}`}

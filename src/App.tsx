@@ -34,6 +34,7 @@ import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CashShiftModal } from "@/components/cash/CashShiftModal";
 import { CashShift, getCurrentShift } from "@/services/cashShiftService";
 import { AuthScreen } from "@/components/auth/AuthScreen";
@@ -1112,11 +1113,16 @@ export function App() {
         isInstalled={isPwaInstalled}
       />
 
-      <CompanySettingsModal
-        isOpen={settingsModalOpen}
-        onClose={() => setSettingsModalOpen(false)}
-        onConfigSaved={loadData}
-      />
+      <ErrorBoundary
+        fallbackTitle="Falha ao abrir Configurações"
+        onReset={() => setSettingsModalOpen(false)}
+      >
+        <CompanySettingsModal
+          isOpen={settingsModalOpen}
+          onClose={() => setSettingsModalOpen(false)}
+          onConfigSaved={loadData}
+        />
+      </ErrorBoundary>
 
       <AuthScreen
         isOpen={authModalOpen}

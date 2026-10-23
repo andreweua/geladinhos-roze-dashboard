@@ -189,19 +189,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-foreground mb-1.5">
-                Senha de Acesso
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-semibold text-foreground">
+                  Senha de Acesso
+                </label>
+                <span className="text-[11px] text-primary font-bold">
+                  Padrão: admin
+                </span>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="admin"
                   className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
               </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                💡 Digite <strong>admin</strong> ou simplesmente clique no botão abaixo.
+              </p>
             </div>
 
             <Button

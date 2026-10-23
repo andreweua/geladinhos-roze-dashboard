@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   X,
   Building2,
@@ -44,25 +44,26 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   >("pix_ton");
 
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [copiedSyncLink, setCopiedSyncLink] = useState(false);
 
   // Load live config
   const currentConfig = getCustomBrandConfig();
 
   // Form State
   const [formData, setFormData] = useState({
-    companyName: currentConfig.companyName,
-    merchantName: currentConfig.tonConfig.merchantName,
-    merchantCity: currentConfig.tonConfig.merchantCity,
-    tagline: currentConfig.tagline,
-    whatsappNumber: currentConfig.tonConfig.whatsappNumber,
+    companyName: currentConfig.companyName || BRAND_CONFIG.companyName,
+    merchantName: currentConfig.tonConfig?.merchantName || BRAND_CONFIG.tonConfig.merchantName,
+    merchantCity: currentConfig.tonConfig?.merchantCity || BRAND_CONFIG.tonConfig.merchantCity,
+    tagline: currentConfig.tagline || BRAND_CONFIG.tagline,
+    whatsappNumber: currentConfig.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
 
     // Pix & TON
-    pixKey: currentConfig.tonConfig.pixKey,
-    pixKeyType: currentConfig.tonConfig.pixKeyType,
-    ratePix: currentConfig.tonConfig.rates.Pix,
-    rateDinheiro: currentConfig.tonConfig.rates.Dinheiro,
-    rateDebito: currentConfig.tonConfig.rates.Cartao_Debito,
-    rateCredito: currentConfig.tonConfig.rates.Cartao_Credito,
+    pixKey: currentConfig.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
+    pixKeyType: currentConfig.tonConfig?.pixKeyType || BRAND_CONFIG.tonConfig.pixKeyType,
+    ratePix: currentConfig.tonConfig?.rates?.Pix ?? BRAND_CONFIG.tonConfig.rates.Pix,
+    rateDinheiro: currentConfig.tonConfig?.rates?.Dinheiro ?? BRAND_CONFIG.tonConfig.rates.Dinheiro,
+    rateDebito: currentConfig.tonConfig?.rates?.Cartao_Debito ?? BRAND_CONFIG.tonConfig.rates.Cartao_Debito,
+    rateCredito: currentConfig.tonConfig?.rates?.Cartao_Credito ?? BRAND_CONFIG.tonConfig.rates.Cartao_Credito,
 
     // Stone OpenBank API
     stoneEnv: currentConfig.stoneConfig?.environment || "sandbox",
@@ -72,19 +73,50 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     stoneWebhookSecret: currentConfig.stoneConfig?.webhookSecret || "",
 
     // Polos Operacionais
-    jauResponsavel: currentConfig.basesOperacionais.jau.responsavel,
-    jauCep: currentConfig.basesOperacionais.jau.cep,
-    jauLogradouro: currentConfig.basesOperacionais.jau.logradouro,
-    tresPontasResponsavel: currentConfig.basesOperacionais.tresPontas.responsavel,
-    tresPontasCep: currentConfig.basesOperacionais.tresPontas.cep,
-    tresPontasLogradouro: currentConfig.basesOperacionais.tresPontas.logradouro,
+    jauResponsavel: currentConfig.basesOperacionais?.jau?.responsavel || BRAND_CONFIG.basesOperacionais.jau.responsavel,
+    jauCep: currentConfig.basesOperacionais?.jau?.cep || BRAND_CONFIG.basesOperacionais.jau.cep,
+    jauLogradouro: currentConfig.basesOperacionais?.jau?.logradouro || BRAND_CONFIG.basesOperacionais.jau.logradouro,
+    tresPontasResponsavel: currentConfig.basesOperacionais?.tresPontas?.responsavel || BRAND_CONFIG.basesOperacionais.tresPontas.responsavel,
+    tresPontasCep: currentConfig.basesOperacionais?.tresPontas?.cep || BRAND_CONFIG.basesOperacionais.tresPontas.cep,
+    tresPontasLogradouro: currentConfig.basesOperacionais?.tresPontas?.logradouro || BRAND_CONFIG.basesOperacionais.tresPontas.logradouro,
 
     // Supabase Cloud Sync
     supabaseUrl: currentConfig.supabaseConfig?.supabaseUrl || "",
     supabaseAnonKey: currentConfig.supabaseConfig?.supabaseAnonKey || "",
   });
 
-  if (!isOpen) return null;
+  // Re-sync form whenever modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      const live = getCustomBrandConfig();
+      setFormData({
+        companyName: live.companyName || BRAND_CONFIG.companyName,
+        merchantName: live.tonConfig?.merchantName || BRAND_CONFIG.tonConfig.merchantName,
+        merchantCity: live.tonConfig?.merchantCity || BRAND_CONFIG.tonConfig.merchantCity,
+        tagline: live.tagline || BRAND_CONFIG.tagline,
+        whatsappNumber: live.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
+        pixKey: live.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
+        pixKeyType: live.tonConfig?.pixKeyType || BRAND_CONFIG.tonConfig.pixKeyType,
+        ratePix: live.tonConfig?.rates?.Pix ?? BRAND_CONFIG.tonConfig.rates.Pix,
+        rateDinheiro: live.tonConfig?.rates?.Dinheiro ?? BRAND_CONFIG.tonConfig.rates.Dinheiro,
+        rateDebito: live.tonConfig?.rates?.Cartao_Debito ?? BRAND_CONFIG.tonConfig.rates.Cartao_Debito,
+        rateCredito: live.tonConfig?.rates?.Cartao_Credito ?? BRAND_CONFIG.tonConfig.rates.Cartao_Credito,
+        stoneEnv: live.stoneConfig?.environment || "sandbox",
+        stoneClientId: live.stoneConfig?.clientId || "",
+        stoneClientSecret: live.stoneConfig?.clientSecret || "",
+        stoneAccountId: live.stoneConfig?.accountId || "",
+        stoneWebhookSecret: live.stoneConfig?.webhookSecret || "",
+        jauResponsavel: live.basesOperacionais?.jau?.responsavel || BRAND_CONFIG.basesOperacionais.jau.responsavel,
+        jauCep: live.basesOperacionais?.jau?.cep || BRAND_CONFIG.basesOperacionais.jau.cep,
+        jauLogradouro: live.basesOperacionais?.jau?.logradouro || BRAND_CONFIG.basesOperacionais.jau.logradouro,
+        tresPontasResponsavel: live.basesOperacionais?.tresPontas?.responsavel || BRAND_CONFIG.basesOperacionais.tresPontas.responsavel,
+        tresPontasCep: live.basesOperacionais?.tresPontas?.cep || BRAND_CONFIG.basesOperacionais.tresPontas.cep,
+        tresPontasLogradouro: live.basesOperacionais?.tresPontas?.logradouro || BRAND_CONFIG.basesOperacionais.tresPontas.logradouro,
+        supabaseUrl: live.supabaseConfig?.supabaseUrl || "",
+        supabaseAnonKey: live.supabaseConfig?.supabaseAnonKey || "",
+      });
+    }
+  }, [isOpen]);
 
   const handleSave = () => {
     const updated: Partial<BrandConfig> = {
@@ -206,8 +238,6 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     }
   };
 
-  const [copiedSyncLink, setCopiedSyncLink] = useState(false);
-
   const generateMagicSyncUrl = () => {
     const configToSync: Partial<BrandConfig> = {
       companyName: formData.companyName.trim() || BRAND_CONFIG.companyName,
@@ -255,6 +285,8 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(msg)}`;
     window.open(waUrl, "_blank");
   };
+
+  if (!isOpen) return null;
 
   return (
     <div
