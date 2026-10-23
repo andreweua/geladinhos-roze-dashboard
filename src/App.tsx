@@ -54,6 +54,7 @@ import {
   computeDashboardAnalytics,
   getDateRangeForPreset,
 } from "@/lib/analytics";
+import { checkIsSupabaseConfigured, supabase } from "@/lib/supabase";
 import {
   cancelOrRefundSale,
   createNewProduct,
@@ -215,6 +216,53 @@ export function App() {
 
   useEffect(() => {
     loadData(false);
+  }, [loadData]);
+
+  // Sincronização em Tempo Real (Supabase Realtime) e atualização ao voltar ao app
+  useEffect(() => {
+    if (!checkIsSupabaseConfigured() || !supabase) return;
+
+    // 1. Escuta alterações em tempo real na nuvem (vendas e estoque)
+    const channel = supabase
+      .channel("live-db-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "vendas" },
+        () => {
+          loadData(false);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "estoque_lotes" },
+        () => {
+          loadData(false);
+        }
+      )
+      .subscribe();
+
+    // 2. Atualiza ao alternar de aplicativo ou desbloquear a tela do celular
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadData(false);
+      }
+    };
+    window.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleVisibilityChange);
+
+    // 3. Polling de sincronização a cada 20 segundos enquanto a tela estiver aberta
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadData(false);
+      }
+    }, 20000);
+
+    return () => {
+      supabase?.removeChannel(channel);
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleVisibilityChange);
+      clearInterval(interval);
+    };
   }, [loadData]);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [modalTab, setModalTab] = useState<"venda" | "estoque">("venda");

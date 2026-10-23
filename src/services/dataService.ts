@@ -591,9 +591,183 @@ export function resetLocalDemoData(): DashboardDataSnapshot {
   return fresh;
 }
 
+/**
+ * Remove qualquer venda ou item local órfão mantendo apenas a base oficial da nuvem.
+ */
+export function clearOrphanLocalSales(): void {
+  try {
+    const localSnap = getLocalSnapshot();
+    const cleanSnap: DashboardDataSnapshot = {
+      ...localSnap,
+      vendas: [],
+      itensVenda: [],
+      lastSyncedAt: new Date().toISOString(),
+    };
+    saveLocalSnapshot(cleanSnap);
+  } catch (err) {
+    console.warn("Erro ao limpar vendas órfãs locais:", err);
+  }
+}
+
+/**
+ * Sincroniza automaticamente vendas que foram salvas offline/localmente com o Supabase.
+ * Evita qualquer divergência de faturamento e vendas entre o App Web e o App Nativo Android.
+ */
+export async function syncPendingLocalSalesToSupabase(): Promise<{
+  syncedCount: number;
+  discardedDuplicatesCount: number;
+}> {
+  if (!checkIsSupabaseConfigured() || !supabase) {
+    return { syncedCount: 0, discardedDuplicatesCount: 0 };
+  }
+
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { syncedCount: 0, discardedDuplicatesCount: 0 };
+    const localSnap = JSON.parse(raw) as DashboardDataSnapshot;
+    if (!localSnap || !Array.isArray(localSnap.vendas) || localSnap.vendas.length === 0) {
+      return { syncedCount: 0, discardedDuplicatesCount: 0 };
+    }
+
+    // Busca vendas existentes no Supabase para reconciliação
+    const { data: remoteVendas, error: fetchErr } = await supabase
+      .from("vendas")
+      .select("id, data_venda, valor_total, forma_pagamento, status");
+
+    if (fetchErr || !remoteVendas) {
+      return { syncedCount: 0, discardedDuplicatesCount: 0 };
+    }
+
+    const remoteIds = new Set(remoteVendas.map((v) => v.id));
+    const channelMap = getLocalSaleChannels();
+
+    let syncedCount = 0;
+    let discardedDuplicatesCount = 0;
+    const remainingLocalVendas: Venda[] = [];
+    const remainingLocalItens: ItemVenda[] = Array.isArray(localSnap.itensVenda)
+      ? [...localSnap.itensVenda]
+      : [];
+
+    for (const localVenda of localSnap.vendas) {
+      // 1. Já existe no Supabase pelo mesmo ID UUID?
+      if (remoteIds.has(localVenda.id)) {
+        continue;
+      }
+
+      // 2. Se for uma venda já salva no Supabase com ID diferente (duplicata de reentrada)
+      const isDuplicate = remoteVendas.some((rv) => {
+        if (
+          Math.abs(Number(rv.valor_total) - Number(localVenda.valor_total)) < 0.01 &&
+          rv.forma_pagamento === localVenda.forma_pagamento
+        ) {
+          const timeDiff = Math.abs(
+            new Date(rv.data_venda).getTime() - new Date(localVenda.data_venda).getTime()
+          );
+          // Mesma venda dentro de janela de 2 minutos
+          return timeDiff < 120000;
+        }
+        return false;
+      });
+
+      if (isDuplicate) {
+        discardedDuplicatesCount++;
+        continue;
+      }
+
+      // 3. Venda pendente legítima: envia ao Supabase
+      try {
+        const canal = localVenda.canal_venda || channelMap[localVenda.id] || "Balcao";
+        const saleInsertData: Record<string, unknown> = {
+          forma_pagamento: localVenda.forma_pagamento,
+          canal_venda: canal,
+          cliente_nome: localVenda.cliente_nome?.trim() || null,
+          cliente_telefone: localVenda.cliente_telefone?.trim() || null,
+          valor_total: Number(localVenda.valor_total),
+          status: localVenda.status || "concluida",
+          data_venda: localVenda.data_venda || new Date().toISOString(),
+          pix_txid: localVenda.pix_txid || null,
+          pix_qrcode: localVenda.pix_qrcode || null,
+          pix_copia_cola: localVenda.pix_copia_cola || null,
+        };
+
+        // Se localVenda.id já for um UUID válido, preserva-o
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          localVenda.id
+        );
+        if (isUuid) {
+          saleInsertData.id = localVenda.id;
+        }
+
+        let { data: vendaInserida, error: insertErr } = await supabase
+          .from("vendas")
+          .insert(saleInsertData)
+          .select()
+          .single();
+
+        // Fallback caso canal_venda não exista na base remota
+        if (
+          insertErr &&
+          (insertErr.code === "PGRST204" ||
+            insertErr.message?.toLowerCase().includes("canal_venda"))
+        ) {
+          const safeData = { ...saleInsertData };
+          delete safeData.canal_venda;
+          const retry = await supabase
+            .from("vendas")
+            .insert(safeData)
+            .select()
+            .single();
+          vendaInserida = retry.data;
+          insertErr = retry.error;
+        }
+
+        if (!insertErr && vendaInserida) {
+          setLocalSaleChannel(vendaInserida.id, canal);
+          const localItens = remainingLocalItens.filter(
+            (i) => i.venda_id === localVenda.id
+          );
+          if (localItens.length > 0) {
+            const itemsToInsert = localItens.map((i) => ({
+              venda_id: vendaInserida.id,
+              produto_id: i.produto_id,
+              quantidade: i.quantidade,
+              preco_unitario: i.preco_unitario,
+            }));
+            await supabase.from("itens_venda").insert(itemsToInsert);
+          }
+          syncedCount++;
+        } else {
+          remainingLocalVendas.push(localVenda);
+        }
+      } catch {
+        remainingLocalVendas.push(localVenda);
+      }
+    }
+
+    // Atualiza LocalStorage removendo as vendas que já subiram
+    const updatedSnapshot: DashboardDataSnapshot = {
+      ...localSnap,
+      vendas: remainingLocalVendas,
+      itensVenda: remainingLocalItens.filter((i) =>
+        remainingLocalVendas.some((v) => v.id === i.venda_id)
+      ),
+      lastSyncedAt: new Date().toISOString(),
+    };
+    saveLocalSnapshot(updatedSnapshot);
+
+    return { syncedCount, discardedDuplicatesCount };
+  } catch (err) {
+    console.warn("Erro no processo de sincronização de vendas locais:", err);
+    return { syncedCount: 0, discardedDuplicatesCount: 0 };
+  }
+}
+
 export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
   if (checkIsSupabaseConfigured() && supabase) {
     try {
+      // Auto-sincroniza vendas offline antes de consultar para manter Nuvem e Aparelhos 100% idênticos
+      await syncPendingLocalSalesToSupabase();
+
       const [produtosRes, vendasRes, itensRes, estoqueRes] = await Promise.all([
         supabase.from("produtos").select("*").order("nome"),
         supabase
@@ -618,34 +792,19 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
         const localSnap = getLocalSnapshot();
         const channelMap = getLocalSaleChannels();
 
-        // Preserva vendas locais caso alguma ainda não tenha subido para o Supabase
-        const supabaseVendaIds = new Set((vendasRes.data || []).map((v) => v.id));
-        const unsyncedLocalVendas = localSnap.vendas.filter(
-          (v) => !supabaseVendaIds.has(v.id)
-        );
-        const unsyncedLocalItens = localSnap.itensVenda.filter((i) =>
-          unsyncedLocalVendas.some((v) => v.id === i.venda_id)
-        );
+        const allVendas: Venda[] = (vendasRes.data || []).map((v) => ({
+          ...v,
+          canal_venda: v.canal_venda || channelMap[v.id] || "Balcao",
+          valor_total: Number(v.valor_total),
+        }));
 
-        const allVendas: Venda[] = [
-          ...(vendasRes.data || []).map((v) => ({
-            ...v,
-            canal_venda: v.canal_venda || channelMap[v.id] || "Balcao",
-            valor_total: Number(v.valor_total),
-          })),
-          ...unsyncedLocalVendas,
-        ];
+        const allItens: ItemVenda[] = (itensRes.data || []).map((i) => ({
+          ...i,
+          quantidade: Number(i.quantidade),
+          preco_unitario: Number(i.preco_unitario),
+        }));
 
-        const allItens: ItemVenda[] = [
-          ...(itensRes.data || []).map((i) => ({
-            ...i,
-            quantidade: Number(i.quantidade),
-            preco_unitario: Number(i.preco_unitario),
-          })),
-          ...unsyncedLocalItens,
-        ];
-
-        return {
+        const freshSnapshot: DashboardDataSnapshot = {
           produtos: prods,
           vendas: allVendas,
           itensVenda: allItens,
@@ -660,6 +819,10 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
           source: "supabase",
           lastSyncedAt: new Date().toISOString(),
         };
+
+        // Mantém o LocalStorage espelhado com os dados oficiais da Nuvem
+        saveLocalSnapshot(freshSnapshot);
+        return freshSnapshot;
       }
     } catch (err) {
       console.warn("Erro de conexão Supabase, ativando modo local:", err);
@@ -1310,6 +1473,21 @@ export async function resetToCleanSlate(): Promise<DashboardDataSnapshot> {
         updated_at: nowIso,
       })
       .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    // Limpa também o snapshot local para garantir que nenhuma venda órfã persista
+    const localSnap = getLocalSnapshot();
+    const cleanLocal: DashboardDataSnapshot = {
+      ...localSnap,
+      vendas: [],
+      itensVenda: [],
+      estoqueLotes: localSnap.estoqueLotes.map((l) => ({
+        ...l,
+        quantidade_disponivel: 0,
+        updated_at: nowIso,
+      })),
+      lastSyncedAt: nowIso,
+    };
+    saveLocalSnapshot(cleanLocal);
 
     return fetchDashboardData();
   }

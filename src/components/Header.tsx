@@ -83,13 +83,17 @@ export const Header: React.FC<HeaderProps> = ({
               </h1>
               <Badge
                 variant={dataSource === "supabase" ? "success" : "secondary"}
-                className="hidden sm:inline-flex gap-1 text-[10px]"
+                className="hidden sm:inline-flex gap-1 text-[10px] items-center cursor-pointer transition-opacity hover:opacity-85"
+                onClick={onOpenSettingsModal}
                 title={
                   dataSource === "supabase"
-                    ? "Conectado ao banco PostgreSQL no Supabase"
-                    : "Modo Local Offline"
+                    ? "Conectado ao banco PostgreSQL no Supabase (Tempo Real Ativo). Clique para gerenciar sincronização."
+                    : "Modo Local Offline. Clique para conectar à Nuvem Supabase."
                 }
               >
+                {dataSource === "supabase" && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                )}
                 <Database className="h-2.5 w-2.5" />
                 {dataSource === "supabase" ? "Nuvem Ativa" : "Local"}
               </Badge>

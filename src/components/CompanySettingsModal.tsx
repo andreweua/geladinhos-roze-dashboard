@@ -26,7 +26,11 @@ import {
   saveCustomBrandConfig,
 } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
-import { resetToCleanSlate } from "@/services/dataService";
+import {
+  clearOrphanLocalSales,
+  resetToCleanSlate,
+  syncPendingLocalSalesToSupabase,
+} from "@/services/dataService";
 
 interface CompanySettingsModalProps {
   isOpen: boolean;
@@ -236,6 +240,42 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
       console.error("Erro ao zerar dados:", err);
       alert("Não foi possível zerar os dados: " + String(err));
     }
+  };
+
+  const [isSyncingSales, setIsSyncingSales] = useState(false);
+
+  const handleManualSyncSales = async () => {
+    setIsSyncingSales(true);
+    try {
+      const res = await syncPendingLocalSalesToSupabase();
+      if (res.syncedCount > 0) {
+        setFeedback(`✓ ${res.syncedCount} venda(s) sincronizada(s) com sucesso na Nuvem!`);
+      } else if (res.discardedDuplicatesCount > 0) {
+        setFeedback(`✓ ${res.discardedDuplicatesCount} venda(s) duplicada(s) limpa(s). Base 100% atualizada!`);
+      } else {
+        setFeedback("✓ Todas as vendas já estão 100% sincronizadas com a Nuvem!");
+      }
+      onConfigSaved();
+    } catch {
+      setFeedback("Erro ao tentar sincronizar vendas com a Nuvem.");
+    } finally {
+      setIsSyncingSales(false);
+      setTimeout(() => setFeedback(null), 5000);
+    }
+  };
+
+  const handleClearOrphanSales = () => {
+    const confirmed = window.confirm(
+      "Deseja realmente limpar as vendas salvas apenas na memória deste aparelho?\n\n" +
+        "✓ As vendas oficiais salvas no banco Supabase NÃO serão apagadas.\n" +
+        "✓ Isso garante que o App Web e o App Nativo Android mostrem exatamente os mesmos números."
+    );
+    if (!confirmed) return;
+
+    clearOrphanLocalSales();
+    setFeedback("✓ Vendas locais órfãs removidas deste aparelho. Base agora reflete 100% a Nuvem.");
+    onConfigSaved();
+    setTimeout(() => setFeedback(null), 5000);
   };
 
   const generateMagicSyncUrl = () => {
@@ -896,6 +936,43 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                       className="text-xs"
                     >
                       {copiedSyncLink ? "✓ Link Copiado!" : "Copiar Link de Conexão"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Diagnóstico e Reconciliação de Vendas */}
+                <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-3.5 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground text-xs flex items-center gap-1.5">
+                      <RefreshCw className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      Reconciliação de Vendas (App Web ↔ App Nativo Android)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Se você notar qualquer diferença entre as vendas que aparecem no computador e no celular, use as ações abaixo para alinhar instantaneamente as duas telas com o banco Supabase:
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleManualSyncSales}
+                      disabled={isSyncingSales}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 mr-1.5 ${isSyncingSales ? "animate-spin" : ""}`}
+                      />
+                      {isSyncingSales ? "Sincronizando..." : "Sincronizar Vendas com a Nuvem"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleClearOrphanSales}
+                      className="border-red-500/30 text-red-600 hover:bg-red-500/10 text-xs font-medium"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5 text-red-600" />
+                      Limpar Vendas Locais Órfãs Deste Aparelho
                     </Button>
                   </div>
                 </div>
