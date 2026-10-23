@@ -262,6 +262,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <span>{isLoading ? "Validando credenciais..." : "Entrar no Sistema"}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
+
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("admin@pereiralabs.com.br");
+                  setPassword("admin");
+                }}
+                className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <span>Entrar como Administrador Master PereiraLabs</span>
+              </button>
+            </div>
           </form>
         )}
 

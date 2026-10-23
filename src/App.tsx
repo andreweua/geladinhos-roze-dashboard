@@ -43,6 +43,7 @@ import {
   getActiveCompanyId,
   setActiveCompanyId,
   subscribeCompanyChange,
+  isPereiraLabsMaster,
 } from "@/services/companyService";
 import { THEME_COLOR_PALETTES } from "@/types/multiTenant";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -69,6 +70,7 @@ import {
   cancelOrRefundSale,
   createNewProduct,
   createNewSale,
+  deleteProduct,
   fetchDashboardData,
   NewProductPayload,
   NewSalePayload,
@@ -76,6 +78,7 @@ import {
   saveBatchFichasTecnicas,
   saveProductFichaTecnica,
   updateProductStock,
+  wipeCompanyData,
 } from "@/services/dataService";
 import {
   DashboardDataSnapshot,
@@ -163,6 +166,8 @@ export function App() {
 
   // Dashboard Data Snapshot
   const [snapshot, setSnapshot] = useState<DashboardDataSnapshot | null>(null);
+  const [activeCompany, setActiveCompany] = useState(() => getActiveCompany());
+  const activeCompanyId = activeCompany.id;
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [showRefreshToast, setShowRefreshToast] = useState<boolean>(false);
   const [syncSuccessToast, setSyncSuccessToast] = useState<string | null>(null);
@@ -226,7 +231,7 @@ export function App() {
 
   useEffect(() => {
     loadData(false);
-  }, [loadData]);
+  }, [activeCompany.id, loadData]);
 
   // Sincronização em Tempo Real (Supabase Realtime) e atualização ao voltar ao app
   useEffect(() => {
@@ -283,8 +288,6 @@ export function App() {
   const [cashShiftModalOpen, setCashShiftModalOpen] = useState<boolean>(false);
   const [changelogModalOpen, setChangelogModalOpen] = useState<boolean>(false);
   const [masterModalOpen, setMasterModalOpen] = useState<boolean>(false);
-  const [activeCompany, setActiveCompany] = useState(() => getActiveCompany());
-  const activeCompanyId = activeCompany.id;
 
   // Sincronização reativa instantânea quando a empresa ativa mudar de nome, dados ou tema
   useEffect(() => {
@@ -519,6 +522,15 @@ export function App() {
     setSnapshot(updated);
   };
 
+  const handleDeleteProduct = async (produtoId: string) => {
+    if (currentUser?.role === "consultoria") {
+      alert("Acesso Somente Leitura: Consultores não têm permissão para excluir produtos.");
+      return;
+    }
+    const updated = await deleteProduct(produtoId);
+    setSnapshot(updated);
+  };
+
   const handleSaveFicha = async (
     ficha: FichaTecnicaProduto,
     novoPrecoVenda?: number
@@ -629,6 +641,7 @@ export function App() {
         companyName={activeCompany.nome}
         onOpenAuth={() => setAuthModalOpen(true)}
         onLogout={handleLogout}
+        onOpenMasterPanel={() => setMasterModalOpen(true)}
       />
 
       {/* 2. Main Body Container (Adaptive to Sidebar) */}
@@ -751,16 +764,18 @@ export function App() {
               <span>Novo Pedido / PDV</span>
             </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setMasterModalOpen(true)}
-              title="Painel Master PereiraLabs (Gestão Multi-Empresa SaaS)"
-              className="gap-1.5 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
-            >
-              <Sparkles className="h-4 w-4 text-amber-500" />
-              <span>Painel Master</span>
-            </Button>
+            {isPereiraLabsMaster(currentUser) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMasterModalOpen(true)}
+                title="Painel Master PereiraLabs (Gestão Multi-Empresa SaaS - Exclusivo PereiraLabs)"
+                className="gap-1.5 text-xs font-bold border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 shadow-sm"
+              >
+                <Sparkles className="h-4 w-4 text-amber-500" />
+                <span>Painel Master</span>
+              </Button>
+            )}
           </div>
         </header>
 
@@ -1166,6 +1181,11 @@ export function App() {
                     ifoodFeePct={ifoodFeePct}
                     onChangeIfoodFeePct={handleChangeIfoodFeePct}
                     onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
+                    onOpenCreateProduct={() => {
+                      setModalTab("estoque");
+                      setModalOpen(true);
+                    }}
+                    onDeleteProduct={handleDeleteProduct}
                   />
                 </div>
               )}
@@ -1224,6 +1244,7 @@ export function App() {
                       ifoodFeePct={ifoodFeePct}
                       onUpdateStock={handleUpdateStock}
                       onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
+                      companyName={activeCompany.nome}
                     />
                   )}
 
@@ -1330,6 +1351,7 @@ export function App() {
           onSubmitSale={handleSubmitSale}
           onUpdateStock={handleUpdateStock}
           onCreateProduct={handleCreateProduct}
+          onDeleteProduct={handleDeleteProduct}
           onResetDemoData={handleResetDemo}
           dataSource={snapshot?.source || "demo_local"}
           currentShift={currentShift}

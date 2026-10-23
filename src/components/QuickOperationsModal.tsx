@@ -10,6 +10,7 @@ import {
   ChefHat,
   CheckCircle2,
   Lock,
+  Trash2,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/primitives";
 import { formatCurrency, PAYMENT_METHOD_LABELS } from "@/lib/utils";
@@ -26,6 +27,7 @@ interface QuickOperationsModalProps {
   onSubmitSale: (payload: NewSalePayload) => Promise<void>;
   onUpdateStock: (produtoId: string, newQty: number) => Promise<void>;
   onCreateProduct: (payload: NewProductPayload) => Promise<void>;
+  onDeleteProduct?: (produtoId: string) => Promise<void>;
   onResetDemoData: () => void;
   dataSource: "supabase" | "demo_local";
   currentShift?: CashShift | null;
@@ -41,6 +43,7 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
   onSubmitSale,
   onUpdateStock,
   onCreateProduct,
+  onDeleteProduct,
   onResetDemoData,
   dataSource,
   currentShift,
@@ -597,6 +600,25 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
                             >
                               Acertar Estoque
                             </Button>
+
+                            {onDeleteProduct && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (
+                                    window.confirm(
+                                      `Deseja realmente excluir permanentemente o produto "${item.nome}" deste catálogo?`
+                                    )
+                                  ) {
+                                    await onDeleteProduct(item.produto_id);
+                                  }
+                                }}
+                                title={`Excluir ${item.nome} do cardápio`}
+                                className="p-1.5 text-muted-foreground hover:text-rose-600 rounded-lg hover:bg-rose-500/10 transition-colors ml-1"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>

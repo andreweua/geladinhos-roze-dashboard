@@ -1,15 +1,25 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
+import { getActiveCompanyId } from "@/services/companyService";
 import {
   CompraNotaFiscalReal,
   EstabelecimentoLocal,
   PesquisaPrecoLocal,
 } from "@/types/dashboard";
 
-const STORAGE_KEYS = {
-  estabelecimentos: `${BRAND_CONFIG.storagePrefix}_estabelecimentos_v3_simao_jau_trespontas`,
-  pesquisas: `${BRAND_CONFIG.storagePrefix}_pesquisas_precos_v3_validade`,
-  compras: `${BRAND_CONFIG.storagePrefix}_compras_reais_v3`,
-};
+function getSurveyStorageKey(
+  type: "estabelecimentos" | "pesquisas" | "compras",
+  companyId?: string
+): string {
+  const currentId = companyId || getActiveCompanyId();
+  if (currentId === "emp-roze-gourmet") {
+    return {
+      estabelecimentos: `${BRAND_CONFIG.storagePrefix}_estabelecimentos_v3_simao_jau_trespontas`,
+      pesquisas: `${BRAND_CONFIG.storagePrefix}_pesquisas_precos_v3_validade`,
+      compras: `${BRAND_CONFIG.storagePrefix}_compras_reais_v3`,
+    }[type];
+  }
+  return `${BRAND_CONFIG.storagePrefix}_${type}_${currentId}_v1`;
+}
 
 /**
  * Normaliza o preço para uma base comparativa padrão:
@@ -580,31 +590,38 @@ const DEFAULT_COMPRAS: CompraNotaFiscalReal[] = [
   },
 ];
 
-export function loadEstabelecimentos(): EstabelecimentoLocal[] {
+export function loadEstabelecimentos(companyId?: string): EstabelecimentoLocal[] {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.estabelecimentos);
+    const raw = localStorage.getItem(getSurveyStorageKey("estabelecimentos", currentId));
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {
     // fallback
   }
-  return [...DEFAULT_ESTABELECIMENTOS];
+  if (currentId === "emp-roze-gourmet") {
+    return [...DEFAULT_ESTABELECIMENTOS];
+  }
+  return [];
 }
 
-export function saveEstabelecimentos(items: EstabelecimentoLocal[]): void {
+export function saveEstabelecimentos(items: EstabelecimentoLocal[], companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    localStorage.setItem(STORAGE_KEYS.estabelecimentos, JSON.stringify(items));
+    localStorage.setItem(getSurveyStorageKey("estabelecimentos", currentId), JSON.stringify(items));
   } catch {
     // ignore
   }
 }
 
 export function addOrUpdateEstabelecimento(
-  estab: Omit<EstabelecimentoLocal, "id" | "created_at"> & { id?: string }
+  estab: Omit<EstabelecimentoLocal, "id" | "created_at"> & { id?: string },
+  companyId?: string
 ): EstabelecimentoLocal {
-  const all = loadEstabelecimentos();
+  const currentId = companyId || getActiveCompanyId();
+  const all = loadEstabelecimentos(currentId);
   const now = new Date().toISOString();
 
   if (estab.id) {
@@ -615,7 +632,7 @@ export function addOrUpdateEstabelecimento(
         ...estab,
         updated_at: now,
       };
-      saveEstabelecimentos(all);
+      saveEstabelecimentos(all, currentId);
       return all[idx];
     }
   }
@@ -627,40 +644,48 @@ export function addOrUpdateEstabelecimento(
     updated_at: now,
   };
   all.unshift(newEstab);
-  saveEstabelecimentos(all);
+  saveEstabelecimentos(all, currentId);
   return newEstab;
 }
 
-export function deleteEstabelecimento(id: string): void {
-  const all = loadEstabelecimentos().filter((e) => e.id !== id);
-  saveEstabelecimentos(all);
+export function deleteEstabelecimento(id: string, companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
+  const all = loadEstabelecimentos(currentId).filter((e) => e.id !== id);
+  saveEstabelecimentos(all, currentId);
 }
 
-export function loadPesquisasPreco(): PesquisaPrecoLocal[] {
+export function loadPesquisasPreco(companyId?: string): PesquisaPrecoLocal[] {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.pesquisas);
+    const raw = localStorage.getItem(getSurveyStorageKey("pesquisas", currentId));
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {
     // fallback
   }
-  return [...DEFAULT_PESQUISAS];
+  if (currentId === "emp-roze-gourmet") {
+    return [...DEFAULT_PESQUISAS];
+  }
+  return [];
 }
 
-export function savePesquisasPreco(items: PesquisaPrecoLocal[]): void {
+export function savePesquisasPreco(items: PesquisaPrecoLocal[], companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    localStorage.setItem(STORAGE_KEYS.pesquisas, JSON.stringify(items));
+    localStorage.setItem(getSurveyStorageKey("pesquisas", currentId), JSON.stringify(items));
   } catch {
     // ignore
   }
 }
 
 export function addPesquisaPreco(
-  item: Omit<PesquisaPrecoLocal, "id" | "preco_por_kg_ou_l">
+  item: Omit<PesquisaPrecoLocal, "id" | "preco_por_kg_ou_l">,
+  companyId?: string
 ): PesquisaPrecoLocal {
-  const all = loadPesquisasPreco();
+  const currentId = companyId || getActiveCompanyId();
+  const all = loadPesquisasPreco(currentId);
   const precoNormalizado = calculateNormalizedPrice(
     item.preco_pesquisado,
     item.quantidade_embalagem,
@@ -673,51 +698,60 @@ export function addPesquisaPreco(
     preco_por_kg_ou_l: precoNormalizado,
   };
   all.unshift(newPesquisa);
-  savePesquisasPreco(all);
+  savePesquisasPreco(all, currentId);
   return newPesquisa;
 }
 
-export function deletePesquisaPreco(id: string): void {
-  const all = loadPesquisasPreco().filter((p) => p.id !== id);
-  savePesquisasPreco(all);
+export function deletePesquisaPreco(id: string, companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
+  const all = loadPesquisasPreco(currentId).filter((p) => p.id !== id);
+  savePesquisasPreco(all, currentId);
 }
 
-export function loadComprasNotasFiscais(): CompraNotaFiscalReal[] {
+export function loadComprasNotasFiscais(companyId?: string): CompraNotaFiscalReal[] {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.compras);
+    const raw = localStorage.getItem(getSurveyStorageKey("compras", currentId));
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch {
     // fallback
   }
-  return [...DEFAULT_COMPRAS];
+  if (currentId === "emp-roze-gourmet") {
+    return [...DEFAULT_COMPRAS];
+  }
+  return [];
 }
 
-export function saveComprasNotasFiscais(items: CompraNotaFiscalReal[]): void {
+export function saveComprasNotasFiscais(items: CompraNotaFiscalReal[], companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    localStorage.setItem(STORAGE_KEYS.compras, JSON.stringify(items));
+    localStorage.setItem(getSurveyStorageKey("compras", currentId), JSON.stringify(items));
   } catch {
     // ignore
   }
 }
 
 export function addCompraNotaFiscal(
-  compra: Omit<CompraNotaFiscalReal, "id" | "created_at">
+  compra: Omit<CompraNotaFiscalReal, "id" | "created_at">,
+  companyId?: string
 ): CompraNotaFiscalReal {
-  const all = loadComprasNotasFiscais();
+  const currentId = companyId || getActiveCompanyId();
+  const all = loadComprasNotasFiscais(currentId);
   const newCompra: CompraNotaFiscalReal = {
     ...compra,
     id: `compra-${Date.now()}`,
     created_at: new Date().toISOString(),
   };
   all.unshift(newCompra);
-  saveComprasNotasFiscais(all);
+  saveComprasNotasFiscais(all, currentId);
   return newCompra;
 }
 
-export function deleteCompraNotaFiscal(id: string): void {
-  const all = loadComprasNotasFiscais().filter((c) => c.id !== id);
-  saveComprasNotasFiscais(all);
+export function deleteCompraNotaFiscal(id: string, companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
+  const all = loadComprasNotasFiscais(currentId).filter((c) => c.id !== id);
+  saveComprasNotasFiscais(all, currentId);
 }

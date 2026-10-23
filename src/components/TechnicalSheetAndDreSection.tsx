@@ -38,6 +38,7 @@ import {
   SOBRAS_ESTOQUE_INSUMOS,
   TABELA_COTACAO_INSUMOS,
 } from "@/data/insumosCatalog";
+import { getActiveCompanyId } from "@/services/companyService";
 import {
   DreProdutoItem,
   FichaTecnicaProduto,
@@ -59,6 +60,8 @@ interface TechnicalSheetAndDreSectionProps {
   ifoodFeePct: number;
   onChangeIfoodFeePct: (newRate: number) => void;
   onOpenInvoiceModal?: () => void;
+  onOpenCreateProduct?: () => void;
+  onDeleteProduct?: (produtoId: string) => Promise<void>;
 }
 
 export const TechnicalSheetAndDreSection: React.FC<
@@ -74,7 +77,10 @@ export const TechnicalSheetAndDreSection: React.FC<
   ifoodFeePct,
   onChangeIfoodFeePct,
   onOpenInvoiceModal,
+  onOpenCreateProduct,
+  onDeleteProduct,
 }) => {
+  const isRozeCompany = getActiveCompanyId() === "emp-roze-gourmet";
   const activeProducts = produtos.filter((p) => p.ativo);
   const currentProduct =
     activeProducts.find((p) => p.id === selectedProductId) || activeProducts[0];
@@ -95,6 +101,7 @@ export const TechnicalSheetAndDreSection: React.FC<
     "periodo" | "local_un" | "ifood_un"
   >("periodo");
   const [savedNotice, setSavedNotice] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Quotation table filter
   const [insumoSearch, setInsumoSearch] = useState("");
@@ -108,8 +115,36 @@ export const TechnicalSheetAndDreSection: React.FC<
     }
   }, [currentFicha, currentProduct]);
 
-  if (!currentProduct || !draftFicha || !currentDre) {
-    return null;
+  // Se a empresa ainda não tiver produtos cadastrados, exibe o Estado Vazio acolhedor
+  if (activeProducts.length === 0 || !currentProduct || !draftFicha || !currentDre) {
+    return (
+      <section
+        id="secao-ficha-dre"
+        aria-label="Ficha Técnica e DRE por Produto"
+        className="space-y-6"
+      >
+        <Card className="border-border/80 bg-card/60 backdrop-blur-md p-10 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4 shadow-sm">
+            <ChefHat className="h-8 w-8" />
+          </div>
+          <h3 className="text-lg font-bold text-foreground">
+            Nenhum Produto ou Receita Cadastrada
+          </h3>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1.5 mb-6">
+            Esta empresa ainda não possui produtos cadastrados. Adicione seu primeiro produto para montar a ficha técnica e analisar os custos dos ingredientes e margens de lucro.
+          </p>
+          {onOpenCreateProduct && (
+            <Button
+              onClick={onOpenCreateProduct}
+              className="bg-primary text-primary-foreground font-bold gap-2 px-6 py-2.5 rounded-xl shadow-md"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Cadastrar Primeiro Produto / Sabor</span>
+            </Button>
+          )}
+        </Card>
+      </section>
+    );
   }
 
   const calc = calculateUnitCostFromFicha(draftFicha);
@@ -252,89 +287,91 @@ export const TechnicalSheetAndDreSection: React.FC<
       aria-label="Ficha Técnica e DRE por Produto"
       className="space-y-6"
     >
-      {/* EXECUTIVE BATCH PROJECTION BANNER (FROM PDF 1 & PDF 2) */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card className="border-l-4 border-l-rose-500">
-          <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Lote Completo (1 Receita/Sabor)
-            </p>
-            <p className="mt-1 text-xl font-extrabold text-foreground">
-              {loteCardapioExpandido9Receitas.rendimentoTotal}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Saquinho 150ml a{" "}
-              <strong>
-                {formatCurrency(
-                  loteCardapioExpandido9Receitas.custoSaquinho150ml
-                )}
-              </strong>{" "}
-              / un.
-            </p>
-          </CardContent>
-        </Card>
+      {/* EXECUTIVE BATCH PROJECTION BANNER (Apenas na Matriz Roze Gourmet) */}
+      {isRozeCompany && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <Card className="border-l-4 border-l-rose-500">
+            <CardContent className="p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Lote Completo (1 Receita/Sabor)
+              </p>
+              <p className="mt-1 text-xl font-extrabold text-foreground">
+                {loteCardapioExpandido9Receitas.rendimentoTotal}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Saquinho 150ml a{" "}
+                <strong>
+                  {formatCurrency(
+                    loteCardapioExpandido9Receitas.custoSaquinho150ml
+                  )}
+                </strong>{" "}
+                / un.
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
-          <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Custo Produção (69 un.)
-            </p>
-            <p className="mt-1 text-xl font-extrabold text-foreground">
-              {formatCurrency(loteCardapioExpandido9Receitas.custoTotalProducao)}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Insumos + Saquinhos + Gás (15%)
-            </p>
-          </CardContent>
-        </Card>
+          <Card className="border-l-4 border-l-amber-500">
+            <CardContent className="p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Custo Produção (69 un.)
+              </p>
+              <p className="mt-1 text-xl font-extrabold text-foreground">
+                {formatCurrency(loteCardapioExpandido9Receitas.custoTotalProducao)}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Insumos + Saquinhos + Gás (15%)
+              </p>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-emerald-500">
-          <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Lucro Líquido do Lote (Local)
-            </p>
-            <div className="mt-1 flex items-baseline gap-2">
-              <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+          <Card className="border-l-4 border-l-emerald-500">
+            <CardContent className="p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Lucro Líquido do Lote (Local)
+              </p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(
+                    loteCardapioExpandido9Receitas.lucroLiquidoEstimadoLocal
+                  )}
+                </p>
+                <Badge variant="success" className="text-[10px]">
+                  +{loteCardapioExpandido9Receitas.margemLucroSobreCustoPct}% s/
+                  custo
+                </Badge>
+              </div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Faturamento Bruto:{" "}
                 {formatCurrency(
-                  loteCardapioExpandido9Receitas.lucroLiquidoEstimadoLocal
+                  loteCardapioExpandido9Receitas.faturamentoBrutoLocal
                 )}
               </p>
-              <Badge variant="success" className="text-[10px]">
-                +{loteCardapioExpandido9Receitas.margemLucroSobreCustoPct}% s/
-                custo
-              </Badge>
-            </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Faturamento Bruto:{" "}
-              {formatCurrency(
-                loteCardapioExpandido9Receitas.faturamentoBrutoLocal
-              )}
-            </p>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card className="border-l-4 border-l-pink-500">
-          <CardContent className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-              Desembolso Caixa vs. Sobras
-            </p>
-            <p className="mt-1 text-xl font-extrabold text-foreground">
-              {formatCurrency(loteCaderno6Receitas.valorFicadoEmEstoqueSobras)}{" "}
-              <span className="text-xs font-semibold text-muted-foreground">
-                em sobras
-              </span>
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Compra:{" "}
-              {formatCurrency(
-                loteCaderno6Receitas.desembolsoCaixaEmbalagensFechadas
-              )}{" "}
-              • Uso:{" "}
-              {formatCurrency(loteCaderno6Receitas.custoEfetivamenteConsumido)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="border-l-4 border-l-pink-500">
+            <CardContent className="p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Desembolso Caixa vs. Sobras
+              </p>
+              <p className="mt-1 text-xl font-extrabold text-foreground">
+                {formatCurrency(loteCaderno6Receitas.valorFicadoEmEstoqueSobras)}{" "}
+                <span className="text-xs font-semibold text-muted-foreground">
+                  em sobras
+                </span>
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Compra:{" "}
+                {formatCurrency(
+                  loteCaderno6Receitas.desembolsoCaixaEmbalagensFechadas
+                )}{" "}
+                • Uso:{" "}
+                {formatCurrency(loteCaderno6Receitas.custoEfetivamenteConsumido)}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Selector Bar for Flavors + Dynamic iFood Fee Configurator */}
       <Card className="border-rose-500/20 bg-gradient-to-r from-rose-500/[0.04] via-card to-amber-500/[0.04]">
@@ -344,7 +381,7 @@ export const TechnicalSheetAndDreSection: React.FC<
               <div className="flex items-center gap-2">
                 <ChefHat className="h-5 w-5 text-rose-500" />
                 <h2 className="text-base font-bold text-foreground sm:text-lg">
-                  Ficha Técnica & Precificação por Sabor (Saquinho de 150ml)
+                  Ficha Técnica & Precificação • {currentProduct.nome}
                 </h2>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -423,33 +460,75 @@ export const TechnicalSheetAndDreSection: React.FC<
             </Badge>
           )}
 
-          <div className="flex flex-wrap gap-2">
-            {activeProducts.map((prod) => {
-              const active = prod.id === currentProduct.id;
-              return (
-                <button
-                  key={prod.id}
-                  type="button"
-                  onClick={() => onSelectProductId(prod.id)}
-                  className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all ${
-                    active
-                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                      : "border-border bg-card text-foreground hover:bg-secondary"
-                  }`}
-                >
-                  <span>{prod.nome}</span>
-                  <span
-                    className={`rounded-md px-1.5 py-0.5 text-[10px] ${
+          {/* Product selector pills + Action buttons */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {activeProducts.map((prod) => {
+                const active = prod.id === currentProduct.id;
+                return (
+                  <button
+                    key={prod.id}
+                    type="button"
+                    onClick={() => onSelectProductId(prod.id)}
+                    className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all ${
                       active
-                        ? "bg-white/20 text-white"
-                        : "bg-secondary text-muted-foreground"
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border bg-card text-foreground hover:bg-secondary"
                     }`}
                   >
-                    Custo: {formatCurrency(prod.custo_estimado)}
-                  </span>
+                    <span>{prod.nome}</span>
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-[10px] ${
+                        active
+                          ? "bg-white/20 text-white"
+                          : "bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      Custo: {formatCurrency(prod.custo_estimado)}
+                    </span>
+                  </button>
+                );
+              })}
+
+              {onOpenCreateProduct && (
+                <button
+                  type="button"
+                  onClick={onOpenCreateProduct}
+                  className="flex items-center gap-1.5 rounded-xl border border-dashed border-primary/50 bg-primary/5 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10 transition-all"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>+ Novo Produto</span>
                 </button>
-              );
-            })}
+              )}
+            </div>
+
+            {/* Delete current product button */}
+            {onDeleteProduct && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isDeleting}
+                onClick={async () => {
+                  if (
+                    window.confirm(
+                      `Deseja realmente excluir permanentemente o produto "${currentProduct.nome}" e sua ficha técnica deste estabelecimento?`
+                    )
+                  ) {
+                    setIsDeleting(true);
+                    try {
+                      await onDeleteProduct(currentProduct.id);
+                    } finally {
+                      setIsDeleting(false);
+                    }
+                  }
+                }}
+                className="border-rose-500/30 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400 gap-1.5 text-xs font-semibold"
+                title="Excluir este produto e sua receita"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{isDeleting ? "Excluindo..." : "Excluir Produto"}</span>
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -615,18 +694,43 @@ export const TechnicalSheetAndDreSection: React.FC<
                         <tr key={ing.id} className="hover:bg-secondary/25">
                           <td className="py-2.5 pl-3 pr-2 font-medium text-foreground">
                             {isEditing ? (
-                              <input
-                                type="text"
-                                value={ing.nome}
-                                onChange={(e) =>
-                                  handleIngredientChange(
-                                    ing.id,
-                                    "nome",
-                                    e.target.value
-                                  )
-                                }
-                                className="w-full rounded border border-input bg-background px-2 py-1 text-xs"
-                              />
+                              <>
+                                <input
+                                  type="text"
+                                  list="common-ingredients-list"
+                                  value={ing.nome}
+                                  onChange={(e) =>
+                                    handleIngredientChange(
+                                      ing.id,
+                                      "nome",
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="Nome e marca do insumo..."
+                                  className="w-full rounded border border-input bg-background px-2 py-1 text-xs"
+                                />
+                                <datalist id="common-ingredients-list">
+                                  <option value="Leite Condensado Moça 395g" />
+                                  <option value="Creme de Leite Nestlé 200g" />
+                                  <option value="Doce de Leite Viçosa Tradicional" />
+                                  <option value="Chocolate em Barra Melken Meio Amargo" />
+                                  <option value="Chocolate em Barra Harald Melken Blend" />
+                                  <option value="Cacau em Pó Alcalino 50% Melken" />
+                                  <option value="Mel Puro de Abelha Silvestre" />
+                                  <option value="Farinha de Trigo Dona Benta" />
+                                  <option value="Açúcar Mascavo Orgânico" />
+                                  <option value="Especiarias para Pão de Mel (Canela, Cravo)" />
+                                  <option value="Fermento em Pó Royal" />
+                                  <option value="Manteiga sem Sal Primeira Qualidade" />
+                                  <option value="Ovos Frescos Tipo Extra" />
+                                  <option value="Leite em Pó Ninho Integral" />
+                                  <option value="Nutella Original Ferrero 650g" />
+                                  <option value="Coco Ralado Sococo" />
+                                  <option value="Leite de Coco Sococo 200ml" />
+                                  <option value="Embalagem e Etiqueta Personalizada com Marca" />
+                                  <option value="Saquinho Transparente com Aba Adesiva" />
+                                </datalist>
+                              </>
                             ) : (
                               ing.nome
                             )}

@@ -1,6 +1,7 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { checkIsSupabaseConfigured, supabase } from "@/lib/supabase";
 import { addAuditLog } from "@/services/auditService";
+import { getActiveCompanyId } from "@/services/companyService";
 import {
   CanalVenda,
   DashboardDataSnapshot,
@@ -13,25 +14,40 @@ import {
 } from "@/types/dashboard";
 import { saveOrUpdateCustomer } from "@/services/customerService";
 
-// Updated storage key to v3_clean_real to eliminate all fictitious/generated sales
-// Retaining strictly the real products, real recipes/technical sheets and user quotations.
-const STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_dashboard_data_v3_clean_real`;
-const CHANNELS_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_sales_channels_map_v1`;
+// Chaves dinâmicas isoladas por empresa (Multi-Tenant)
+// A Matriz Roze Gourmet preserva a chave histórica oficial com os 8 sabores
+export function getCompanyStorageKey(companyId?: string): string {
+  const id = companyId || getActiveCompanyId();
+  if (id === "emp-roze-gourmet") {
+    return `${BRAND_CONFIG.storagePrefix}_dashboard_data_v3_clean_real`;
+  }
+  return `${BRAND_CONFIG.storagePrefix}_data_${id}_v1`;
+}
 
-export function getLocalSaleChannels(): Record<string, CanalVenda> {
+export function getCompanyChannelsKey(companyId?: string): string {
+  const id = companyId || getActiveCompanyId();
+  if (id === "emp-roze-gourmet") {
+    return `${BRAND_CONFIG.storagePrefix}_sales_channels_map_v1`;
+  }
+  return `${BRAND_CONFIG.storagePrefix}_channels_${id}_v1`;
+}
+
+export function getLocalSaleChannels(companyId?: string): Record<string, CanalVenda> {
   try {
-    const raw = localStorage.getItem(CHANNELS_STORAGE_KEY);
+    const key = getCompanyChannelsKey(companyId);
+    const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
 
-export function setLocalSaleChannel(vendaId: string, canal: CanalVenda): void {
+export function setLocalSaleChannel(vendaId: string, canal: CanalVenda, companyId?: string): void {
   try {
-    const map = getLocalSaleChannels();
+    const key = getCompanyChannelsKey(companyId);
+    const map = getLocalSaleChannels(companyId);
     map[vendaId] = canal;
-    localStorage.setItem(CHANNELS_STORAGE_KEY, JSON.stringify(map));
+    localStorage.setItem(key, JSON.stringify(map));
   } catch {
     // ignore
   }
@@ -492,14 +508,20 @@ function generateInitialDemoData(): DashboardDataSnapshot {
 
 function ensureFichasForProducts(
   produtos: Produto[],
-  existingFichas?: FichaTecnicaProduto[]
+  existingFichas?: FichaTecnicaProduto[],
+  companyId?: string
 ): FichaTecnicaProduto[] {
-  const defaults = getDefaultFichasTecnicas();
+  const currentId = companyId || getActiveCompanyId();
   const map = new Map<string, FichaTecnicaProduto>();
 
-  for (const d of defaults) {
-    map.set(d.produto_id, d);
+  // Apenas a empresa Matriz Roze herda as receitas oficiais de geladinhos
+  if (currentId === "emp-roze-gourmet") {
+    const defaults = getDefaultFichasTecnicas();
+    for (const d of defaults) {
+      map.set(d.produto_id, d);
+    }
   }
+
   if (Array.isArray(existingFichas)) {
     for (const f of existingFichas) {
       map.set(f.produto_id, f);
@@ -512,7 +534,7 @@ function ensureFichasForProducts(
       const precoIfood = prod.preco_ifood || Number((prod.preco_venda * 1.35).toFixed(2));
       map.set(prod.id, {
         produto_id: prod.id,
-        subtitulo_receita: "Receita Artesanal no Saquinho de 150ml",
+        subtitulo_receita: `Receita Artesanal • ${prod.nome}`,
         rendimento_unidades: 10,
         volume_unitario_ml: 150,
         tempo_preparo_min: 30,
@@ -522,21 +544,20 @@ function ensureFichasForProducts(
         lucro_ifood_estimado: Number(
           (precoIfood * (1 - 0.262) - prod.custo_estimado).toFixed(2)
         ),
-        modo_preparo:
-          "Bater a base láctea no liquidificador, aplicar calda/recheio no saquinho de 150ml com saco de confeitar, dosar 150ml e congelar deitado.",
+        modo_preparo: `Preparo artesanal e dosagem padronizada de ${prod.nome}.`,
         ingredientes: [
           {
             id: `ing-${prod.id}-1`,
-            nome: "Base Láctea (Leite Condensado + Creme de Leite + Leite)",
+            nome: `Ingrediente Principal / Base (${prod.nome})`,
             quantidade_receita: 1000,
-            unidade: "ml",
+            unidade: "g",
             custo_receita: Number((custoInsumo * 10 * 0.65).toFixed(2)),
           },
           {
             id: `ing-${prod.id}-2`,
-            nome: `Saborizante / Recheio (${prod.nome})`,
-            quantidade_receita: 200,
-            unidade: "g",
+            nome: `Embalagem / Complemento`,
+            quantidade_receita: 10,
+            unidade: "un",
             custo_receita: Number((custoInsumo * 10 * 0.35).toFixed(2)),
           },
         ],
@@ -547,9 +568,12 @@ function ensureFichasForProducts(
   return Array.from(map.values());
 }
 
-function getLocalSnapshot(): DashboardDataSnapshot {
+export function getLocalSnapshot(companyId?: string): DashboardDataSnapshot {
+  const currentId = companyId || getActiveCompanyId();
+  const key = getCompanyStorageKey(currentId);
+
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (raw) {
       const parsed = JSON.parse(raw) as DashboardDataSnapshot;
       if (
@@ -559,7 +583,8 @@ function getLocalSnapshot(): DashboardDataSnapshot {
       ) {
         const fichas = ensureFichasForProducts(
           parsed.produtos,
-          parsed.fichasTecnicas
+          parsed.fichasTecnicas,
+          currentId
         );
         return {
           ...parsed,
@@ -570,50 +595,175 @@ function getLocalSnapshot(): DashboardDataSnapshot {
       }
     }
   } catch (err) {
-    console.warn("Erro ao ler dados locais, recriando seed demo:", err);
+    console.warn("Erro ao ler dados locais:", err);
   }
-  const initial = generateInitialDemoData();
-  saveLocalSnapshot(initial);
-  return initial;
+
+  // Matriz Roze Gourmet: Gera o seed oficial dos 8 sabores e fichas técnicas reais
+  if (currentId === "emp-roze-gourmet") {
+    const initial = generateInitialDemoData();
+    saveLocalSnapshot(initial, currentId);
+    return initial;
+  }
+
+  // Para qualquer NOVA EMPRESA cadastrada (Multi-Empresa SaaS):
+  // Inicia 100% LIMPA: 0 vendas, 0 produtos da Roze, 0 estoque, 0 fichas antigas!
+  const cleanSnapshot: DashboardDataSnapshot = {
+    produtos: [],
+    vendas: [],
+    itensVenda: [],
+    estoqueLotes: [],
+    fichasTecnicas: [],
+    source: "demo_local",
+    lastSyncedAt: new Date().toISOString(),
+  };
+  saveLocalSnapshot(cleanSnapshot, currentId);
+  return cleanSnapshot;
 }
 
-function saveLocalSnapshot(snapshot: DashboardDataSnapshot): void {
+export function saveLocalSnapshot(snapshot: DashboardDataSnapshot, companyId?: string): void {
+  const key = getCompanyStorageKey(companyId);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(key, JSON.stringify(snapshot));
   } catch (err) {
     console.warn("Não foi possível salvar no LocalStorage:", err);
   }
 }
 
-export function resetLocalDemoData(): DashboardDataSnapshot {
-  const fresh = generateInitialDemoData();
-  saveLocalSnapshot(fresh);
-  return fresh;
+export function resetLocalDemoData(companyId?: string): DashboardDataSnapshot {
+  const currentId = companyId || getActiveCompanyId();
+  if (currentId === "emp-roze-gourmet") {
+    const fresh = generateInitialDemoData();
+    saveLocalSnapshot(fresh, currentId);
+    return fresh;
+  }
+  const clean: DashboardDataSnapshot = {
+    produtos: [],
+    vendas: [],
+    itensVenda: [],
+    estoqueLotes: [],
+    fichasTecnicas: [],
+    source: "demo_local",
+    lastSyncedAt: new Date().toISOString(),
+  };
+  saveLocalSnapshot(clean, currentId);
+  return clean;
 }
 
 /**
  * Remove qualquer venda ou item local órfão mantendo apenas a base oficial da nuvem.
  */
-export function clearOrphanLocalSales(): void {
+export function clearOrphanLocalSales(companyId?: string): void {
   try {
-    const localSnap = getLocalSnapshot();
+    const currentId = companyId || getActiveCompanyId();
+    const localSnap = getLocalSnapshot(currentId);
     const cleanSnap: DashboardDataSnapshot = {
       ...localSnap,
       vendas: [],
       itensVenda: [],
       lastSyncedAt: new Date().toISOString(),
     };
-    saveLocalSnapshot(cleanSnap);
+    saveLocalSnapshot(cleanSnap, currentId);
   } catch (err) {
     console.warn("Erro ao limpar vendas órfãs locais:", err);
   }
+}
+
+export interface InitialProductSeed {
+  nome: string;
+  preco_venda: number;
+  custo_estimado?: number;
+  estoque_inicial?: number;
+}
+
+/**
+ * Cria os produtos e receitas iniciais informados pelo cliente no questionário de onboarding,
+ * garantindo que a nova empresa comece limpa e já com seus itens no PDV.
+ */
+export function seedCompanyInitialProducts(
+  companyId: string,
+  products: InitialProductSeed[],
+  nicho = "Confeitaria"
+): DashboardDataSnapshot {
+  const currentSnap = getLocalSnapshot(companyId);
+  const nowIso = new Date().toISOString();
+
+  const newProdutos: Produto[] = [];
+  const newLotes: EstoqueLote[] = [];
+  const newFichas: FichaTecnicaProduto[] = [];
+
+  products.forEach((p, idx) => {
+    const nome = p.nome.trim();
+    if (!nome) return;
+    const prodId = `prod-${Date.now().toString(36)}-${idx}-${Math.random().toString(36).substring(2, 5)}`;
+    const precoVenda = Number(p.preco_venda) || 0;
+    const custoEst = Number(p.custo_estimado) || Number((precoVenda * 0.35).toFixed(2));
+    const precoIfood = Number((precoVenda * 1.35).toFixed(2));
+
+    const prod: Produto = {
+      id: prodId,
+      nome,
+      preco_venda: precoVenda,
+      preco_ifood: precoIfood,
+      custo_estimado: custoEst,
+      ativo: true,
+      created_at: nowIso,
+    };
+    newProdutos.push(prod);
+
+    newLotes.push({
+      id: `est-${prodId}`,
+      produto_id: prodId,
+      quantidade_disponivel: Number(p.estoque_inicial) || 0,
+      updated_at: nowIso,
+    });
+
+    newFichas.push({
+      produto_id: prodId,
+      subtitulo_receita: `${nicho} • ${nome}`,
+      rendimento_unidades: 1,
+      volume_unitario_ml: 150,
+      tempo_preparo_min: 25,
+      custo_embalagem_un: 0.1,
+      custo_operacional_un: 0.4,
+      preco_ifood_sugerido: precoIfood,
+      lucro_ifood_estimado: Number((precoIfood * (1 - 0.262) - custoEst).toFixed(2)),
+      modo_preparo: `Preparo artesanal e montagem padronizada de ${nome}.`,
+      ingredientes: [
+        {
+          id: `ing-${prodId}-1`,
+          nome: `Base e Recheio Principal (${nome})`,
+          quantidade_receita: 1,
+          unidade: "un",
+          custo_receita: Number((custoEst * 0.8).toFixed(2)),
+        },
+        {
+          id: `ing-${prodId}-2`,
+          nome: "Embalagem e Etiqueta da Marca",
+          quantidade_receita: 1,
+          unidade: "un",
+          custo_receita: Number((custoEst * 0.2).toFixed(2)),
+        },
+      ],
+    });
+  });
+
+  const updatedSnapshot: DashboardDataSnapshot = {
+    ...currentSnap,
+    produtos: [...currentSnap.produtos, ...newProdutos],
+    estoqueLotes: [...currentSnap.estoqueLotes, ...newLotes],
+    fichasTecnicas: [...currentSnap.fichasTecnicas, ...newFichas],
+    lastSyncedAt: nowIso,
+  };
+
+  saveLocalSnapshot(updatedSnapshot, companyId);
+  return updatedSnapshot;
 }
 
 /**
  * Sincroniza automaticamente vendas que foram salvas offline/localmente com o Supabase.
  * Evita qualquer divergência de faturamento e vendas entre o App Web e o App Nativo Android.
  */
-export async function syncPendingLocalSalesToSupabase(): Promise<{
+export async function syncPendingLocalSalesToSupabase(companyId?: string): Promise<{
   syncedCount: number;
   discardedDuplicatesCount: number;
 }> {
@@ -621,8 +771,10 @@ export async function syncPendingLocalSalesToSupabase(): Promise<{
     return { syncedCount: 0, discardedDuplicatesCount: 0 };
   }
 
+  const currentId = companyId || getActiveCompanyId();
+
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getCompanyStorageKey(currentId));
     if (!raw) return { syncedCount: 0, discardedDuplicatesCount: 0 };
     const localSnap = JSON.parse(raw) as DashboardDataSnapshot;
     if (!localSnap || !Array.isArray(localSnap.vendas) || localSnap.vendas.length === 0) {
@@ -630,16 +782,22 @@ export async function syncPendingLocalSalesToSupabase(): Promise<{
     }
 
     // Busca vendas existentes no Supabase para reconciliação
-    const { data: remoteVendas, error: fetchErr } = await supabase
+    let remoteQuery = supabase
       .from("vendas")
       .select("id, data_venda, valor_total, forma_pagamento, status");
+
+    if (currentId !== "emp-roze-gourmet") {
+      remoteQuery = remoteQuery.eq("empresa_id", currentId);
+    }
+
+    const { data: remoteVendas, error: fetchErr } = await remoteQuery;
 
     if (fetchErr || !remoteVendas) {
       return { syncedCount: 0, discardedDuplicatesCount: 0 };
     }
 
     const remoteIds = new Set(remoteVendas.map((v) => v.id));
-    const channelMap = getLocalSaleChannels();
+    const channelMap = getLocalSaleChannels(currentId);
 
     let syncedCount = 0;
     let discardedDuplicatesCount = 0;
@@ -688,6 +846,7 @@ export async function syncPendingLocalSalesToSupabase(): Promise<{
           pix_txid: localVenda.pix_txid || null,
           pix_qrcode: localVenda.pix_qrcode || null,
           pix_copia_cola: localVenda.pix_copia_cola || null,
+          empresa_id: currentId,
         };
 
         // Se localVenda.id já for um UUID válido, preserva-o
@@ -704,14 +863,11 @@ export async function syncPendingLocalSalesToSupabase(): Promise<{
           .select()
           .single();
 
-        // Fallback caso canal_venda não exista na base remota
-        if (
-          insertErr &&
-          (insertErr.code === "PGRST204" ||
-            insertErr.message?.toLowerCase().includes("canal_venda"))
-        ) {
+        // Fallback caso canal_venda ou empresa_id não existam na base remota
+        if (insertErr) {
           const safeData = { ...saleInsertData };
           delete safeData.canal_venda;
+          delete safeData.empresa_id;
           const retry = await supabase
             .from("vendas")
             .insert(safeData)
@@ -722,7 +878,7 @@ export async function syncPendingLocalSalesToSupabase(): Promise<{
         }
 
         if (!insertErr && vendaInserida) {
-          setLocalSaleChannel(vendaInserida.id, canal);
+          setLocalSaleChannel(vendaInserida.id, canal, currentId);
           const localItens = remainingLocalItens.filter(
             (i) => i.venda_id === localVenda.id
           );
@@ -753,7 +909,7 @@ export async function syncPendingLocalSalesToSupabase(): Promise<{
       ),
       lastSyncedAt: new Date().toISOString(),
     };
-    saveLocalSnapshot(updatedSnapshot);
+    saveLocalSnapshot(updatedSnapshot, currentId);
 
     return { syncedCount, discardedDuplicatesCount };
   } catch (err) {
@@ -762,20 +918,30 @@ export async function syncPendingLocalSalesToSupabase(): Promise<{
   }
 }
 
-export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
+export async function fetchDashboardData(companyId?: string): Promise<DashboardDataSnapshot> {
+  const activeCompId = companyId || getActiveCompanyId();
+
   if (checkIsSupabaseConfigured() && supabase) {
     try {
       // Auto-sincroniza vendas offline antes de consultar para manter Nuvem e Aparelhos 100% idênticos
-      await syncPendingLocalSalesToSupabase();
+      await syncPendingLocalSalesToSupabase(activeCompId);
+
+      // Se for Roze Gourmet, lê normal. Se for outra empresa, tenta filtrar por empresa_id
+      let prodsQuery = supabase.from("produtos").select("*");
+      let vendasQuery = supabase.from("vendas").select("*");
+      let itensQuery = supabase.from("itens_venda").select("*");
+      let estoqueQuery = supabase.from("estoque_lotes").select("*");
+
+      if (activeCompId !== "emp-roze-gourmet") {
+        prodsQuery = prodsQuery.eq("empresa_id", activeCompId);
+        vendasQuery = vendasQuery.eq("empresa_id", activeCompId);
+      }
 
       const [produtosRes, vendasRes, itensRes, estoqueRes] = await Promise.all([
-        supabase.from("produtos").select("*").order("nome"),
-        supabase
-          .from("vendas")
-          .select("*")
-          .order("data_venda", { ascending: false }),
-        supabase.from("itens_venda").select("*"),
-        supabase.from("estoque_lotes").select("*"),
+        prodsQuery.order("nome"),
+        vendasQuery.order("data_venda", { ascending: false }),
+        itensQuery,
+        estoqueQuery,
       ]);
 
       if (
@@ -789,8 +955,8 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
           preco_venda: Number(p.preco_venda),
           custo_estimado: Number(p.custo_estimado),
         }));
-        const localSnap = getLocalSnapshot();
-        const channelMap = getLocalSaleChannels();
+        const localSnap = getLocalSnapshot(activeCompId);
+        const channelMap = getLocalSaleChannels(activeCompId);
 
         const allVendas: Venda[] = (vendasRes.data || []).map((v) => ({
           ...v,
@@ -814,14 +980,15 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
           })),
           fichasTecnicas: ensureFichasForProducts(
             prods,
-            localSnap.fichasTecnicas
+            localSnap.fichasTecnicas,
+            activeCompId
           ),
           source: "supabase",
           lastSyncedAt: new Date().toISOString(),
         };
 
         // Mantém o LocalStorage espelhado com os dados oficiais da Nuvem
-        saveLocalSnapshot(freshSnapshot);
+        saveLocalSnapshot(freshSnapshot, activeCompId);
         return freshSnapshot;
       }
     } catch (err) {
@@ -829,7 +996,7 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
     }
   }
 
-  return getLocalSnapshot();
+  return getLocalSnapshot(activeCompId);
 }
 
 export interface NewSalePayload {
@@ -1508,5 +1675,60 @@ export async function resetToCleanSlate(): Promise<DashboardDataSnapshot> {
   };
 
   saveLocalSnapshot(cleanSnapshot);
+  return cleanSnapshot;
+}
+
+/**
+ * Exclui permanentemente um produto do catálogo da empresa ativa,
+ * removendo também seus lotes de estoque e sua respectiva ficha técnica.
+ */
+export async function deleteProduct(produtoId: string): Promise<DashboardDataSnapshot> {
+  const current = await fetchDashboardData();
+  const nowIso = new Date().toISOString();
+
+  if (current.source === "supabase" && supabase) {
+    try {
+      await supabase.from("estoque_lotes").delete().eq("produto_id", produtoId);
+      await supabase.from("produtos").delete().eq("id", produtoId);
+    } catch (err) {
+      console.warn("Erro ao excluir produto do Supabase:", err);
+    }
+  }
+
+  const updatedProdutos = current.produtos.filter((p) => p.id !== produtoId);
+  const updatedLotes = current.estoqueLotes.filter((e) => e.produto_id !== produtoId);
+  const updatedFichas = current.fichasTecnicas.filter((f) => f.produto_id !== produtoId);
+
+  const updatedSnapshot: DashboardDataSnapshot = {
+    ...current,
+    produtos: updatedProdutos,
+    estoqueLotes: updatedLotes,
+    fichasTecnicas: updatedFichas,
+    lastSyncedAt: nowIso,
+  };
+
+  saveLocalSnapshot(updatedSnapshot);
+  return updatedSnapshot;
+}
+
+/**
+ * Limpa e zera 100% dos dados da empresa especificada (ou ativa),
+ * removendo qualquer vestígio de produtos anteriores, vendas ou fichas.
+ */
+export async function wipeCompanyData(companyId?: string): Promise<DashboardDataSnapshot> {
+  const currentId = companyId || getActiveCompanyId();
+  const nowIso = new Date().toISOString();
+
+  const cleanSnapshot: DashboardDataSnapshot = {
+    produtos: [],
+    vendas: [],
+    itensVenda: [],
+    estoqueLotes: [],
+    fichasTecnicas: [],
+    source: "demo_local",
+    lastSyncedAt: nowIso,
+  };
+
+  saveLocalSnapshot(cleanSnapshot, currentId);
   return cleanSnapshot;
 }

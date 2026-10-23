@@ -30,6 +30,7 @@ import {
   clearOrphanLocalSales,
   resetToCleanSlate,
   syncPendingLocalSalesToSupabase,
+  wipeCompanyData,
 } from "@/services/dataService";
 import { getActiveCompany, updateCompany } from "@/services/companyService";
 import { updateCurrentUserEmpresa } from "@/services/authService";
@@ -276,6 +277,28 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     } catch (err) {
       console.error("Erro ao zerar dados:", err);
       alert("Não foi possível zerar os dados: " + String(err));
+    }
+  };
+
+  const handleWipeAllCompanyData = async () => {
+    const activeComp = getActiveCompany();
+    const confirmed = window.confirm(
+      `ATENÇÃO: Deseja realmente ZERAR TUDO da empresa "${activeComp.nome}"?\n\n` +
+        "✓ Todos os produtos, receitas e fichas técnicas serão excluídos.\n" +
+        "✓ Todas as vendas e estoques serão limpos (0 registros).\n" +
+        "✓ O painel começará 100% LIMPO para cadastrar seus próprios produtos (ex: Pão de Mel, Bolos, Doces) sem nenhum vestígio da Roze!\n\n" +
+        "Deseja prosseguir com a limpeza total?"
+    );
+    if (!confirmed) return;
+
+    try {
+      await wipeCompanyData(activeComp.id);
+      setFeedback(`✓ Empresa "${activeComp.nome}" zerada com sucesso! Catálogo 100% limpo.`);
+      onConfigSaved();
+      setTimeout(() => setFeedback(null), 3000);
+    } catch (err) {
+      console.error("Erro ao zerar dados da empresa:", err);
+      alert("Não foi possível zerar os dados da empresa: " + String(err));
     }
   };
 
@@ -1035,10 +1058,20 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
               size="sm"
               onClick={handleCleanSlateAction}
               className="border-amber-500/40 text-amber-500 hover:bg-amber-500/10 text-xs font-medium"
-              title="Zera vendas e estoques mantendo 100% das fichas técnicas para o início real"
+              title="Zera vendas e estoques mantendo as fichas técnicas para o início real"
             >
               <Trash2 className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
-              <span>Zerar Vendas e Estoque (Início Real)</span>
+              <span>Zerar Vendas e Estoque</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleWipeAllCompanyData}
+              className="border-rose-500/40 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400 text-xs font-bold"
+              title="Zera absolutamente tudo desta empresa: produtos, fichas e vendas, para começar 100% limpo sem nenhum vestígio anterior"
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1.5 text-rose-600" />
+              <span>Zerar Tudo Desta Empresa (Começar do Zero)</span>
             </Button>
           </div>
 

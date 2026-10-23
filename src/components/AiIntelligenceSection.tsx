@@ -37,6 +37,7 @@ interface AiIntelligenceSectionProps {
   ifoodFeePct: number;
   onUpdateStock: (produtoId: string, newQty: number) => Promise<void>;
   onOpenInvoiceModal?: () => void;
+  companyName?: string;
 }
 
 const GEMINI_KEY_STORAGE = `${BRAND_CONFIG.storagePrefix}_gemini_api_key`;
@@ -64,7 +65,12 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
   ifoodFeePct,
   onUpdateStock,
   onOpenInvoiceModal,
+  companyName,
 }) => {
+  const companyDisplayName = companyName || BRAND_CONFIG.companyName;
+  const numFichas = snapshot.fichasTecnicas?.length || 0;
+  const numProds = snapshot.produtos?.length || 0;
+
   // Interactive Profit Target Simulator State
   const [metaLucroMensal, setMetaLucroMensal] = useState<number>(3500);
   const [diasTrabalhadosMes, setDiasTrabalhadosMes] = useState<number>(26);
@@ -104,6 +110,11 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
     [snapshot, analytics, ifoodFeePct, metaLucroMensal, diasTrabalhadosMes]
   );
 
+  const initialWelcomeText =
+    numProds === 0
+      ? `Olá! Sou o **Consultor PereiraLabs IA** da **${companyDisplayName}**.\n\nSua empresa ainda não possui produtos cadastrados. Adicione seus itens no botão **'+ Novo Produto / Sabor'** para que eu possa analisar seus custos, estoque e precificação!`
+      : `Olá! Sou o **Consultor PereiraLabs IA** da **${companyDisplayName}**.\n\nJá analisei suas **${numFichas} Fichas Técnicas**, seu estoque atual e a taxa iFood de **${ifoodFeePct.toFixed(1)}%**.\n\n👉 **Resumo Rápido:** Recomendamos produzir **${report.productionPlan.totalLotesHoje} lote(s)** (**${report.productionPlan.totalUnidadesProduzir} unidades**) para garantir **${formatCurrency(report.productionPlan.lucroLiquidoEsperadoHoje)}** de lucro líquido!\n\nEscolha uma pergunta rápida abaixo ou digite sua dúvida:`;
+
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
@@ -114,7 +125,7 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
         hour: "2-digit",
         minute: "2-digit",
       }),
-      content: `Olá! Sou o **Consultor PereiraLabs IA** da **${BRAND_CONFIG.companyName}**.\n\nJá analisei suas **8 Fichas Técnicas de 150ml**, as **54 cotações de insumos**, seu estoque atual e a taxa iFood de **${ifoodFeePct.toFixed(1)}%**.\n\n👉 **Resumo Rápido de Hoje:** Recomendamos produzir **${report.productionPlan.totalLotesHoje} lote(s)** (**${report.productionPlan.totalUnidadesProduzir} unidades**) para garantir **${formatCurrency(report.productionPlan.lucroLiquidoEsperadoHoje)}** de lucro líquido, economizando **${formatCurrency(report.shoppingList.economiaComSobras)}** com as sobras já disponíveis na sua despensa!\n\nEscolha uma pergunta rápida abaixo ou digite sua dúvida:`,
+      content: initialWelcomeText,
     },
   ]);
   const [chatInput, setChatInput] = useState<string>("");
@@ -1127,11 +1138,11 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
               </span>
               <h3 className="text-base font-extrabold text-foreground flex items-center gap-2">
                 <MessageSquare className="h-5 w-5 text-primary" />
-                Converse com os Dados da {BRAND_CONFIG.companyName}
+                Converse com os Dados da {companyDisplayName}
               </h3>
             </div>
             <span className="rounded-full bg-secondary px-3 py-1 text-[11px] font-semibold text-secondary-foreground">
-              Alimentado pelas 8 Fichas Técnicas, DRE, Estoque e 54 Cotações
+              Alimentado pelas {numFichas} Fichas Técnicas, DRE e Estoque
             </span>
           </div>
 

@@ -18,6 +18,7 @@ import {
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
 import { UserProfile } from "@/types/auth";
+import { isPereiraLabsMaster } from "@/services/companyService";
 
 interface HeaderProps {
   isDark: boolean;
@@ -173,12 +174,12 @@ export const Header: React.FC<HeaderProps> = ({
             </Button>
           )}
 
-          {onOpenMasterPanel && (
+          {onOpenMasterPanel && isPereiraLabsMaster(currentUser) && (
             <Button
               variant="outline"
               size="sm"
               onClick={onOpenMasterPanel}
-              title="Painel Master PereiraLabs (Gestão Multi-Empresa)"
+              title="Painel Master PereiraLabs (Gestão Multi-Empresa - Exclusivo PereiraLabs)"
               className="inline-flex items-center gap-1.5 border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs hover:bg-amber-500/20 shadow-sm"
             >
               <Sparkles className="h-3.5 w-3.5 text-amber-500" />

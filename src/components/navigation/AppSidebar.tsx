@@ -23,6 +23,7 @@ import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge } from "@/components/ui/primitives";
 import { NavTab } from "./AppBottomNav";
 import { UserProfile } from "@/types/auth";
+import { isPereiraLabsMaster } from "@/services/companyService";
 
 export type SidebarTab = NavTab | "completo" | "auditoria" | "ia" | "consultoria";
 
@@ -44,6 +45,7 @@ interface AppSidebarProps {
   companyName?: string;
   onOpenAuth: () => void;
   onLogout: () => void;
+  onOpenMasterPanel?: () => void;
 }
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
@@ -64,9 +66,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   companyName,
   onOpenAuth,
   onLogout,
+  onOpenMasterPanel,
 }) => {
   const isCashier = currentUser?.role === "operador_caixa";
   const displayCompanyName = companyName || currentUser?.empresaNome || BRAND_CONFIG.companyName;
+  const isMaster = isPereiraLabsMaster(currentUser);
 
   return (
     <aside className="hidden md:flex w-64 lg:w-72 shrink-0 flex-col border-r border-border/80 bg-card/90 backdrop-blur-md h-screen sticky top-0 overflow-hidden">
@@ -271,6 +275,26 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Painel Master (Exclusivo PereiraLabs) */}
+            {isMaster && onOpenMasterPanel && (
+              <div>
+                <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1.5 flex items-center justify-between">
+                  <span>Gestão Master</span>
+                  <span className="text-[9px] bg-amber-500/20 px-1.5 py-0.5 rounded font-black">Admin SaaS</span>
+                </p>
+                <div className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={onOpenMasterPanel}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl font-bold bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/25 transition-all shadow-sm"
+                  >
+                    <Sparkles className="h-4 w-4 shrink-0 text-amber-500" />
+                    <span>Painel Master PereiraLabs</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3.5 text-xs text-amber-700 dark:text-amber-400">

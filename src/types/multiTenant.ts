@@ -64,6 +64,7 @@ export const THEME_COLOR_PALETTES: Record<ThemeColorOption, CompanyThemeConfig> 
 };
 
 export type SubscriptionStatus = "ativo" | "bloqueado" | "cortesia";
+export type CompanyLifecycleStatus = "ativa" | "suspensa" | "excluida";
 
 export interface Company {
   id: string;
@@ -80,6 +81,7 @@ export interface Company {
   adminSenha: string;
   cashierPin: string;
   statusAssinatura: SubscriptionStatus;
+  statusLifecycle?: CompanyLifecycleStatus; // "ativa" | "suspensa" | "excluida"
   cortesiaValidadeAte?: string; // ISO date string
   valorMensalidade: number;
   criadoEm: string;

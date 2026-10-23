@@ -1,8 +1,15 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { TABELA_COTACAO_INSUMOS } from "@/data/insumosCatalog";
 import { CotacaoInsumo, FichaTecnicaProduto } from "@/types/dashboard";
+import { getActiveCompanyId } from "@/services/companyService";
 
-const QUOTATIONS_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_tabela_cotacoes_v2`;
+function getQuotationsKey(companyId?: string): string {
+  const currentId = companyId || getActiveCompanyId();
+  if (currentId === "emp-roze-gourmet") {
+    return `${BRAND_CONFIG.storagePrefix}_tabela_cotacoes_v2`;
+  }
+  return `${BRAND_CONFIG.storagePrefix}_cotacoes_${currentId}_v1`;
+}
 
 export interface ImportedReceiptItem {
   id: string;
@@ -28,27 +35,35 @@ export interface ReceiptParsedResult {
 /**
  * Loads the current quotation catalog from localStorage or default static catalog
  */
-export function loadCurrentQuotations(): CotacaoInsumo[] {
+export function loadCurrentQuotations(companyId?: string): CotacaoInsumo[] {
+  const currentId = companyId || getActiveCompanyId();
+  const key = getQuotationsKey(currentId);
   try {
-    const saved = localStorage.getItem(QUOTATIONS_STORAGE_KEY);
+    const saved = localStorage.getItem(key);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
   } catch {
     // fallback
   }
-  return [...TABELA_COTACAO_INSUMOS];
+  // Apenas a Matriz Roze Gourmet herda as 54 cotações de geladinhos
+  if (currentId === "emp-roze-gourmet") {
+    return [...TABELA_COTACAO_INSUMOS];
+  }
+  return [];
 }
 
 /**
  * Saves updated quotation catalog to localStorage
  */
-export function saveQuotations(items: CotacaoInsumo[]): void {
+export function saveQuotations(items: CotacaoInsumo[], companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
+  const key = getQuotationsKey(currentId);
   try {
-    localStorage.setItem(QUOTATIONS_STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(key, JSON.stringify(items));
   } catch {
     // ignore
   }

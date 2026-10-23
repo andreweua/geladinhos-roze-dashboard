@@ -1,5 +1,5 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
-import { Company, SubscriptionStatus, ThemeColorOption } from "@/types/multiTenant";
+import { Company, CompanyLifecycleStatus, SubscriptionStatus, ThemeColorOption } from "@/types/multiTenant";
 import { supabase, checkIsSupabaseConfigured } from "@/lib/supabase";
 
 const COMPANIES_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_companies_master_v1`;
@@ -186,6 +186,91 @@ export function renewCourtesy(companyId: string, additionalDays = 15): Company |
     statusAssinatura: "cortesia",
     cortesiaValidadeAte: baseDate.toISOString(),
   });
+}
+
+/**
+ * Determina o status de ciclo de vida da empresa: "ativa" | "suspensa" | "excluida"
+ */
+export function getCompanyLifecycleStatus(company: Company): CompanyLifecycleStatus {
+  if (company.statusLifecycle === "excluida") {
+    return "excluida";
+  }
+  if (company.statusAssinatura === "bloqueado" || company.statusLifecycle === "suspensa") {
+    return "suspensa";
+  }
+  if (company.statusAssinatura === "cortesia" && company.cortesiaValidadeAte) {
+    const expired = new Date(company.cortesiaValidadeAte).getTime() <= Date.now();
+    if (expired) return "suspensa";
+  }
+  return "ativa";
+}
+
+/**
+ * Exclui uma empresa (soft delete para a aba de excluídas, ou permanente se solicitado)
+ */
+export function deleteCompany(companyId: string, permanent = false): boolean {
+  const list = getLocalCompanies();
+  const idx = list.findIndex((c) => c.id === companyId);
+  if (idx === -1) return false;
+
+  if (permanent) {
+    list.splice(idx, 1);
+    saveLocalCompanies(list);
+    return true;
+  }
+
+  // Soft delete: marca como excluida
+  list[idx] = {
+    ...list[idx],
+    statusLifecycle: "excluida",
+  };
+  saveLocalCompanies(list);
+  return true;
+}
+
+/**
+ * Restaura uma empresa que estava na lixeira/aba excluídas
+ */
+export function restoreCompany(companyId: string): Company | null {
+  return updateCompany(companyId, {
+    statusLifecycle: "ativa",
+    statusAssinatura: "ativo",
+  });
+}
+
+/**
+ * Suspende / Bloqueia o acesso de uma empresa
+ */
+export function suspendCompany(companyId: string): Company | null {
+  return updateCompany(companyId, {
+    statusLifecycle: "suspensa",
+    statusAssinatura: "bloqueado",
+  });
+}
+
+/**
+ * Reativa o acesso de uma empresa suspensa
+ */
+export function activateCompany(companyId: string): Company | null {
+  return updateCompany(companyId, {
+    statusLifecycle: "ativa",
+    statusAssinatura: "ativo",
+  });
+}
+
+/**
+ * Verifica se um usuário possui credenciais Master PereiraLabs
+ */
+export function isPereiraLabsMaster(user: { email?: string; id?: string } | null | undefined): boolean {
+  if (!user) return false;
+  const email = (user.email || "").toLowerCase().trim();
+  return (
+    email === "andreweua@gmail.com" ||
+    email === "admin@pereiralabs.com.br" ||
+    email === "comercial@pereiralabs.com.br" ||
+    email.endsWith("@pereiralabs.com.br") ||
+    user.id === "usr-super-admin-andrew"
+  );
 }
 
 /**
