@@ -16,6 +16,26 @@ import { saveOrUpdateCustomer } from "@/services/customerService";
 // Updated storage key to v3_clean_real to eliminate all fictitious/generated sales
 // Retaining strictly the real products, real recipes/technical sheets and user quotations.
 const STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_dashboard_data_v3_clean_real`;
+const CHANNELS_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_sales_channels_map_v1`;
+
+export function getLocalSaleChannels(): Record<string, CanalVenda> {
+  try {
+    const raw = localStorage.getItem(CHANNELS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function setLocalSaleChannel(vendaId: string, canal: CanalVenda): void {
+  try {
+    const map = getLocalSaleChannels();
+    map[vendaId] = canal;
+    localStorage.setItem(CHANNELS_STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    // ignore
+  }
+}
 
 export function calculateUnitCostFromFicha(ficha: FichaTecnicaProduto): {
   custoInsumosReceita: number;
@@ -596,17 +616,39 @@ export async function fetchDashboardData(): Promise<DashboardDataSnapshot> {
           custo_estimado: Number(p.custo_estimado),
         }));
         const localSnap = getLocalSnapshot();
-        return {
-          produtos: prods,
-          vendas: (vendasRes.data || []).map((v) => ({
+        const channelMap = getLocalSaleChannels();
+
+        // Preserva vendas locais caso alguma ainda não tenha subido para o Supabase
+        const supabaseVendaIds = new Set((vendasRes.data || []).map((v) => v.id));
+        const unsyncedLocalVendas = localSnap.vendas.filter(
+          (v) => !supabaseVendaIds.has(v.id)
+        );
+        const unsyncedLocalItens = localSnap.itensVenda.filter((i) =>
+          unsyncedLocalVendas.some((v) => v.id === i.venda_id)
+        );
+
+        const allVendas: Venda[] = [
+          ...(vendasRes.data || []).map((v) => ({
             ...v,
+            canal_venda: v.canal_venda || channelMap[v.id] || "Balcao",
             valor_total: Number(v.valor_total),
           })),
-          itensVenda: (itensRes.data || []).map((i) => ({
+          ...unsyncedLocalVendas,
+        ];
+
+        const allItens: ItemVenda[] = [
+          ...(itensRes.data || []).map((i) => ({
             ...i,
             quantidade: Number(i.quantidade),
             preco_unitario: Number(i.preco_unitario),
           })),
+          ...unsyncedLocalItens,
+        ];
+
+        return {
+          produtos: prods,
+          vendas: allVendas,
+          itensVenda: allItens,
           estoqueLotes: (estoqueRes.data || []).map((e) => ({
             ...e,
             quantidade_disponivel: Number(e.quantidade_disponivel),
@@ -703,13 +745,38 @@ export async function createNewSale(
       saleInsertData.id = payload.venda_id;
     }
 
-    const { data: vendaInserida, error: vendaErr } = await supabase
+    let { data: vendaInserida, error: vendaErr } = await supabase
       .from("vendas")
       .insert(saleInsertData)
       .select()
       .single();
 
+    // Se a coluna canal_venda ainda não existe no banco remoto (PGRST204), retenta sem ela para NUNCA perder a venda
+    if (
+      vendaErr &&
+      (vendaErr.code === "PGRST204" ||
+        vendaErr.message?.toLowerCase().includes("canal_venda"))
+    ) {
+      console.warn(
+        "Coluna canal_venda ausente no Supabase. Salvando venda sem a coluna e registrando canal localmente."
+      );
+      const safeData = { ...saleInsertData };
+      delete safeData.canal_venda;
+      const retry = await supabase
+        .from("vendas")
+        .insert(safeData)
+        .select()
+        .single();
+      vendaInserida = retry.data;
+      vendaErr = retry.error;
+    }
+
     if (!vendaErr && vendaInserida) {
+      // Registra o canal de venda mapeado localmente
+      if (payload.canal_venda) {
+        setLocalSaleChannel(vendaInserida.id, payload.canal_venda);
+      }
+
       const itemsToInsert = preparedItems.map((i) => ({
         venda_id: vendaInserida.id,
         produto_id: i.produto_id,
@@ -754,6 +821,8 @@ export async function createNewSale(
       }
 
       return fetchDashboardData();
+    } else if (vendaErr) {
+      console.error("Erro crítico ao gravar venda no Supabase:", vendaErr);
     }
   }
 
