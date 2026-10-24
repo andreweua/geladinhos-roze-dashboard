@@ -28,6 +28,7 @@ import {
   Ban,
   Package,
   Edit2,
+  CreditCard,
 } from "lucide-react";
 import { wipeCompanyData, seedCompanyInitialProducts } from "@/services/dataService";
 import {
@@ -55,6 +56,12 @@ import {
 } from "@/services/companyService";
 import { Badge, Button } from "@/components/ui/primitives";
 import { formatCurrency } from "@/lib/utils";
+import { BillingManagementModule } from "./BillingManagementModule";
+import {
+  calcularFaturamentoConsolidado,
+  getPlanos,
+  getEmpresasFaturamento,
+} from "@/services/billingService";
 
 function parseInitialProducts(text: string): Array<{ nome: string; preco_venda: number }> {
   const lines = text.split("\n");
@@ -97,6 +104,7 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState<CompanyLifecycleStatus>("ativa");
+  const [masterSection, setMasterSection] = useState<"empresas" | "faturamento">("empresas");
 
   // Form para nova empresa baseado no questionário oficial da PereiraLabs
   const [newNome, setNewNome] = useState("");
@@ -362,7 +370,10 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
 
   const activeCount = ativasCompanies.filter((c) => c.statusAssinatura === "ativo").length;
   const cortesiaCount = ativasCompanies.filter((c) => c.statusAssinatura === "cortesia").length;
-  const projectedRevenue = ativasCompanies.reduce((acc, c) => acc + (Number(c.valorMensalidade) || 0), 0);
+  // Faturamento Consolidado Dinâmico (calculado pelo somatório das mensalidades dos planos vinculados e valores customizados)
+  const billingPlanos = getPlanos();
+  const billingCompanies = getEmpresasFaturamento();
+  const projectedRevenue = calcularFaturamentoConsolidado(billingCompanies, billingPlanos);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-5 backdrop-blur-md animate-in fade-in duration-200">
@@ -415,27 +426,63 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
           </div>
         )}
 
+        {/* Navigation Tabs between Clientes e Faturamento */}
+        <div className="flex items-center gap-2 border-b border-border bg-secondary/30 px-6 py-2">
+          <button
+            type="button"
+            onClick={() => setMasterSection("empresas")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              masterSection === "empresas"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Building2 className="h-4 w-4" />
+            <span>Empresas & Clientes ({companies.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMasterSection("faturamento")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              masterSection === "faturamento"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <CreditCard className="h-4 w-4" />
+            <span>Gestão de Faturamento & Planos</span>
+            <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+              Dinâmico
+            </span>
+          </button>
+        </div>
+
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Top KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-2xl border border-border bg-background p-3.5">
-              <span className="text-[11px] font-medium text-muted-foreground block">Empresas Ativas</span>
-              <p className="text-xl font-black text-foreground mt-0.5">{ativasCompanies.length}</p>
-            </div>
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5">
-              <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 block">Mensalistas Pagos</span>
-              <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{activeCount}</p>
-            </div>
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3.5">
-              <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 block">Em Degustação / Cortesia</span>
-              <p className="text-xl font-black text-amber-600 dark:text-amber-400 mt-0.5">{cortesiaCount}</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-background p-3.5">
-              <span className="text-[11px] font-medium text-muted-foreground block">Faturamento Mensal</span>
-              <p className="text-xl font-black text-foreground mt-0.5">{formatCurrency(projectedRevenue)}/mês</p>
-            </div>
-          </div>
+          {masterSection === "faturamento" ? (
+            <BillingManagementModule />
+          ) : (
+            <>
+              {/* Top KPI Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-2xl border border-border bg-background p-3.5">
+                  <span className="text-[11px] font-medium text-muted-foreground block">Empresas Ativas</span>
+                  <p className="text-xl font-black text-foreground mt-0.5">{ativasCompanies.length}</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5">
+                  <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 block">Mensalistas Pagos</span>
+                  <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{activeCount}</p>
+                </div>
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3.5">
+                  <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400 block">Em Degustação / Cortesia</span>
+                  <p className="text-xl font-black text-amber-600 dark:text-amber-400 mt-0.5">{cortesiaCount}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-background p-3.5">
+                  <span className="text-[11px] font-medium text-muted-foreground block">Faturamento Mensal</span>
+                  <p className="text-xl font-black text-foreground mt-0.5">{formatCurrency(projectedRevenue)}/mês</p>
+                </div>
+              </div>
 
           {/* Form de Cadastro de Nova Empresa com Questionário de Onboarding */}
           {isCreating ? (
@@ -1224,6 +1271,8 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
               )}
             </div>
           </div>
+            </>
+          )}
         </div>
 
         {/* Modal Footer */}
