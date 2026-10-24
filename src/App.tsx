@@ -1393,9 +1393,16 @@ export function App() {
         onSuccess={(user) => {
           setCurrentUser(user);
           setAuthModalOpen(false);
-          if (user.role === "operador_caixa") {
+
+          // REQUISITO 2: Se o usuário logado for Administrador PereiraLabs, redirecionamento direto para a Área de Gestão de Faturamento / Painel Master
+          if (isPereiraLabsMaster(user)) {
+            setMasterModalOpen(true);
+          } else if (user.role === "operador_caixa") {
             setActiveSection("inicio");
             handleOpenPos();
+          } else {
+            // Usuário comum (Cliente): segue para a dashboard da sua própria empresa
+            setActiveSection("inicio");
           }
         }}
         canDismiss={Boolean(currentUser)}

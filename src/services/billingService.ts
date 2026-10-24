@@ -5,6 +5,8 @@ import {
   TransacaoHistorico,
   CalculoProRataResultado,
   ResumoFaturamentoConsolidado,
+  CalculoTransicaoPlanoResultado,
+  TipoTransicaoPlano,
 } from "@/types/billing";
 import { getLocalCompanies } from "@/services/companyService";
 
@@ -485,4 +487,201 @@ export function calcularResumoFaturamento(
     totalRecebidoMes: Number(totalRecebidoMes.toFixed(2)),
     totalEstornadoMes: Number(totalEstornadoMes.toFixed(2)),
   };
+}
+
+/**
+ * Retorna a data exata de início do próximo ciclo de faturamento
+ * com base no dia de vencimento mensal da empresa (padrão: dia 10).
+ */
+export function obterDataProximoCiclo(diaVencimento = 10): {
+  dataIso: string;
+  dataFormatada: string;
+} {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = hoje.getMonth(); // 0-indexed
+
+  // Cria a data de vencimento deste mês
+  let proximo = new Date(anoAtual, mesAtual, diaVencimento);
+
+  // Se o vencimento deste mês já passou de hoje, o próximo ciclo inicia no próximo mês
+  if (hoje >= proximo) {
+    proximo = new Date(anoAtual, mesAtual + 1, diaVencimento);
+  }
+
+  const ano = proximo.getFullYear();
+  const mes = String(proximo.getMonth() + 1).padStart(2, "0");
+  const dia = String(proximo.getDate()).padStart(2, "0");
+  const dataIso = `${ano}-${mes}-${dia}`;
+
+  return {
+    dataIso,
+    dataFormatada: proximo.toLocaleDateString("pt-BR"),
+  };
+}
+
+/**
+ * REQUISITO 1: Cálculo e Simulação de Transição de Plano (Upgrade / Downgrade)
+ *
+ * - Downgrade: Mudança para plano menor entra em vigor no início do próximo ciclo.
+ *   Sem cobrança pró-rata adicional; usufrui do plano atual até o fim do ciclo.
+ * - Upgrade: Mudança para plano maior.
+ *   - Se escolher data futura: calcula pró-rata a partir daquele dia até o fim do ciclo.
+ *   - Se NÃO escolher data (imediato): calcula pró-rata dos dias restantes do ciclo atual.
+ */
+export function calcularTransicaoPlano(
+  empresa: EmpresaFaturamento,
+  novoPlanoId: string,
+  dataEfetivacaoDesejada?: string
+): CalculoTransicaoPlanoResultado {
+  const planos = getPlanos();
+  const planoAtual = planos.find((p) => p.id === empresa.planoId) || planos[0];
+  const novoPlano = planos.find((p) => p.id === novoPlanoId) || planos[1] || planos[0];
+
+  const diaVenc = empresa.diaVencimento || 10;
+  const proximoCiclo = obterDataProximoCiclo(diaVenc);
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const isDowngrade = novoPlano.valorMensal < planoAtual.valorMensal;
+  const diferencaMensal = Number((novoPlano.valorMensal - planoAtual.valorMensal).toFixed(2));
+
+  // 1. Caso DOWNGRADE: Vigência automática no início do próximo ciclo
+  if (isDowngrade) {
+    return {
+      tipo: "downgrade",
+      planoAtual,
+      novoPlano,
+      dataEfetivacao: proximoCiclo.dataIso,
+      dataFormatada: proximoCiclo.dataFormatada,
+      dataProximoCiclo: proximoCiclo.dataIso,
+      dataProximoCicloFormatada: proximoCiclo.dataFormatada,
+      isAgendadoParaProximoCiclo: true,
+      diasRestantesCiclo: 0,
+      valorProRataAdicional: 0,
+      diferencaMensal,
+      mensagemInformativa: `Seu plano atual (${planoAtual.nome}) continuará com todos os recursos ativos até o encerramento do ciclo vigente em ${proximoCiclo.dataFormatada}. A partir desta data, sua assinatura passará para o ${novoPlano.nome} e o novo valor de R$ ${novoPlano.valorMensal.toFixed(2)}/mês entrará em vigor automaticamente.`,
+    };
+  }
+
+  // 2. Caso UPGRADE: Imediato ou com data futura escolhida
+  const dataInicioUpgrade = dataEfetivacaoDesejada
+    ? new Date(dataEfetivacaoDesejada)
+    : hoje;
+  dataInicioUpgrade.setHours(0, 0, 0, 0);
+
+  const dataFimCiclo = new Date(proximoCiclo.dataIso);
+  dataFimCiclo.setHours(0, 0, 0, 0);
+
+  const diffTime = dataFimCiclo.getTime() - dataInicioUpgrade.getTime();
+  const diasRestantes = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+  // Diferença diária entre os planos (base 30 dias)
+  const diffDiaria = (novoPlano.valorMensal - planoAtual.valorMensal) / 30;
+  const valorProRataAdicional = Number((diffDiaria * diasRestantes).toFixed(2));
+
+  const isAgendado = Boolean(dataEfetivacaoDesejada && dataInicioUpgrade > hoje);
+
+  const dataEfetivacaoIso = dataInicioUpgrade.toISOString().split("T")[0];
+  const dataEfetivacaoFormatada = dataInicioUpgrade.toLocaleDateString("pt-BR");
+
+  const mensagem = isAgendado
+    ? `Upgrade agendado para ${dataEfetivacaoFormatada}. O valor proporcional de pró-rata calculado para os ${diasRestantes} dias até o vencimento regular (${proximoCiclo.dataFormatada}) é de R$ ${valorProRataAdicional.toFixed(2)}.`
+    : `Upgrade imediato! A cobrança proporcional (pró-rata) apurada para os ${diasRestantes} dias restantes do seu ciclo atual até ${proximoCiclo.dataFormatada} é de R$ ${valorProRataAdicional.toFixed(2)}.`;
+
+  return {
+    tipo: "upgrade",
+    planoAtual,
+    novoPlano,
+    dataEfetivacao: dataEfetivacaoIso,
+    dataFormatada: dataEfetivacaoFormatada,
+    dataProximoCiclo: proximoCiclo.dataIso,
+    dataProximoCicloFormatada: proximoCiclo.dataFormatada,
+    isAgendadoParaProximoCiclo: isAgendado,
+    diasRestantesCiclo: diasRestantes,
+    valorProRataAdicional,
+    diferencaMensal,
+    mensagemInformativa: mensagem,
+  };
+}
+
+/**
+ * Aplica a transição solicitada pelo cliente ou administrador:
+ * - Se Downgrade: agenda para o próximo ciclo
+ * - Se Upgrade com data futura: agenda para a data escolhida
+ * - Se Upgrade imediato: atualiza o plano imediatamente e gera recibo proporcional
+ */
+export function aplicarTransicaoPlano(
+  empresaId: string,
+  novoPlanoId: string,
+  dataEfetivacaoDesejada?: string
+): { success: boolean; mensagem: string; empresa: EmpresaFaturamento } {
+  const empresas = getEmpresasFaturamento();
+  const target = empresas.find((e) => e.id === empresaId);
+
+  if (!target) {
+    throw new Error("Empresa não encontrada.");
+  }
+
+  const calculo = calcularTransicaoPlano(target, novoPlanoId, dataEfetivacaoDesejada);
+
+  let updates: Partial<EmpresaFaturamento>;
+
+  if (calculo.tipo === "downgrade" || calculo.isAgendadoParaProximoCiclo) {
+    // Agenda a transição
+    updates = {
+      planoAgendadoId: novoPlanoId,
+      tipoTransicao: calculo.tipo,
+      dataTransicaoPlano: calculo.dataEfetivacao,
+      valorTransicaoProRata: calculo.valorProRataAdicional,
+      dataProximoCiclo: calculo.dataProximoCiclo,
+    };
+  } else {
+    // Upgrade Imediato: migra plano já e limpa transições agendadas
+    updates = {
+      planoId: novoPlanoId,
+      planoAgendadoId: undefined,
+      tipoTransicao: undefined,
+      dataTransicaoPlano: undefined,
+      valorTransicaoProRata: undefined,
+      // Se tinha valor customizado, limpa para herdar o novo plano
+      valorCustomizado: undefined,
+    };
+
+    // Registra recibo/transação do pró-rata proporcional se for maior que zero
+    if (calculo.valorProRataAdicional > 0) {
+      registrarNovoPagamento(
+        empresaId,
+        calculo.valorProRataAdicional,
+        `Pró-Rata Upgrade ${calculo.novoPlano.nome}`
+      );
+    }
+  }
+
+  const updatedList = updateEmpresaFaturamento(empresaId, updates);
+  const updatedEmpresa = updatedList.find((e) => e.id === empresaId)!;
+
+  return {
+    success: true,
+    mensagem: calculo.mensagemInformativa,
+    empresa: updatedEmpresa,
+  };
+}
+
+/**
+ * Cancela uma transição ou downgrade agendado
+ */
+export function cancelarTransicaoPlano(
+  empresaId: string
+): EmpresaFaturamento {
+  const updatedList = updateEmpresaFaturamento(empresaId, {
+    planoAgendadoId: undefined,
+    tipoTransicao: undefined,
+    dataTransicaoPlano: undefined,
+    valorTransicaoProRata: undefined,
+  });
+  return updatedList.find((e) => e.id === empresaId)!;
 }

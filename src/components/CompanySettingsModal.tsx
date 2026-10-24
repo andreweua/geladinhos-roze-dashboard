@@ -34,6 +34,7 @@ import {
 } from "@/services/dataService";
 import { getActiveCompany, updateCompany } from "@/services/companyService";
 import { updateCurrentUserEmpresa } from "@/services/authService";
+import { ClientPlanManagementCard } from "@/components/billing/ClientPlanManagementCard";
 
 interface CompanySettingsModalProps {
   isOpen: boolean;
@@ -47,8 +48,8 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   onConfigSaved,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    "empresa" | "pix_ton" | "stone_api" | "polos" | "supabase"
-  >("pix_ton");
+    "empresa" | "plano" | "pix_ton" | "stone_api" | "polos" | "supabase"
+  >("plano");
 
   const [feedback, setFeedback] = useState<string | null>(null);
   const [copiedSyncLink, setCopiedSyncLink] = useState(false);
@@ -429,6 +430,19 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         <div className="flex border-b border-border text-xs font-semibold overflow-x-auto">
           <button
             type="button"
+            onClick={() => setActiveTab("plano")}
+            className={`flex items-center gap-1.5 px-4 py-2.5 transition-colors border-b-2 whitespace-nowrap ${
+              activeTab === "plano"
+                ? "border-primary text-primary bg-primary/5 font-bold"
+                : "border-transparent text-muted-foreground hover:bg-secondary/40"
+            }`}
+          >
+            <CreditCard className="h-4 w-4" />
+            <span>Meu Plano & Assinatura</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab("pix_ton")}
             className={`flex items-center gap-1.5 px-4 py-2.5 transition-colors border-b-2 whitespace-nowrap ${
               activeTab === "pix_ton"
@@ -503,6 +517,16 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
 
         {/* Body Form */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* TAB 0: MEU PLANO & ASSINATURA (AUTONOMIA DO CLIENTE) */}
+          {activeTab === "plano" && (
+            <div className="space-y-4">
+              <ClientPlanManagementCard
+                empresaId={currentActiveComp.id}
+                onPlanChanged={onConfigSaved}
+              />
+            </div>
+          )}
+
           {/* TAB 1: PIX & TON */}
           {activeTab === "pix_ton" && (
             <div className="space-y-4">

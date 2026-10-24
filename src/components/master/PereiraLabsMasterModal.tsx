@@ -61,6 +61,7 @@ import {
   calcularFaturamentoConsolidado,
   getPlanos,
   getEmpresasFaturamento,
+  updateEmpresaFaturamento,
 } from "@/services/billingService";
 
 function parseInitialProducts(text: string): Array<{ nome: string; preco_venda: number }> {
@@ -119,7 +120,8 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
   const [newSenha, setNewSenha] = useState(() => generateRandomPassword("Mel"));
   const [newPlanoTipo, setNewPlanoTipo] = useState<SubscriptionStatus>("cortesia");
   const [newCortesiaDias, setNewCortesiaDias] = useState<number>(15);
-  const [newValorMensal, setNewValorMensal] = useState<number>(79.9);
+  const availablePlanos = getPlanos();
+  const [newPlanoId, setNewPlanoId] = useState<string>("plano-pro");
   const [newProdutosTexto, setNewProdutosTexto] = useState(
     "Pão de Mel Tradicional - 7.00\nPão de Mel Brigadeiro - 8.50\nBolo Gelado de Coco - 12.00"
   );
@@ -138,7 +140,7 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
   const [editSenha, setEditSenha] = useState("");
   const [editCashierPin, setEditCashierPin] = useState("1234");
   const [editStatus, setEditStatus] = useState<SubscriptionStatus>("ativo");
-  const [editValorMensal, setEditValorMensal] = useState<number>(79.9);
+  const [editPlanoId, setEditPlanoId] = useState<string>("plano-pro");
 
   const handleOpenEditCompany = (company: Company) => {
     setEditingCompany(company);
@@ -155,7 +157,10 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
     setEditSenha(company.adminSenha || "");
     setEditCashierPin(company.cashierPin || "1234");
     setEditStatus(company.statusAssinatura || "ativo");
-    setEditValorMensal(company.valorMensalidade || 79.9);
+
+    // Localiza plano da empresa no módulo de faturamento
+    const billingEmp = getEmpresasFaturamento().find((b) => b.id === company.id);
+    setEditPlanoId(billingEmp?.planoId || "plano-pro");
   };
 
   const handleUpdateCompanySubmit = (e: React.FormEvent) => {
@@ -164,6 +169,10 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
 
     const cleanZap = editWhatsapp.replace(/\D/g, "");
     const formattedZap = cleanZap ? (cleanZap.startsWith("55") ? cleanZap : `55${cleanZap}`) : "";
+
+    // REQUISITO 1: O valor da mensalidade é herdado do plano e nunca digitado manualmente
+    const selectedPlano = availablePlanos.find((p) => p.id === editPlanoId) || availablePlanos[0];
+    const valorHerdado = selectedPlano.valorMensal;
 
     const updated = updateCompany(editingCompany.id, {
       nome: editNome.trim(),
@@ -178,12 +187,18 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
       adminSenha: editSenha.trim(),
       cashierPin: editCashierPin.trim() || "1234",
       statusAssinatura: editStatus,
-      valorMensalidade: Number(editValorMensal) || 79.9,
+      valorMensalidade: valorHerdado,
+    });
+
+    // Mantém sincronizado no módulo de faturamento
+    updateEmpresaFaturamento(editingCompany.id, {
+      planoId: editPlanoId,
+      status: editStatus === "ativo" ? "ativa" : editStatus === "cortesia" ? "degustação" : "inativa",
     });
 
     if (updated) {
       reloadCompanies();
-      setFeedback(`✓ Cadastro de "${updated.nome}" atualizado com sucesso!`);
+      setFeedback(`✓ Cadastro de "${updated.nome}" atualizado! Plano: ${selectedPlano.nome} (${formatCurrency(valorHerdado)}/mês).`);
       setEditingCompany(null);
       setTimeout(() => setFeedback(null), 3500);
     }
@@ -210,6 +225,10 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
     const cleanZap = newWhatsapp.replace(/\D/g, "");
     const formattedZap = cleanZap.startsWith("55") ? cleanZap : `55${cleanZap}`;
 
+    // REQUISITO 1: O valor da mensalidade é herdado do plano e nunca digitado manualmente
+    const selectedPlano = availablePlanos.find((p) => p.id === newPlanoId) || availablePlanos[1] || availablePlanos[0];
+    const valorHerdado = selectedPlano.valorMensal;
+
     const created = await createCompany({
       nome: newNome.trim(),
       slug: newNome.toLowerCase().replace(/[^a-z0-9]/g, "-"),
@@ -225,7 +244,7 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
       cashierPin: "1234",
       statusAssinatura: newPlanoTipo,
       cortesiaValidadeAte: cortesiaData,
-      valorMensalidade: Number(newValorMensal) || 79.9,
+      valorMensalidade: valorHerdado,
     });
 
     // Se foram informados produtos e preços iniciais no questionário, semeia os itens na empresa
@@ -701,6 +720,23 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
                     </select>
                   </div>
 
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      Plano de Assinatura * (Valor herdado)
+                    </label>
+                    <select
+                      value={newPlanoId}
+                      onChange={(e) => setNewPlanoId(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
+                    >
+                      {availablePlanos.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nome} — {formatCurrency(p.valorMensal)}/mês
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   {newPlanoTipo === "cortesia" && (
                     <div className="sm:col-span-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
                       <div>
@@ -918,15 +954,19 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
 
                   <div>
                     <label className="text-xs font-bold text-foreground block mb-1">
-                      Valor Mensalidade (R$)
+                      Plano Vinculado * (Valor herdado)
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={editValorMensal}
-                      onChange={(e) => setEditValorMensal(parseFloat(e.target.value) || 0)}
-                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
+                    <select
+                      value={editPlanoId}
+                      onChange={(e) => setEditPlanoId(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
+                    >
+                      {availablePlanos.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nome} — {formatCurrency(p.valorMensal)}/mês
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 

@@ -26,6 +26,43 @@ export interface EmpresaFaturamento {
   whatsapp?: string;
   cidade?: string;
   criadoEm?: string;
+
+  // Propriedades de Agendamento e Transição de Plano (Upgrade / Downgrade)
+  planoAgendadoId?: string; // ID do plano agendado para o próximo ciclo
+  dataTransicaoPlano?: string; // "YYYY-MM-DD" da efetivação
+  tipoTransicao?: "upgrade" | "downgrade";
+  valorTransicaoProRata?: number; // Valor proporcional apurado se for upgrade
+  dataProximoCiclo?: string; // "YYYY-MM-DD" do início do próximo ciclo
+}
+
+export type TipoTransicaoPlano = "upgrade" | "downgrade";
+
+export interface TransicaoPlanoRegistro {
+  id: string;
+  empresaId: string;
+  planoOrigemId: string;
+  planoDestinoId: string;
+  tipoTransicao: TipoTransicaoPlano;
+  dataSolicitacao: string;
+  dataEfetivacao: string;
+  valorProRata?: number;
+  statusTransicao: "agendado" | "concluido" | "cancelado";
+  observacao?: string;
+}
+
+export interface CalculoTransicaoPlanoResultado {
+  tipo: TipoTransicaoPlano;
+  planoAtual: Plano;
+  novoPlano: Plano;
+  dataEfetivacao: string;
+  dataFormatada: string;
+  dataProximoCiclo: string;
+  dataProximoCicloFormatada: string;
+  isAgendadoParaProximoCiclo: boolean;
+  diasRestantesCiclo: number;
+  valorProRataAdicional: number;
+  diferencaMensal: number;
+  mensagemInformativa: string;
 }
 
 export type StatusPagamento = "pago" | "pendente";
