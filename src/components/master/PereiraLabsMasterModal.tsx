@@ -27,6 +27,7 @@ import {
   Archive,
   Ban,
   Package,
+  Edit2,
 } from "lucide-react";
 import { wipeCompanyData, seedCompanyInitialProducts } from "@/services/dataService";
 import {
@@ -114,6 +115,71 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
   const [newProdutosTexto, setNewProdutosTexto] = useState(
     "Pão de Mel Tradicional - 7.00\nPão de Mel Brigadeiro - 8.50\nBolo Gelado de Coco - 12.00"
   );
+
+  // Estado de Edição de Empresa Existente
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [editNome, setEditNome] = useState("");
+  const [editNicho, setEditNicho] = useState("");
+  const [editResponsavel, setEditResponsavel] = useState("");
+  const [editCidade, setEditCidade] = useState("");
+  const [editWhatsapp, setEditWhatsapp] = useState("");
+  const [editPix, setEditPix] = useState("");
+  const [editPixTipo, setEditPixTipo] = useState<"telefone" | "email" | "cpf_cnpj" | "aleatoria">("telefone");
+  const [editCorTema, setEditCorTema] = useState<ThemeColorOption>("dourado");
+  const [editEmail, setEditEmail] = useState("");
+  const [editSenha, setEditSenha] = useState("");
+  const [editCashierPin, setEditCashierPin] = useState("1234");
+  const [editStatus, setEditStatus] = useState<SubscriptionStatus>("ativo");
+  const [editValorMensal, setEditValorMensal] = useState<number>(79.9);
+
+  const handleOpenEditCompany = (company: Company) => {
+    setEditingCompany(company);
+    setIsCreating(false);
+    setEditNome(company.nome);
+    setEditNicho(company.nicho);
+    setEditResponsavel(company.responsavel || "");
+    setEditCidade(company.cidade || "");
+    setEditWhatsapp(company.whatsapp || "");
+    setEditPix(company.chavePix || "");
+    setEditPixTipo(company.chavePixTipo || "telefone");
+    setEditCorTema(company.corTema || "dourado");
+    setEditEmail(company.adminEmail || "");
+    setEditSenha(company.adminSenha || "");
+    setEditCashierPin(company.cashierPin || "1234");
+    setEditStatus(company.statusAssinatura || "ativo");
+    setEditValorMensal(company.valorMensalidade || 79.9);
+  };
+
+  const handleUpdateCompanySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCompany || !editNome.trim()) return;
+
+    const cleanZap = editWhatsapp.replace(/\D/g, "");
+    const formattedZap = cleanZap ? (cleanZap.startsWith("55") ? cleanZap : `55${cleanZap}`) : "";
+
+    const updated = updateCompany(editingCompany.id, {
+      nome: editNome.trim(),
+      nicho: editNicho.trim(),
+      responsavel: editResponsavel.trim(),
+      cidade: editCidade.trim(),
+      whatsapp: formattedZap,
+      chavePix: editPix.trim(),
+      chavePixTipo: editPixTipo,
+      corTema: editCorTema,
+      adminEmail: editEmail.trim(),
+      adminSenha: editSenha.trim(),
+      cashierPin: editCashierPin.trim() || "1234",
+      statusAssinatura: editStatus,
+      valorMensalidade: Number(editValorMensal) || 79.9,
+    });
+
+    if (updated) {
+      reloadCompanies();
+      setFeedback(`✓ Cadastro de "${updated.nome}" atualizado com sucesso!`);
+      setEditingCompany(null);
+      setTimeout(() => setFeedback(null), 3500);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -637,6 +703,207 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
             </div>
           ) : null}
 
+          {/* Form de Edição de Empresa Existente */}
+          {editingCompany ? (
+            <div className="rounded-3xl border border-amber-500/30 bg-amber-500/5 p-6 animate-in slide-in-from-bottom-2">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <Edit2 className="h-4 w-4 text-amber-500" />
+                    <span>Editar Cadastro da Empresa: <strong>{editingCompany.nome}</strong></span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Modifique os dados cadastrais, chaves Pix, senhas e configurações contratuais
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingCompany(null)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Cancelar
+                </Button>
+              </div>
+
+              <form onSubmit={handleUpdateCompanySubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      Nome da Empresa / Marca *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editNome}
+                      onChange={(e) => setEditNome(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      Ramo de Atuação / Segmento
+                    </label>
+                    <input
+                      type="text"
+                      value={editNicho}
+                      onChange={(e) => setEditNicho(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      Nome Completo do Responsável
+                    </label>
+                    <input
+                      type="text"
+                      value={editResponsavel}
+                      onChange={(e) => setEditResponsavel(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      Cidade e Estado
+                    </label>
+                    <input
+                      type="text"
+                      value={editCidade}
+                      onChange={(e) => setEditCidade(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      WhatsApp Comercial
+                    </label>
+                    <input
+                      type="text"
+                      value={editWhatsapp}
+                      onChange={(e) => setEditWhatsapp(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      Chave Pix para Receber Vendas
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        value={editPixTipo}
+                        onChange={(e) => setEditPixTipo(e.target.value as any)}
+                        className="rounded-xl border border-input bg-background px-2 py-2 text-xs text-foreground focus:outline-none"
+                      >
+                        <option value="telefone">Telefone</option>
+                        <option value="cpf_cnpj">CPF / CNPJ</option>
+                        <option value="email">E-mail</option>
+                        <option value="aleatoria">Aleatória</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={editPix}
+                        onChange={(e) => setEditPix(e.target.value)}
+                        className="flex-1 rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      Paleta de Cores da Marca
+                    </label>
+                    <select
+                      value={editCorTema}
+                      onChange={(e) => setEditCorTema(e.target.value as ThemeColorOption)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
+                    >
+                      <option value="dourado">🍯 Dourado Mel (Pão de Mel / Bolos)</option>
+                      <option value="rosa">🍓 Rosa Gourmet (Geladinhos / Doces)</option>
+                      <option value="esmeralda">🍃 Verde Esmeralda (Artesanal / Café)</option>
+                      <option value="azul">💎 Azul Royal (Empório / Bistrô)</option>
+                      <option value="roxo">🍇 Roxo Açaí (Sobremesas Modernas)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Bloco de Credenciais & Mensalidade */}
+                <div className="rounded-2xl border border-border bg-background p-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      E-mail de Login
+                    </label>
+                    <input
+                      type="email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      Senha de Acesso
+                    </label>
+                    <input
+                      type="text"
+                      value={editSenha}
+                      onChange={(e) => setEditSenha(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-mono font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      PIN do Caixa
+                    </label>
+                    <input
+                      type="text"
+                      value={editCashierPin}
+                      onChange={(e) => setEditCashierPin(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-mono font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-foreground block mb-1">
+                      Valor Mensalidade (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editValorMensal}
+                      onChange={(e) => setEditValorMensal(parseFloat(e.target.value) || 0)}
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditingCompany(null)}
+                    className="text-xs"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>Salvar Alterações</span>
+                  </Button>
+                </div>
+              </form>
+            </div>
+          ) : null}
+
           {/* Abas de Situação da Empresa: Ativas, Suspensas e Excluídas */}
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
@@ -902,6 +1169,18 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
 
                         {lifecycleStatus !== "excluida" && (
                           <div className="flex items-center gap-1.5">
+                            {/* Editar Dados da Empresa */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenEditCompany(company)}
+                              className="text-[11px] h-7 border-border hover:bg-secondary text-foreground font-semibold"
+                              title="Editar cadastro completo desta empresa"
+                            >
+                              <Edit2 className="h-3 w-3 mr-1 text-primary" />
+                              Editar
+                            </Button>
+
                             {/* Zerar Dados da Empresa */}
                             <Button
                               variant="ghost"

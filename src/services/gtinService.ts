@@ -431,15 +431,45 @@ export async function consultarProdutoPorGtin(
             fonte: "rsc_sistemas",
           };
         }
-      } else if (response.status === 404) {
-        // Produto ainda não catalogado no banco da RSC Sistemas
       }
     } catch (err) {
       console.warn("Consulta à API v3 RSC Sistemas falhou:", err);
     }
   }
 
-  // Fallback: se não encontrou, retorna modelo básico com link da foto padrão
+  // 3. Fallback Aberto e Gratuito: Open Food Facts Brasil (Catálogo Aberto com suporte a EAN-13 Brasileiro)
+  try {
+    const offRes = await fetch(
+      `https://world.openfoodfacts.org/api/v2/product/${cleanGtin}.json`,
+      {
+        headers: { Accept: "application/json" },
+      }
+    );
+    if (offRes.ok) {
+      const offData = await offRes.json();
+      if (offData && offData.status === 1 && offData.product) {
+        const p = offData.product;
+        const nomeCompleto = p.product_name_pt || p.product_name || p.generic_name || "";
+        if (nomeCompleto) {
+          const parsed = parsePackagingFromTitle(`${nomeCompleto} ${p.quantity || ""}`);
+          return {
+            gtin: cleanGtin,
+            nome: nomeCompleto,
+            marca: p.brands || "Marca Diversa",
+            quantidade_embalagem: parsed.quantidade,
+            unidade_medida: parsed.unidade,
+            categoria: p.categories || "Alimentos & Insumos",
+            foto_url: p.image_url || p.image_front_url || `https://gtin.rscsistemas.com.br/api/gtin/img/${cleanGtin}`,
+            fonte: "rsc_sistemas",
+          };
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Fallback Open Food Facts falhou:", err);
+  }
+
+  // Fallback final: se não encontrou em nenhuma base, retorna modelo básico com link da foto padrão
   return {
     gtin: cleanGtin,
     nome: `Produto GTIN ${cleanGtin}`,

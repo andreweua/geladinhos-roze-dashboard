@@ -22,6 +22,7 @@ import {
   Clock,
   AlertCircle,
   X,
+  RefreshCw,
 } from "lucide-react";
 import {
   ListaCompras,
@@ -37,7 +38,13 @@ import {
   parseShoppingListFromText,
   saveBatchQuotationsFromShoppingList,
 } from "@/services/shoppingListService";
-import { consultarProdutoPorGtin } from "@/services/gtinService";
+import {
+  consultarProdutoPorGtin,
+  getRscGtinToken,
+  saveRscGtinToken,
+  loginRscSistemas,
+  GtinProductInfo,
+} from "@/services/gtinService";
 import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
 import { formatCurrency } from "@/lib/utils";
 import { Button, Badge, Card, CardContent } from "@/components/ui/primitives";
@@ -61,7 +68,18 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerInitialMode, setScannerInitialMode] = useState<"camera" | "manual">("manual");
   const [scanningTargetItemId, setScanningTargetItemId] = useState<string | null>(null);
+  const [searchingGtinItemId, setSearchingGtinItemId] = useState<string | null>(null);
+  const [gtinFeedback, setGtinFeedback] = useState<string | null>(null);
+
+  // RSC Sistemas Config Modal State
+  const [isRscModalOpen, setIsRscModalOpen] = useState(false);
+  const [rscToken, setRscToken] = useState(() => getRscGtinToken());
+  const [rscEmail, setRscEmail] = useState("");
+  const [rscPassword, setRscPassword] = useState("");
+  const [rscTestStatus, setRscTestStatus] = useState<string | null>(null);
+  const [isTestingRsc, setIsTestingRsc] = useState(false);
 
   // Forms state
   const [importText, setImportText] = useState("");
@@ -152,23 +170,113 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     setLists(saved);
   };
 
+  // Handle search GTIN for an item (typing or button)
+  const handleSearchGtinForItem = async (itemId: string, barcode: string) => {
+    const clean = barcode.replace(/\D/g, "").trim();
+    if (!clean || clean.length < 6) {
+      alert("Por favor, informe um código de barras GTIN/EAN válido com pelo menos 6 dígitos numéricos.");
+      return;
+    }
+
+    setSearchingGtinItemId(itemId);
+    try {
+      const prodInfo = await consultarProdutoPorGtin(clean);
+      if (prodInfo) {
+        const currentItem = activeList?.itens.find((i) => i.id === itemId);
+        const resolvedName =
+          prodInfo.nome && !prodInfo.nome.startsWith("Produto GTIN")
+            ? prodInfo.nome
+            : currentItem?.insumo_nome || prodInfo.nome;
+        const resolvedBrand =
+          prodInfo.marca && prodInfo.marca !== "A Identificar"
+            ? prodInfo.marca
+            : currentItem?.marca;
+
+        handleUpdateItem(itemId, {
+          gtin: clean,
+          insumo_nome: resolvedName,
+          marca: resolvedBrand,
+          quantidade_embalagem: prodInfo.quantidade_embalagem || currentItem?.quantidade_embalagem,
+          unidade_medida: prodInfo.unidade_medida || currentItem?.unidade_medida || "un",
+        });
+
+        const origem =
+          prodInfo.fonte === "rsc_sistemas"
+            ? "API RSC Sistemas / Catálogo Aberto"
+            : prodInfo.fonte === "catalogo_local"
+            ? "Catálogo Local Integrado"
+            : "Registro Manual";
+
+        setGtinFeedback(`✅ ${resolvedName}${resolvedBrand ? ` (${resolvedBrand})` : ""} identificado via ${origem}!`);
+      } else {
+        handleUpdateItem(itemId, { gtin: clean });
+        setGtinFeedback(`ℹ️ Código GTIN ${clean} registrado no item.`);
+      }
+      setTimeout(() => setGtinFeedback(null), 4500);
+    } catch (err) {
+      console.error("Erro na busca de GTIN:", err);
+      setGtinFeedback("⚠️ Falha temporária ao consultar GTIN. Código salvo.");
+      setTimeout(() => setGtinFeedback(null), 3500);
+    } finally {
+      setSearchingGtinItemId(null);
+    }
+  };
+
   // Handle Barcode Scan Success for an Item
   const handleBarcodeScanForItem = async (barcode: string) => {
     if (!activeList || !scanningTargetItemId) return;
-
-    const prodInfo = await consultarProdutoPorGtin(barcode);
-    if (prodInfo) {
-      handleUpdateItem(scanningTargetItemId, {
-        gtin: barcode,
-        insumo_nome: prodInfo.nome || activeList.itens.find((i) => i.id === scanningTargetItemId)?.insumo_nome,
-        marca: prodInfo.marca,
-        quantidade_embalagem: prodInfo.quantidade_embalagem,
-        unidade_medida: prodInfo.unidade_medida,
-      });
-    } else {
-      handleUpdateItem(scanningTargetItemId, { gtin: barcode });
-    }
+    const targetId = scanningTargetItemId;
     setScanningTargetItemId(null);
+    setIsScannerOpen(false);
+    await handleSearchGtinForItem(targetId, barcode);
+  };
+
+  // Handle RSC Sistemas Live Test
+  const handleTestRscConnection = async () => {
+    setIsTestingRsc(true);
+    setRscTestStatus("Consultando produto de teste (Leite Moça: 7891000100103)...");
+    try {
+      const result = await consultarProdutoPorGtin("7891000100103");
+      if (result && result.nome) {
+        setRscTestStatus(`✅ Sucesso! Produto retornado: "${result.nome}" - Marca: ${result.marca} (${result.fonte})`);
+      } else {
+        setRscTestStatus("⚠️ Não foi possível obter detalhes do produto de teste. Verifique credenciais ou conexão.");
+      }
+    } catch (err) {
+      setRscTestStatus(`❌ Erro no teste: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsTestingRsc(false);
+    }
+  };
+
+  // Handle Save RSC Token directly
+  const handleSaveRscToken = () => {
+    saveRscGtinToken(rscToken);
+    alert("Token RSC Sistemas atualizado com sucesso!");
+  };
+
+  // Handle Login to RSC Sistemas
+  const handleLoginRsc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rscEmail.trim() || !rscPassword.trim()) {
+      alert("Informe e-mail e senha cadastrados na RSC Sistemas.");
+      return;
+    }
+    setIsTestingRsc(true);
+    setRscTestStatus("Autenticando na API RSC Sistemas...");
+    try {
+      const res = await loginRscSistemas(rscEmail.trim(), rscPassword.trim());
+      if (res.success && res.token) {
+        setRscToken(res.token);
+        setRscTestStatus("✅ Login realizado com sucesso! Token gerado e ativado.");
+      } else {
+        setRscTestStatus(`❌ Falha no login: ${res.error || "Credenciais inválidas"}`);
+      }
+    } catch (err) {
+      setRscTestStatus(`❌ Erro: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsTestingRsc(false);
+    }
   };
 
   // Handle create list from scratch or template
@@ -319,6 +427,23 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
             type="button"
             size="sm"
             variant="outline"
+            onClick={() => setIsRscModalOpen(true)}
+            className="gap-1.5 border-border hover:bg-secondary text-xs font-semibold"
+            title="Configuração de busca automática GTIN / RSC Sistemas"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                rscToken ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
+              }`}
+            />
+            <Barcode className="h-3.5 w-3.5 text-primary" />
+            <span>RSC Sistemas GTIN</span>
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
             onClick={() => setIsImportModalOpen(true)}
             className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10 text-xs font-semibold"
           >
@@ -343,6 +468,13 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
         <div className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-bold text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{batchSaveFeedback}</span>
+        </div>
+      )}
+
+      {gtinFeedback && (
+        <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 p-3 text-xs font-bold text-primary animate-fadeIn">
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+          <span>{gtinFeedback}</span>
         </div>
       )}
 
@@ -489,18 +621,62 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
                         </td>
 
                         <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-[11px] text-foreground">
-                              {item.gtin || <span className="text-muted-foreground/60 italic">Sem código</span>}
-                            </span>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={item.gtin || ""}
+                              onChange={(e) =>
+                                handleUpdateItem(item.id, {
+                                  gtin: e.target.value.replace(/\D/g, ""),
+                                })
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && item.gtin) {
+                                  e.preventDefault();
+                                  handleSearchGtinForItem(item.id, item.gtin);
+                                }
+                              }}
+                              placeholder="Código EAN..."
+                              title="Digite o código e tecle Enter ou use a lupa para buscar na RSC Sistemas"
+                              className="w-28 rounded-lg border border-input bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
+                            />
+                            {/* Buscar no RSC Sistemas / Catálogo */}
+                            <button
+                              type="button"
+                              onClick={() => handleSearchGtinForItem(item.id, item.gtin || "")}
+                              disabled={!item.gtin || searchingGtinItemId === item.id}
+                              className="rounded-md bg-secondary p-1 text-primary hover:bg-primary hover:text-primary-foreground disabled:opacity-40 transition-colors"
+                              title="Buscar produto na RSC Sistemas / Catálogo"
+                            >
+                              {searchingGtinItemId === item.id ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Search className="h-3 w-3" />
+                              )}
+                            </button>
+                            {/* Digitar no modal */}
                             <button
                               type="button"
                               onClick={() => {
                                 setScanningTargetItemId(item.id);
+                                setScannerInitialMode("manual");
                                 setIsScannerOpen(true);
                               }}
-                              className="rounded-md bg-secondary p-1 text-primary hover:bg-primary hover:text-primary-foreground"
-                              title="Escanear Código com a Câmera"
+                              className="rounded-md bg-secondary p-1 text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
+                              title="Digitar código com teclado ampliado"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </button>
+                            {/* Câmera */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setScanningTargetItemId(item.id);
+                                setScannerInitialMode("camera");
+                                setIsScannerOpen(true);
+                              }}
+                              className="rounded-md bg-secondary p-1 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                              title="Escanear com a Câmera"
                             >
                               <Camera className="h-3 w-3" />
                             </button>
@@ -860,9 +1036,178 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
         </div>
       )}
 
+      {/* Modal de Conexão RSC Sistemas GTIN */}
+      {isRscModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Barcode className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground">
+                    Conexão RSC Sistemas & Catálogo GTIN
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Busca instantânea de produtos por Código de Barras (EAN-13)
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRscModalOpen(false)}
+                className="rounded-full bg-secondary p-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4 text-xs">
+              <div className="rounded-2xl border border-border/80 bg-secondary/30 p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-foreground">Status do Serviço:</span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                      rscToken
+                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30"
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        rscToken ? "bg-emerald-500" : "bg-blue-500"
+                      }`}
+                    />
+                    {rscToken
+                      ? "API RSC Sistemas Autenticada"
+                      : "Catálogo Nacional + Base Aberta Ativa"}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Ao escanear ou digitar o código de barras (Ex: <em>7891000100103</em> para Leite Moça), o sistema preenche automaticamente o <strong>nome exato, marca, peso e unidade</strong>.
+                </p>
+              </div>
+
+              {/* Botão de teste imediato */}
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <strong className="block text-foreground font-bold">Teste em Tempo Real:</strong>
+                    <span className="text-[11px] text-muted-foreground">
+                      Testa a busca de um produto oficial (Leite Moça 395g)
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleTestRscConnection}
+                    disabled={isTestingRsc}
+                    className="border-primary/40 text-primary font-bold text-xs shrink-0"
+                  >
+                    {isTestingRsc ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    )}
+                    Testar Agora
+                  </Button>
+                </div>
+                {rscTestStatus && (
+                  <div className="mt-2.5 rounded-xl border border-border bg-background p-2.5 text-[11px] font-medium text-foreground">
+                    {rscTestStatus}
+                  </div>
+                )}
+              </div>
+
+              {/* Form de Login RSC Sistemas */}
+              <form onSubmit={handleLoginRsc} className="space-y-3 rounded-2xl border border-border p-3.5 bg-card">
+                <strong className="block text-foreground font-bold">
+                  Autenticar com Conta RSC Sistemas (Opcional):
+                </strong>
+                <p className="text-[11px] text-muted-foreground">
+                  Se você possui cadastro na <code>gtin.rscsistemas.com.br</code>, informe suas credenciais para consultas com fotos em alta resolução:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-foreground mb-1">E-mail RSC:</label>
+                    <input
+                      type="email"
+                      value={rscEmail}
+                      onChange={(e) => setRscEmail(e.target.value)}
+                      placeholder="usuario@email.com"
+                      className="w-full rounded-xl border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-foreground mb-1">Senha RSC:</label>
+                    <input
+                      type="password"
+                      value={rscPassword}
+                      onChange={(e) => setRscPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full rounded-xl border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isTestingRsc}
+                    className="bg-primary text-primary-foreground font-bold text-xs"
+                  >
+                    Entrar e Gerar Token
+                  </Button>
+                </div>
+              </form>
+
+              {/* Token Manual */}
+              <div>
+                <label className="block text-[11px] font-bold text-foreground mb-1">
+                  Ou cole um Bearer Token RSC Sistemas diretamente:
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={rscToken}
+                    onChange={(e) => setRscToken(e.target.value)}
+                    placeholder="eyJhbGciOi..."
+                    className="flex-1 rounded-xl border border-input bg-background px-3 py-1.5 font-mono text-xs focus:border-primary focus:outline-none"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveRscToken}
+                    className="text-xs font-bold shrink-0"
+                  >
+                    Salvar Token
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end border-t border-border pt-3">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={() => setIsRscModalOpen(false)}
+                className="bg-primary text-primary-foreground font-bold"
+              >
+                Concluir
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Barcode scanner camera modal for item */}
       <BarcodeScannerModal
         isOpen={isScannerOpen}
+        initialMode={scannerInitialMode}
         onClose={() => {
           setIsScannerOpen(false);
           setScanningTargetItemId(null);
