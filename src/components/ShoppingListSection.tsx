@@ -46,6 +46,8 @@ import {
   GtinProductInfo,
 } from "@/services/gtinService";
 import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
+import { IngredientSearchInput } from "@/components/ingredients/IngredientSearchInput";
+import { InsumoSearchResult } from "@/types/ingredients";
 import { formatCurrency } from "@/lib/utils";
 import { Button, Badge, Card, CardContent } from "@/components/ui/primitives";
 
@@ -229,6 +231,35 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     setScanningTargetItemId(null);
     setIsScannerOpen(false);
     await handleSearchGtinForItem(targetId, barcode);
+  };
+
+  // Handle Selection from Smart Autocorrect Ingredient Search
+  const handleSelectInsumoBusca = (insumo: InsumoSearchResult) => {
+    if (!activeList) return;
+    const newItem: ListaComprasItem = {
+      id: `item-${Date.now()}`,
+      insumo_nome: insumo.nomeFormatado, // STRICTLY UPPERCASE
+      marca: insumo.marca,
+      gtin: insumo.gtin,
+      quantidade_necessaria: 1,
+      unidade_medida: (insumo.unidadeMedida as ListaComprasItem["unidade_medida"]) || "un",
+      quantidade_embalagem: insumo.quantidadeEmbalagem || 1,
+      preco_estimado: insumo.precoReferencia || 0,
+      comprado: false,
+    };
+    const updatedList = { ...activeList, itens: [...activeList.itens, newItem] };
+    const saved = addOrUpdateShoppingList(updatedList);
+    setLists(saved);
+    setGtinFeedback(
+      `✓ ${insumo.nomeFormatado} adicionado à lista via ${
+        insumo.origem === "autocorrecao_local"
+          ? "Autocorreção Inteligente (Levenshtein)"
+          : insumo.origem === "rcsistemas_sincronizado"
+          ? "RCSistemas (Sincronizado no IndexedDB)"
+          : "Catálogo Local PereiraLabs"
+      }!`
+    );
+    setTimeout(() => setGtinFeedback(null), 4000);
   };
 
   // Handle RSC Sistemas Live Test
@@ -565,6 +596,23 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
                 </strong>
               </div>
             </div>
+          </div>
+
+          {/* Barra de Busca e Autocorreção Inteligente de Insumos */}
+          <div className="rounded-2xl border border-primary/20 bg-card p-3.5 shadow-sm space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                Busca & Autocorreção Inteligente de Insumos (IndexedDB Offline / RCSistemas)
+              </label>
+              <span className="text-[10px] text-muted-foreground">
+                Digite em minúsculas (ex: <code>leite mosa</code>, <code>harald</code>) → Retorno em <strong className="uppercase text-foreground">MAIÚSCULAS</strong>
+              </span>
+            </div>
+            <IngredientSearchInput
+              onSelectInsumo={handleSelectInsumoBusca}
+              placeholder="Digite o insumo em minúsculas (ex: leite mosa, nestle, harald melken)..."
+            />
           </div>
 
           {/* Table of items */}
