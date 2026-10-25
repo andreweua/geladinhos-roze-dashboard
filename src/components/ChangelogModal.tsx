@@ -136,6 +136,15 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
             </div>
           </div>
 
+          {/* Past Version: v3.1.0 */}
+          <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-xs font-bold text-foreground">
+                Versão 3.1.0 — Caixa Obrigatório, Cupons & CRM WhatsApp
+              </span>
+              <span className="text-[10px] text-muted-foreground">24/10/2026</span>
+            </div>
+            <div className="space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">
                   <Receipt className="h-3.5 w-3.5" />
@@ -168,18 +177,6 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <strong className="text-foreground">CRM de Clientes pelo WhatsApp:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
                     Chave primária pelo número de telefone sem senha, busca automática no PDV, histórico de pedidos, ticket médio e sugestão dos sabores favoritos.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary mt-0.5">
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <strong className="text-foreground">Atualização Rápida com F5:</strong>
-                  <p className="text-muted-foreground text-[11px] mt-0.5">
-                    O botão de atualizar recarrega a página inteira e atualiza o Service Worker e caches do navegador, equivalente à tecla F5 do notebook.
                   </p>
                 </div>
               </div>
