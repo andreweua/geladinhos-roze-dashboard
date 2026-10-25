@@ -686,6 +686,72 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Card 3: Script SQL para Ativar Sincronização no Supabase */}
+                <div className="mt-6 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-mono text-xs font-black">
+                        SQL
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-foreground">
+                          Criar Tabela 'empresas' no Supabase
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          Se apareceu o aviso <em>"Could not find the table 'public.empresas'"</em>, copie o script e execute no <strong>SQL Editor</strong> do seu Supabase para habilitar a nuvem.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        const sql = `-- Tabela de Empresas Multi-Tenant PereiraLabs
+CREATE TABLE IF NOT EXISTS public.empresas (
+  id TEXT PRIMARY KEY,
+  nome TEXT NOT NULL,
+  slug TEXT,
+  nicho TEXT,
+  cor_tema TEXT DEFAULT 'dourado',
+  chave_pix TEXT,
+  chave_pix_tipo TEXT DEFAULT 'telefone',
+  whatsapp TEXT,
+  cidade TEXT,
+  responsavel TEXT,
+  admin_email TEXT NOT NULL,
+  admin_senha TEXT,
+  cashier_pin TEXT DEFAULT '1234',
+  status_assinatura TEXT DEFAULT 'ativo',
+  status_lifecycle TEXT DEFAULT 'ativa',
+  cortesia_validade_ate TIMESTAMP WITH TIME ZONE,
+  valor_mensalidade NUMERIC(10,2) DEFAULT 79.90,
+  observacoes TEXT,
+  criado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.empresas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Acesso público anônimo empresas" ON public.empresas;
+CREATE POLICY "Acesso público anônimo empresas" ON public.empresas FOR ALL USING (true) WITH CHECK (true);
+
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.empresas;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+END $$;`;
+                        navigator.clipboard.writeText(sql);
+                        setFeedback("✓ Script SQL copiado com sucesso! Abra o painel do Supabase -> SQL Editor, cole e clique em Run.");
+                        setTimeout(() => setFeedback(null), 6000);
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs gap-1.5 shrink-0 shadow-sm"
+                    >
+                      <Copy className="h-4 w-4" />
+                      <span>Copiar Script SQL para Supabase</span>
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           ) : (

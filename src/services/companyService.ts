@@ -460,6 +460,19 @@ export async function syncCompaniesWithSupabase(): Promise<{
   try {
     const { data, error } = await supabase.from("empresas").select("*");
     if (error) {
+      if (
+        error.message.includes("schema cache") ||
+        error.message.includes("does not exist") ||
+        error.code === "PGRST204" ||
+        error.code === "42P01"
+      ) {
+        return {
+          success: false,
+          count: 0,
+          error:
+            "A tabela 'public.empresas' ainda não foi criada no seu banco de dados Supabase. Copie o script SQL no Painel Master (aba Sincronizar) e rode no SQL Editor do Supabase para ativar a nuvem.",
+        };
+      }
       console.warn("Aviso ao buscar empresas no Supabase:", error.message);
       return { success: false, count: 0, error: error.message };
     }

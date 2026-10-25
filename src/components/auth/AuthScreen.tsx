@@ -20,7 +20,6 @@ import { BRAND_CONFIG } from "@/config/brand.config";
 import {
   loginWithSupabase,
   loginWithPin,
-  loginWithMasterDirect,
 } from "@/services/authService";
 import { UserProfile } from "@/types/auth";
 import { Button } from "@/components/ui/primitives";
@@ -54,7 +53,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
-  const [isMasterPrefilled, setIsMasterPrefilled] = useState(false);
 
   const activeComp = getActiveCompany();
 
@@ -280,28 +278,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               </div>
             </div>
 
-            {isMasterPrefilled && (
-              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400 animate-in fade-in space-y-1.5">
-                <div className="flex items-center gap-1.5 font-bold">
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span>Credenciais Master PereiraLabs carregadas!</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-tight">
-                  Clique no botão <strong>"Entrar no Sistema"</strong> abaixo para acessar com super poderes do Administrador Master (Painel Master e gestão multi-empresa).
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const user = loginWithMasterDirect();
-                    onSuccess(user);
-                  }}
-                  className="w-full mt-1 py-1.5 px-3 rounded-lg bg-amber-500 text-white font-black text-[11px] hover:bg-amber-600 transition-all shadow-sm"
-                >
-                  ⚡ Entrar Agora com 1 Toque como Master
-                </button>
-              </div>
-            )}
-
             <Button
               type="submit"
               disabled={isLoading}
@@ -310,23 +286,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               <span>{isLoading ? "Validando credenciais..." : "Entrar no Sistema"}</span>
               <ArrowRight className="h-4 w-4" />
             </Button>
-
-            <div className="pt-2 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setTab("admin");
-                  setEmail("admin@pereiralabs.com.br");
-                  setPassword("admin");
-                  setIsMasterPrefilled(true);
-                  setErrorMsg(null);
-                }}
-                className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline inline-flex items-center gap-1.5 cursor-pointer py-1 px-2 rounded-lg hover:bg-amber-500/10 transition-colors"
-              >
-                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                <span>Entrar como Administrador Master PereiraLabs</span>
-              </button>
-            </div>
           </form>
         )}
 
