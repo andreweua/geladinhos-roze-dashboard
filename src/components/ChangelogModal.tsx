@@ -71,13 +71,13 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
 
         {/* Body Content */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
-          {/* Active Version Highlight: v3.1.0 */}
+          {/* Active Version Highlight: v3.2.0 */}
           <div className="rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 sm:p-5 shadow-sm">
             <div className="flex items-center justify-between gap-2 border-b border-primary/20 pb-3">
               <div className="flex items-center gap-2">
                 <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-sm font-black text-foreground">
-                  Versão 3.1.0 (Versão Oficial Instalada)
+                  Versão 3.2.0 (Versão Oficial OTA Instalada)
                 </span>
               </div>
               <span className="text-[11px] font-medium text-muted-foreground">
@@ -87,16 +87,54 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
 
             <div className="mt-3.5 space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
-                  <Lock className="h-3.5 w-3.5" />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  <RefreshCw className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Abertura de Caixa Obrigatória:</strong>
+                  <strong className="text-foreground">Atualização Automática Over-The-Air (OTA):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Nenhum usuário (Administrador ou Operador) consegue fazer vendas sem antes abrir o caixa e cadastrar o fundo de troco inicial. Tentativas de venda redirecionam para a contagem de abertura.
+                    O aplicativo agora verifica e sincroniza novas versões no Android e iOS automaticamente ao abrir o app ou voltar da tela de bloqueio, com notificação instantânea e limpeza de cache.
                   </p>
                 </div>
               </div>
+
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 mt-0.5">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <strong className="text-foreground">Isolamento Estrito Multi-Tenant:</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5">
+                    Clientes, produtos, vendas e estoques são 100% isolados por filial/empresa. Clientes cadastrados em outra unidade iniciam com histórico zerado e total privacidade.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 mt-0.5">
+                  <Lock className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <strong className="text-foreground">Trava de Segurança de Estoque no PDV:</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5">
+                    Bloqueio obrigatório de finalização para vendas com carrinho vazio ou produtos sem estoque físico em freezer (configurável por empresa).
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
+                  <Store className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <strong className="text-foreground">Painel Master & Gestão de Faturamento:</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5">
+                    Controle de mensalidades, empresas ativas/bloqueadas, pró-rata e onboarding guiado pelo Painel Master da PereiraLabs.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
 
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">

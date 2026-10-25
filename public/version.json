@@ -1,0 +1,11 @@
+{
+  "version": "3.2.0",
+  "build": 2026102501,
+  "releaseDate": "2026-10-25T05:25:00.000Z",
+  "features": [
+    "Isolamento estrito multi-tenant (dados por empresa)",
+    "Trava de segurança no PDV contra vendas sem estoque",
+    "Módulo de Gestão de Faturamento & Planos",
+    "Atualizações automáticas OTA (Over-The-Air) para Android e iOS"
+  ]
+}

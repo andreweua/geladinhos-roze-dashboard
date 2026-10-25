@@ -35,6 +35,8 @@ import { QuickOperationsModal } from "@/components/QuickOperationsModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
 import { ChangelogModal } from "@/components/ChangelogModal";
+import { OtaUpdateBanner } from "@/components/OtaUpdateBanner";
+import { forceHardOtaReload } from "@/services/otaService";
 import { PereiraLabsMasterModal } from "@/components/master/PereiraLabsMasterModal";
 import { ConsultingSection } from "@/components/ConsultingSection";
 import { logConsultingActivity } from "@/services/consultingService";
@@ -191,20 +193,9 @@ export function App() {
     }
   }, []);
 
-  // Função equivalente à tecla "F5" do notebook: recarrega a página e atualiza o Service Worker
+  // Recarrega e força atualização completa OTA em celulares e computadores
   const handleHardReload = useCallback(() => {
-    try {
-      if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          for (const reg of registrations) {
-            reg.update();
-          }
-        });
-      }
-    } catch {
-      // ignore
-    }
-    window.location.reload();
+    forceHardOtaReload();
   }, []);
 
   // Check magic sync config on URL query param
@@ -611,6 +602,7 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
+      <OtaUpdateBanner />
       {/* 1. Desktop & Tablet Sidebar */}
       <AppSidebar
         activeTab={activeSection}
@@ -1284,17 +1276,29 @@ export function App() {
                 </strong>{" "}
                 — {BRAND_CONFIG.tagline}
               </p>
-              <button
-                type="button"
-                onClick={() => setChangelogModalOpen(true)}
-                className="group inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer shadow-xs"
-                title="Clique para ver o que há de novo na versão 3.1.0"
-              >
-                <span>v{BRAND_CONFIG.appVersion}</span>
-                <span className="text-[9px] font-normal opacity-85 group-hover:opacity-100">
-                  • Ver Novidades ✨
-                </span>
-              </button>
+              <div className="inline-flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setChangelogModalOpen(true)}
+                  className="group inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer shadow-xs"
+                  title={`Clique para ver as novidades da versão ${BRAND_CONFIG.appVersion}`}
+                >
+                  <span>v{BRAND_CONFIG.appVersion}</span>
+                  <span className="text-[9px] font-normal opacity-85 group-hover:opacity-100">
+                    • Novidades ✨
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleHardReload}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-secondary/80 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground hover:bg-primary/20 hover:text-primary transition-all cursor-pointer shadow-xs"
+                  title="Atualizar Aplicativo via OTA (Over-The-Air) forçando limpeza de cache"
+                >
+                  <RefreshCw className="h-2.5 w-2.5" />
+                  <span>OTA Atualizar</span>
+                </button>
+              </div>
             </div>
             <div className="flex flex-col items-center gap-0.5 text-center mt-1">
               <p className="text-[11px] font-medium text-muted-foreground">
