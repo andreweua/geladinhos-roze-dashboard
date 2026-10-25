@@ -453,8 +453,8 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
   const projectedRevenue = calcularFaturamentoConsolidado(billingCompanies, billingPlanos);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-5 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative flex max-h-[92vh] w-full max-w-5xl flex-col rounded-3xl border border-border/90 bg-card shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 sm:p-5 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative flex h-full sm:h-auto sm:max-h-[92vh] w-full max-w-5xl flex-col rounded-none sm:rounded-3xl border-0 sm:border border-border/90 bg-card shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/80 px-6 py-4 bg-gradient-to-r from-card to-secondary/30">
           <div className="flex items-center gap-3">

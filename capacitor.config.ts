@@ -5,8 +5,6 @@ const config: CapacitorConfig = {
   appName: "PereiraLabs PDV - Foods",
   webDir: "dist",
   server: {
-    url: "https://andreweua.github.io/geladinhos-roze-dashboard/",
-    allowNavigation: ["andreweua.github.io"],
     androidScheme: "https",
     cleartext: true,
   },
