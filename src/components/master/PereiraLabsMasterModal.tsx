@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   X,
   Building2,
@@ -29,7 +29,13 @@ import {
   Package,
   Edit2,
   CreditCard,
+  Smartphone,
+  Copy,
+  Check,
+  UploadCloud,
+  DownloadCloud,
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { wipeCompanyData, seedCompanyInitialProducts } from "@/services/dataService";
 import {
   Company,
@@ -53,6 +59,9 @@ import {
   restoreCompany,
   suspendCompany,
   activateCompany,
+  syncCompaniesWithSupabase,
+  exportPortfolioAsBase64,
+  importPortfolioFromPayload,
 } from "@/services/companyService";
 import { Badge, Button } from "@/components/ui/primitives";
 import { formatCurrency } from "@/lib/utils";
@@ -105,7 +114,56 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState<CompanyLifecycleStatus>("ativa");
-  const [masterSection, setMasterSection] = useState<"empresas" | "faturamento">("empresas");
+  const [masterSection, setMasterSection] = useState<"empresas" | "faturamento" | "sincronizacao">("empresas");
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [importJsonText, setImportJsonText] = useState("");
+  const [copiedSyncLink, setCopiedSyncLink] = useState(false);
+
+  // Sincroniza e recarrega a lista de empresas sempre que o painel abrir
+  useEffect(() => {
+    if (isOpen) {
+      setCompanies(getLocalCompanies());
+      syncCompaniesWithSupabase()
+        .then((res) => {
+          if (res.success && res.count > 0) {
+            setCompanies(getLocalCompanies());
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
+
+  const handleSyncCloudNow = async () => {
+    setIsSyncingCloud(true);
+    setFeedback(null);
+    try {
+      const res = await syncCompaniesWithSupabase();
+      if (res.success) {
+        setCompanies(getLocalCompanies());
+        setFeedback(`✓ Nuvem sincronizada! ${res.count} empresas do portfólio unificadas.`);
+      } else {
+        setFeedback(`Aviso na sincronização: ${res.error || "Verifique sua conexão"}`);
+      }
+    } catch (err: any) {
+      setFeedback(`Erro na sincronização: ${err?.message || err}`);
+    } finally {
+      setIsSyncingCloud(false);
+      setTimeout(() => setFeedback(null), 5000);
+    }
+  };
+
+  const handleImportPortfolio = () => {
+    if (!importJsonText.trim()) return;
+    const res = importPortfolioFromPayload(importJsonText);
+    if (res.success) {
+      setCompanies(getLocalCompanies());
+      setFeedback(`✓ ${res.count} empresas importadas e sincronizadas com sucesso!`);
+      setImportJsonText("");
+    } else {
+      setFeedback(`Erro na importação: ${res.error}`);
+    }
+    setTimeout(() => setFeedback(null), 5000);
+  };
 
   // Form para nova empresa baseado no questionário oficial da PereiraLabs
   const [newNome, setNewNome] = useState("");
@@ -445,8 +503,8 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
           </div>
         )}
 
-        {/* Navigation Tabs between Clientes e Faturamento */}
-        <div className="flex items-center gap-2 border-b border-border bg-secondary/30 px-6 py-2">
+        {/* Navigation Tabs between Clientes, Faturamento e Sincronização */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-secondary/30 px-6 py-2">
           <button
             type="button"
             onClick={() => setMasterSection("empresas")}
@@ -475,12 +533,161 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
               Dinâmico
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setMasterSection("sincronizacao")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              masterSection === "sincronizacao"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Smartphone className="h-4 w-4 text-amber-500" />
+            <span>Sincronizar Aparelhos & Nuvem</span>
+            <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-400 font-mono font-bold">
+              QR Code / OTA
+            </span>
+          </button>
         </div>
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {masterSection === "faturamento" ? (
             <BillingManagementModule />
+          ) : masterSection === "sincronizacao" ? (
+            <div className="space-y-6 animate-in fade-in">
+              {/* Header Box */}
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-500 shadow-sm">
+                      <Smartphone className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-foreground">
+                        Sincronização Multi-Aparelhos & Nuvem
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Transfira o portfólio completo de empresas para celulares, tablets e outros computadores em 1 segundo.
+                      </p>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={handleSyncCloudNow}
+                    disabled={isSyncingCloud}
+                    className="bg-primary text-primary-foreground font-bold text-xs gap-2 shadow-md shrink-0"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isSyncingCloud ? "animate-spin" : ""}`} />
+                    <span>{isSyncingCloud ? "Sincronizando Nuvem..." : "Sincronizar Nuvem Agora"}</span>
+                  </Button>
+                </div>
+
+                {/* Grid 2 Columns: QR Code vs Cloud & Backup */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6">
+                  {/* Card 1: QR Code Master para Celular */}
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 flex flex-col items-center text-center">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-black text-[11px] mb-3">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                      <span>QR Code de Sincronização Master</span>
+                    </div>
+
+                    <p className="text-xs text-foreground font-semibold max-w-sm mb-4">
+                      Aponte a câmera do seu celular ou aplicativo Android para este QR Code para transferir todas as <strong>{companies.length} empresas</strong> e entrar como <strong>Administrador Master</strong>:
+                    </p>
+
+                    {/* QR Code Container */}
+                    <div className="p-3.5 bg-white rounded-2xl shadow-md border border-amber-500/30 mb-4">
+                      <QRCodeSVG
+                        value={`${typeof window !== "undefined" ? window.location.origin + window.location.pathname : "https://andreweua.github.io/geladinhos-roze-dashboard/"}?sync_portfolio=${exportPortfolioAsBase64()}`}
+                        size={190}
+                        level="M"
+                        includeMargin={false}
+                      />
+                    </div>
+
+                    <div className="w-full max-w-sm space-y-2">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const url = `${typeof window !== "undefined" ? window.location.origin + window.location.pathname : "https://andreweua.github.io/geladinhos-roze-dashboard/"}?sync_portfolio=${exportPortfolioAsBase64()}`;
+                          navigator.clipboard.writeText(url);
+                          setCopiedSyncLink(true);
+                          setFeedback("✓ Link Mágico Master copiado! Envie no WhatsApp para abrir no celular.");
+                          setTimeout(() => setCopiedSyncLink(false), 3000);
+                        }}
+                        className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs gap-2 py-2.5 rounded-xl shadow-sm"
+                      >
+                        {copiedSyncLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        <span>{copiedSyncLink ? "Link Copiado para Área de Transferência!" : "Copiar Link Master para WhatsApp"}</span>
+                      </Button>
+
+                      <p className="text-[11px] text-muted-foreground">
+                        Você também pode colar esse link no navegador do celular ou WhatsApp pessoal.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Backup JSON & Restauração */}
+                  <div className="space-y-4 flex flex-col justify-between">
+                    <div className="rounded-2xl border border-border bg-background p-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <UploadCloud className="h-5 w-5 text-primary" />
+                        <h4 className="text-sm font-bold text-foreground">
+                          Exportar Backup do Portfólio (JSON)
+                        </h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Gere uma cópia segura de todas as empresas e configurações para salvar ou migrar para outro aparelho manualmente.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const json = JSON.stringify(companies, null, 2);
+                          navigator.clipboard.writeText(json);
+                          setFeedback("✓ Portfólio copiado no formato JSON para sua área de transferência!");
+                          setTimeout(() => setFeedback(null), 4000);
+                        }}
+                        className="w-full text-xs font-semibold gap-2 border-border"
+                      >
+                        <Copy className="h-4 w-4" />
+                        <span>Copiar Portfólio Completo (JSON)</span>
+                      </Button>
+                    </div>
+
+                    <div className="rounded-2xl border border-border bg-background p-5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <DownloadCloud className="h-5 w-5 text-emerald-500" />
+                        <h4 className="text-sm font-bold text-foreground">
+                          Importar Portfólio de Outro Aparelho
+                        </h4>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Cole abaixo o JSON ou o código do portfólio exportado do seu computador para mesclar com este aparelho:
+                      </p>
+                      <textarea
+                        rows={3}
+                        value={importJsonText}
+                        onChange={(e) => setImportJsonText(e.target.value)}
+                        placeholder='Cole aqui o JSON [{"id": "emp-...", "nome": "..."}]'
+                        className="w-full rounded-xl border border-border bg-card p-2.5 text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleImportPortfolio}
+                        disabled={!importJsonText.trim()}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-2 py-2"
+                      >
+                        <Check className="h-4 w-4" />
+                        <span>Importar e Mesclar Empresas</span>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
             <>
               {/* Top KPI Cards */}

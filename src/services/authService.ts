@@ -158,7 +158,30 @@ export async function loginWithSupabase(
     }
   }
 
-  // 1. Verifica se corresponde a alguma empresa cadastrada no sistema multi-empresa
+  // 1. Validação Imediata do Administrador Master PereiraLabs (Andrew & Master Admin)
+  const isSuperAdminEmail =
+    trimmedEmail === "andreweua@gmail.com" ||
+    trimmedEmail === "admin@pereiralabs.com.br" ||
+    trimmedEmail === "comercial@pereiralabs.com.br" ||
+    trimmedEmail === "master@pereiralabs.com.br";
+
+  if (isSuperAdminEmail && (isMasterPassword || trimmedPass === "Eute@m@2026" || trimmedPass === "comercial2026")) {
+    const activeComp = getActiveCompany();
+    const user: UserProfile = {
+      ...DEFAULT_ADMIN,
+      id: "usr-super-admin-andrew",
+      name: trimmedEmail.includes("comercial") ? "PereiraLabs Comercial & Vendas" : "Administrador Master PereiraLabs",
+      email: trimmedEmail || "admin@pereiralabs.com.br",
+      role: "admin",
+      empresaId: activeComp.id,
+      empresaNome: activeComp.nome,
+      avatarInitials: "AP",
+    };
+    saveSession(user);
+    return { user };
+  }
+
+  // 2. Verifica se corresponde a alguma empresa cadastrada no sistema multi-empresa
   const companies = getLocalCompanies();
   const matchedCompany = companies.find(
     (c) =>
@@ -183,28 +206,6 @@ export async function loginWithSupabase(
       empresaId: matchedCompany.id,
       empresaNome: matchedCompany.nome,
       avatarInitials: matchedCompany.nome.substring(0, 2).toUpperCase(),
-    };
-    saveSession(user);
-    return { user };
-  }
-
-  // 2. Validação Super Admin PereiraLabs (Andrew) & Comercial
-  const isSuperAdminEmail =
-    trimmedEmail === "andreweua@gmail.com" ||
-    trimmedEmail === "admin@pereiralabs.com.br" ||
-    trimmedEmail === "comercial@pereiralabs.com.br";
-
-  if (isSuperAdminEmail && (isMasterPassword || trimmedPass === "Eute@m@2026" || trimmedPass === "comercial2026")) {
-    const activeComp = getActiveCompany();
-    const user: UserProfile = {
-      ...DEFAULT_ADMIN,
-      id: "usr-super-admin-andrew",
-      name: trimmedEmail.includes("comercial") ? "PereiraLabs Comercial & Vendas" : "Andrew Pereira",
-      email: trimmedEmail || "andreweua@gmail.com",
-      role: "admin",
-      empresaId: activeComp.id,
-      empresaNome: activeComp.nome,
-      avatarInitials: trimmedEmail.includes("comercial") ? "PC" : "AP",
     };
     saveSession(user);
     return { user };
@@ -253,6 +254,25 @@ export async function loginWithSupabase(
   return {
     error: "E-mail ou senha incorretos. Utilize a opção 'Esqueci minha senha' caso precise de suporte da PereiraLabs.",
   };
+}
+
+/**
+ * Autentica diretamente com os super poderes do Administrador Master PereiraLabs
+ */
+export function loginWithMasterDirect(): UserProfile {
+  const activeComp = getActiveCompany();
+  const user: UserProfile = {
+    ...DEFAULT_ADMIN,
+    id: "usr-super-admin-andrew",
+    name: "Administrador Master PereiraLabs",
+    email: "admin@pereiralabs.com.br",
+    role: "admin",
+    empresaId: activeComp.id,
+    empresaNome: activeComp.nome,
+    avatarInitials: "AP",
+  };
+  saveSession(user);
+  return user;
 }
 
 // Login Rápido via PIN (Frente de Caixa)

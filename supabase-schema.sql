@@ -68,6 +68,29 @@ CREATE TABLE IF NOT EXISTS auditoria_estoque (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- 7. Tabela de Empresas (Multi-Tenant SaaS PereiraLabs)
+CREATE TABLE IF NOT EXISTS empresas (
+  id TEXT PRIMARY KEY,
+  nome TEXT NOT NULL,
+  slug TEXT,
+  nicho TEXT,
+  cor_tema TEXT DEFAULT 'dourado',
+  chave_pix TEXT,
+  chave_pix_tipo TEXT DEFAULT 'telefone',
+  whatsapp TEXT,
+  cidade TEXT,
+  responsavel TEXT,
+  admin_email TEXT NOT NULL,
+  admin_senha TEXT,
+  cashier_pin TEXT DEFAULT '1234',
+  status_assinatura TEXT DEFAULT 'ativo',
+  status_lifecycle TEXT DEFAULT 'ativa',
+  cortesia_validade_ate TIMESTAMP WITH TIME ZONE,
+  valor_mensalidade NUMERIC(10,2) DEFAULT 79.90,
+  observacoes TEXT,
+  criado_em TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS) - Permite leitura e escrita via Chave Anônima (anon)
 -- ============================================================================
@@ -76,6 +99,7 @@ ALTER TABLE vendas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE itens_venda ENABLE ROW LEVEL SECURITY;
 ALTER TABLE estoque_lotes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auditoria_estoque ENABLE ROW LEVEL SECURITY;
+ALTER TABLE empresas ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Acesso público anônimo produtos" ON produtos;
 CREATE POLICY "Acesso público anônimo produtos" ON produtos FOR ALL USING (true) WITH CHECK (true);
@@ -91,6 +115,9 @@ CREATE POLICY "Acesso público anônimo estoque_lotes" ON estoque_lotes FOR ALL 
 
 DROP POLICY IF EXISTS "Acesso público anônimo auditoria_estoque" ON auditoria_estoque;
 CREATE POLICY "Acesso público anônimo auditoria_estoque" ON auditoria_estoque FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Acesso público anônimo empresas" ON empresas;
+CREATE POLICY "Acesso público anônimo empresas" ON empresas FOR ALL USING (true) WITH CHECK (true);
 
 -- Habilitar Realtime nas tabelas para sincronização instantânea (Idempotente)
 DO $$
@@ -113,6 +140,10 @@ BEGIN
   END;
   BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE auditoria_estoque;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE empresas;
   EXCEPTION WHEN duplicate_object THEN NULL;
   END;
 END $$;

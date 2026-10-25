@@ -47,6 +47,10 @@ import {
   setActiveCompanyId,
   subscribeCompanyChange,
   isPereiraLabsMaster,
+  syncCompaniesWithSupabase,
+  importPortfolioFromPayload,
+  getLocalCompanies,
+  saveLocalCompanies,
 } from "@/services/companyService";
 import { THEME_COLOR_PALETTES } from "@/types/multiTenant";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -199,10 +203,85 @@ export function App() {
     forceHardOtaReload();
   }, []);
 
-  // Check magic sync config on URL query param
+  // Check magic sync config / sync_portfolio / magic_auth on URL query param
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
+
+      // 1. Sincronização do Portfólio Multi-Empresas Master via QR Code ou Link (?sync_portfolio=...)
+      const syncPortfolioParam = params.get("sync_portfolio");
+      if (syncPortfolioParam) {
+        const res = importPortfolioFromPayload(syncPortfolioParam);
+        if (res.success) {
+          const masterUser: UserProfile = {
+            id: "usr-super-admin-andrew",
+            name: "Administrador Master PereiraLabs",
+            email: "admin@pereiralabs.com.br",
+            role: "admin",
+            empresaId: getActiveCompanyId(),
+            empresaNome: getActiveCompany().nome,
+            avatarInitials: "AP",
+          };
+          setCurrentUser(masterUser);
+          setAuthModalOpen(false);
+          setMasterModalOpen(true);
+          setSyncSuccessToast(
+            `✓ Portfólio PereiraLabs sincronizado com sucesso! ${res.count} empresas ativas neste aparelho.`
+          );
+          setTimeout(() => setSyncSuccessToast(null), 6000);
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+          loadData(true);
+        }
+      }
+
+      // 2. Link Mágico de Onboarding em 1 Toque (?magic_auth=...)
+      const magicAuthParam = params.get("magic_auth");
+      if (magicAuthParam) {
+        try {
+          let jsonStr = decodeURIComponent(magicAuthParam);
+          try {
+            jsonStr = decodeURIComponent(escape(atob(jsonStr)));
+          } catch {
+            jsonStr = atob(jsonStr);
+          }
+          const decoded = JSON.parse(jsonStr);
+          if (decoded?.empresaId) {
+            const companies = getLocalCompanies();
+            let target = companies.find((c) => c.id === decoded.empresaId);
+            if (!target && decoded.company) {
+              companies.push(decoded.company);
+              saveLocalCompanies(companies);
+              target = decoded.company;
+            }
+            if (target) {
+              setActiveCompanyId(target.id);
+              const user: UserProfile = {
+                id: `usr-${target.id}`,
+                name: target.responsavel || target.nome,
+                email: target.adminEmail,
+                role: "admin",
+                empresaId: target.id,
+                empresaNome: target.nome,
+                avatarInitials: target.nome.substring(0, 2).toUpperCase(),
+              };
+              setCurrentUser(user);
+              setAuthModalOpen(false);
+              setSyncSuccessToast(
+                `🎉 Bem-vindo(a) à ${target.nome}! Seu sistema foi ativado com sucesso neste aparelho.`
+              );
+              setTimeout(() => setSyncSuccessToast(null), 6000);
+              const cleanUrl = window.location.origin + window.location.pathname;
+              window.history.replaceState({}, document.title, cleanUrl);
+              loadData(true);
+            }
+          }
+        } catch (e) {
+          console.warn("Erro ao ler magic_auth na inicialização do App:", e);
+        }
+      }
+
+      // 3. Sincronização de Chaves e Configurações de Nuvem (?sync_config=...)
       const syncConfigParam = params.get("sync_config");
       if (syncConfigParam) {
         const jsonStr = decodeURIComponent(escape(atob(syncConfigParam)));
@@ -217,9 +296,14 @@ export function App() {
         loadData(true);
       }
     } catch (err) {
-      console.warn("Erro ao ler sync_config da URL:", err);
+      console.warn("Erro ao ler parâmetros da URL:", err);
     }
   }, [loadData]);
+
+  // Sincroniza empresas com a nuvem Supabase em segundo plano ao abrir
+  useEffect(() => {
+    syncCompaniesWithSupabase().catch(() => {});
+  }, []);
 
   useEffect(() => {
     loadData(false);
@@ -244,6 +328,13 @@ export function App() {
         { event: "*", schema: "public", table: "estoque_lotes" },
         () => {
           loadData(false);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "empresas" },
+        () => {
+          syncCompaniesWithSupabase().catch(() => {});
         }
       )
       .subscribe();

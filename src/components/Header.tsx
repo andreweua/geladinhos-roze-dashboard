@@ -184,6 +184,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Sparkles className="h-3.5 w-3.5 text-amber-500" />
               <span className="hidden sm:inline">Painel Master</span>
+              <span className="sm:hidden font-extrabold text-[11px]">Master</span>
             </Button>
           )}
 

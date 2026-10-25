@@ -125,7 +125,7 @@ export async function createCompany(
   // Sincroniza com Supabase se a tabela empresas existir
   if (checkIsSupabaseConfigured() && supabase) {
     try {
-      await supabase.from("empresas").insert({
+      await supabase.from("empresas").upsert({
         id: newCompany.id,
         nome: newCompany.nome,
         slug: newCompany.slug,
@@ -137,9 +137,13 @@ export async function createCompany(
         cidade: newCompany.cidade,
         responsavel: newCompany.responsavel,
         admin_email: newCompany.adminEmail,
+        admin_senha: newCompany.adminSenha,
+        cashier_pin: newCompany.cashierPin || "1234",
         status_assinatura: newCompany.statusAssinatura,
+        status_lifecycle: newCompany.statusLifecycle || "ativa",
         cortesia_validade_ate: newCompany.cortesiaValidadeAte || null,
         valor_mensalidade: newCompany.valorMensalidade,
+        observacoes: newCompany.observacoes || "",
         criado_em: nowIso,
       });
     } catch {
@@ -164,6 +168,42 @@ export function updateCompany(id: string, updates: Partial<Company>): Company | 
   };
   list[idx] = updated;
   saveLocalCompanies(list);
+
+  // Sincroniza atualização com Supabase se disponível
+  if (checkIsSupabaseConfigured() && supabase) {
+    supabase
+      .from("empresas")
+      .upsert({
+        id: updated.id,
+        nome: updated.nome,
+        slug: updated.slug,
+        nicho: updated.nicho,
+        cor_tema: updated.corTema,
+        chave_pix: updated.chavePix,
+        chave_pix_tipo: updated.chavePixTipo,
+        whatsapp: updated.whatsapp,
+        cidade: updated.cidade,
+        responsavel: updated.responsavel,
+        admin_email: updated.adminEmail,
+        admin_senha: updated.adminSenha,
+        cashier_pin: updated.cashierPin || "1234",
+        status_assinatura: updated.statusAssinatura,
+        status_lifecycle: updated.statusLifecycle || "ativa",
+        cortesia_validade_ate: updated.cortesiaValidadeAte || null,
+        valor_mensalidade: updated.valorMensalidade,
+        observacoes: updated.observacoes || "",
+        criado_em: updated.criadoEm,
+      })
+      .then(
+        ({ error }) => {
+          if (error) console.warn("Aviso ao sincronizar empresa no Supabase:", error.message);
+        },
+        (err: unknown) => {
+          console.warn("Falha de rede ao sincronizar empresa:", err);
+        }
+      );
+  }
+
   return updated;
 }
 
@@ -351,7 +391,8 @@ export function resetCompanyPassword(companyId: string, newPass?: string): {
 }
 
 /**
- * Gera o Link Mágico de 1 Clique e a mensagem pronta para enviar no WhatsApp da cliente
+ * Gera o Link Mágico de 1 Clique e a mensagem pronta para enviar no WhatsApp da cliente.
+ * Inclui os dados completos da empresa para auto-instalação imediata no celular/PWA do cliente.
  */
 export function buildMagicWhatsAppMessage(company: Company): string {
   const currentOrigin =
@@ -359,14 +400,16 @@ export function buildMagicWhatsAppMessage(company: Company): string {
       ? window.location.origin + window.location.pathname
       : "https://andreweua.github.io/geladinhos-roze-dashboard/";
 
-  // Codifica credenciais seguras para abertura com 1 toque
+  // Codifica credenciais seguras E o objeto completo da empresa para auto-instalação instantânea
   const payload = {
     empresaId: company.id,
     empresaNome: company.nome,
     email: company.adminEmail,
     token: btoa(`${company.id}:${company.adminSenha}`),
+    company: company,
   };
-  const encoded = encodeURIComponent(btoa(JSON.stringify(payload)));
+  const jsonStr = JSON.stringify(payload);
+  const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(jsonStr))));
   const magicLink = `${currentOrigin}?magic_auth=${encoded}`;
 
   const statusText =
@@ -399,4 +442,161 @@ Ao abrir no celular, toque nos 3 pontinhos do navegador e selecione *"Instalar A
 Qualquer dúvida ou suporte, estamos à disposição!
 _Desenvolvido por PereiraLabs - Divisão de Tecnologia e IA_
 _Louzada & Pereira - Soluções Digitais_`;
+}
+
+/**
+ * Sincronização Bidirecional entre o Portfólio Local e a Nuvem Supabase
+ * Traz as empresas cadastradas em outros aparelhos e envia empresas locais pendentes.
+ */
+export async function syncCompaniesWithSupabase(): Promise<{
+  success: boolean;
+  count: number;
+  error?: string;
+}> {
+  if (!checkIsSupabaseConfigured() || !supabase) {
+    return { success: false, count: 0, error: "Supabase não conectado" };
+  }
+
+  try {
+    const { data, error } = await supabase.from("empresas").select("*");
+    if (error) {
+      console.warn("Aviso ao buscar empresas no Supabase:", error.message);
+      return { success: false, count: 0, error: error.message };
+    }
+
+    const local = getLocalCompanies();
+    const updatedList = [...local];
+    let changed = false;
+
+    if (Array.isArray(data) && data.length > 0) {
+      data.forEach((row: any) => {
+        const remoteComp: Company = {
+          id: row.id,
+          nome: row.nome,
+          slug: row.slug || row.id,
+          nicho: row.nicho || "Confeitaria & Alimentos",
+          corTema: (row.cor_tema as ThemeColorOption) || "dourado",
+          chavePix: row.chave_pix || "",
+          chavePixTipo: row.chave_pix_tipo || "telefone",
+          whatsapp: row.whatsapp || "",
+          cidade: row.cidade || "",
+          responsavel: row.responsavel || "",
+          adminEmail: row.admin_email || "",
+          adminSenha: row.admin_senha || "Mel@2026",
+          cashierPin: row.cashier_pin || "1234",
+          statusAssinatura: (row.status_assinatura as SubscriptionStatus) || "ativo",
+          statusLifecycle: (row.status_lifecycle as CompanyLifecycleStatus) || "ativa",
+          cortesiaValidadeAte: row.cortesia_validade_ate || undefined,
+          valorMensalidade: Number(row.valor_mensalidade) || 79.9,
+          criadoEm: row.criado_em || new Date().toISOString(),
+          observacoes: row.observacoes || "",
+        };
+
+        const existingIdx = updatedList.findIndex((c) => c.id === remoteComp.id);
+        if (existingIdx >= 0) {
+          // Atualiza dados caso o servidor tenha novidades
+          updatedList[existingIdx] = {
+            ...updatedList[existingIdx],
+            ...remoteComp,
+          };
+          changed = true;
+        } else {
+          updatedList.push(remoteComp);
+          changed = true;
+        }
+      });
+    }
+
+    // Envia para o Supabase empresas criadas localmente que ainda não estão lá
+    const remoteIds = new Set((data || []).map((r: any) => r.id));
+    const toPush = local.filter((c) => !remoteIds.has(c.id));
+    if (toPush.length > 0) {
+      for (const comp of toPush) {
+        await supabase.from("empresas").upsert({
+          id: comp.id,
+          nome: comp.nome,
+          slug: comp.slug,
+          nicho: comp.nicho,
+          cor_tema: comp.corTema,
+          chave_pix: comp.chavePix,
+          chave_pix_tipo: comp.chavePixTipo,
+          whatsapp: comp.whatsapp,
+          cidade: comp.cidade,
+          responsavel: comp.responsavel,
+          admin_email: comp.adminEmail,
+          admin_senha: comp.adminSenha,
+          cashier_pin: comp.cashierPin || "1234",
+          status_assinatura: comp.statusAssinatura,
+          status_lifecycle: comp.statusLifecycle || "ativa",
+          cortesia_validade_ate: comp.cortesiaValidadeAte || null,
+          valor_mensalidade: comp.valorMensalidade,
+          observacoes: comp.observacoes || "",
+          criado_em: comp.criadoEm,
+        });
+      }
+    }
+
+    if (changed) {
+      saveLocalCompanies(updatedList);
+    }
+
+    return { success: true, count: updatedList.length };
+  } catch (err: any) {
+    console.warn("Falha na sincronização remota de empresas:", err);
+    return { success: false, count: 0, error: err?.message || String(err) };
+  }
+}
+
+/**
+ * Exporta o portfólio completo de empresas como string Base64 compacta
+ * para transferência rápida entre aparelhos via QR Code ou link
+ */
+export function exportPortfolioAsBase64(): string {
+  const list = getLocalCompanies();
+  const jsonStr = JSON.stringify(list);
+  return btoa(unescape(encodeURIComponent(jsonStr)));
+}
+
+/**
+ * Importa e mescla empresas recebidas de outro aparelho via QR Code, link ou JSON
+ */
+export function importPortfolioFromPayload(raw: string): {
+  success: boolean;
+  count: number;
+  error?: string;
+} {
+  try {
+    let jsonStr = raw.trim();
+    if (!jsonStr.startsWith("{") && !jsonStr.startsWith("[")) {
+      jsonStr = decodeURIComponent(escape(atob(jsonStr)));
+    }
+    const parsed = JSON.parse(jsonStr);
+    const incoming: Company[] = Array.isArray(parsed)
+      ? parsed
+      : parsed.companies || [parsed];
+
+    if (!Array.isArray(incoming) || incoming.length === 0) {
+      return { success: false, count: 0, error: "Formato de dados de portfólio inválido" };
+    }
+
+    const current = getLocalCompanies();
+    const merged = [...current];
+    let newItemsCount = 0;
+
+    for (const inc of incoming) {
+      if (!inc.id || !inc.nome) continue;
+      const idx = merged.findIndex((c) => c.id === inc.id);
+      if (idx >= 0) {
+        merged[idx] = { ...merged[idx], ...inc };
+      } else {
+        merged.push(inc);
+        newItemsCount++;
+      }
+    }
+
+    saveLocalCompanies(merged);
+    return { success: true, count: merged.length };
+  } catch (err: any) {
+    return { success: false, count: 0, error: err?.message || "Erro ao decodificar dados do portfólio" };
+  }
 }
