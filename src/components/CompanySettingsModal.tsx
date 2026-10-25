@@ -65,6 +65,7 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     merchantCity: currentActiveComp?.cidade || currentConfig.tonConfig?.merchantCity || BRAND_CONFIG.tonConfig.merchantCity,
     tagline: currentActiveComp?.nicho || currentConfig.tagline || BRAND_CONFIG.tagline,
     whatsappNumber: currentActiveComp?.whatsapp || currentConfig.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
+    permitirEstoqueNegativo: currentActiveComp?.permitirEstoqueNegativo ?? false,
 
     // Pix & TON
     pixKey: currentActiveComp?.chavePix || currentConfig.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
@@ -105,6 +106,7 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         merchantCity: activeComp?.cidade || live.tonConfig?.merchantCity || BRAND_CONFIG.tonConfig.merchantCity,
         tagline: activeComp?.nicho || live.tagline || BRAND_CONFIG.tagline,
         whatsappNumber: activeComp?.whatsapp || live.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
+        permitirEstoqueNegativo: activeComp?.permitirEstoqueNegativo ?? false,
         pixKey: activeComp?.chavePix || live.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
         pixKeyType: activeComp?.chavePixTipo || live.tonConfig?.pixKeyType || BRAND_CONFIG.tonConfig.pixKeyType,
         ratePix: live.tonConfig?.rates?.Pix ?? BRAND_CONFIG.tonConfig.rates.Pix,
@@ -142,6 +144,7 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         chavePixTipo: (formData.pixKeyType as any) || activeComp.chavePixTipo,
         responsavel: formData.merchantName.trim() || activeComp.responsavel,
         cidade: formData.merchantCity.trim().toUpperCase() || activeComp.cidade,
+        permitirEstoqueNegativo: formData.permitirEstoqueNegativo,
       });
     }
 
@@ -665,6 +668,32 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                     />
                     <span className="text-[10px] text-muted-foreground">Padrão Ton: 3.50%</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Política de Estoque do PDV */}
+              <div className="pt-3 border-t border-border/60">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  Política de Estoque no PDV (Frente de Caixa):
+                </h4>
+                <div className="flex items-start gap-3 rounded-xl border border-border/80 bg-background/50 p-3.5">
+                  <input
+                    type="checkbox"
+                    id="permitirEstoqueNegativo"
+                    checked={formData.permitirEstoqueNegativo}
+                    onChange={(e) =>
+                      setFormData({ ...formData, permitirEstoqueNegativo: e.target.checked })
+                    }
+                    className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="permitirEstoqueNegativo" className="text-xs cursor-pointer">
+                    <span className="font-bold text-foreground block">
+                      Permitir Venda com Estoque Zerado / Negativo
+                    </span>
+                    <span className="text-[11px] text-muted-foreground block mt-0.5">
+                      Quando desativado (recomendado por segurança), o PDV bloqueia a seleção e a finalização de vendas de produtos sem estoque em freezer. Ative apenas se a filial opera sob encomenda ou aceita saldo negativo temporário.
+                    </span>
+                  </label>
                 </div>
               </div>
             </div>

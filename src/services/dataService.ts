@@ -1,7 +1,7 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { checkIsSupabaseConfigured, supabase } from "@/lib/supabase";
 import { addAuditLog } from "@/services/auditService";
-import { getActiveCompanyId } from "@/services/companyService";
+import { getActiveCompanyId, getActiveCompany, getLocalCompanies } from "@/services/companyService";
 import {
   CanalVenda,
   DashboardDataSnapshot,
@@ -411,6 +411,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
   const produtos: Produto[] = [
     {
       id: "prod-doce-de-leite",
+      empresaId: "emp-roze-gourmet",
       nome: "Doce de Leite (Itambé)",
       preco_venda: 6.5,
       preco_ifood: 8.9,
@@ -420,6 +421,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
     {
       id: "prod-ninho-nutella",
+      empresaId: "emp-roze-gourmet",
       nome: "Ninho com Nutella",
       preco_venda: 7.0,
       preco_ifood: 9.5,
@@ -429,6 +431,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
     {
       id: "prod-ninho-brigadeiro",
+      empresaId: "emp-roze-gourmet",
       nome: "Ninho com Brigadeiro 50%",
       preco_venda: 7.9,
       preco_ifood: 9.9,
@@ -438,6 +441,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
     {
       id: "prod-mousse-maracuja",
+      empresaId: "emp-roze-gourmet",
       nome: "Mousse de Maracujá c/ Geleia",
       preco_venda: 7.5,
       preco_ifood: 9.9,
@@ -447,6 +451,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
     {
       id: "prod-delicia-ovomaltine",
+      empresaId: "emp-roze-gourmet",
       nome: "Delícia de Ovomaltine",
       preco_venda: 6.0,
       preco_ifood: 8.5,
@@ -456,6 +461,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
     {
       id: "prod-romeu-julieta",
+      empresaId: "emp-roze-gourmet",
       nome: "Romeu e Julieta",
       preco_venda: 7.9,
       preco_ifood: 9.9,
@@ -465,6 +471,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
     {
       id: "prod-cheesecake-frutas-vermelhas",
+      empresaId: "emp-roze-gourmet",
       nome: "Cheesecake Frutas Vermelhas",
       preco_venda: 9.9,
       preco_ifood: 11.9,
@@ -474,6 +481,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
     },
     {
       id: "prod-ninho-morango",
+      empresaId: "emp-roze-gourmet",
       nome: "Ninho c/ Geleia de Morango",
       preco_venda: 7.5,
       preco_ifood: 9.9,
@@ -486,6 +494,7 @@ function generateInitialDemoData(): DashboardDataSnapshot {
   // Estoque inicial limpo dos 8 sabores reais das fichas técnicas (iniciando em 0 para controle real)
   const estoqueLotes: EstoqueLote[] = produtos.map((prod, idx) => ({
     id: `est-${idx + 1}`,
+    empresaId: "emp-roze-gourmet",
     produto_id: prod.id,
     quantidade_disponivel: 0,
     updated_at: now.toISOString(),
@@ -701,6 +710,7 @@ export function seedCompanyInitialProducts(
 
     const prod: Produto = {
       id: prodId,
+      empresaId: currentId,
       nome,
       preco_venda: precoVenda,
       preco_ifood: precoIfood,
@@ -712,6 +722,7 @@ export function seedCompanyInitialProducts(
 
     newLotes.push({
       id: `est-${prodId}`,
+      empresaId: currentId,
       produto_id: prodId,
       quantidade_disponivel: Number(p.estoque_inicial) || 0,
       updated_at: nowIso,
@@ -950,8 +961,9 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
         !itensRes.error &&
         !estoqueRes.error
       ) {
-        const prods = (produtosRes.data || []).map((p) => ({
+        const prods: Produto[] = (produtosRes.data || []).map((p) => ({
           ...p,
+          empresaId: p.empresa_id || p.empresaId || activeCompId,
           preco_venda: Number(p.preco_venda),
           custo_estimado: Number(p.custo_estimado),
         }));
@@ -960,6 +972,7 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
 
         const allVendas: Venda[] = (vendasRes.data || []).map((v) => ({
           ...v,
+          empresaId: v.empresa_id || v.empresaId || activeCompId,
           canal_venda: v.canal_venda || channelMap[v.id] || "Balcao",
           valor_total: Number(v.valor_total),
         }));
@@ -976,6 +989,7 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
           itensVenda: allItens,
           estoqueLotes: (estoqueRes.data || []).map((e) => ({
             ...e,
+            empresaId: e.empresa_id || e.empresaId || activeCompId,
             quantidade_disponivel: Number(e.quantidade_disponivel),
           })),
           fichasTecnicas: ensureFichasForProducts(
@@ -1000,6 +1014,7 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
 }
 
 export interface NewSalePayload {
+  empresaId?: string;
   forma_pagamento: PaymentMethod;
   canal_venda?: CanalVenda;
   cliente_nome?: string;
@@ -1016,9 +1031,14 @@ export interface NewSalePayload {
 }
 
 export async function createNewSale(
-  payload: NewSalePayload
+  payload: NewSalePayload,
+  companyId?: string
 ): Promise<DashboardDataSnapshot> {
-  const current = await fetchDashboardData();
+  const currentId = companyId || payload.empresaId || getActiveCompanyId();
+  const current = await fetchDashboardData(currentId);
+  const currentCompany = getLocalCompanies().find((c) => c.id === currentId) || getActiveCompany();
+  const permitirEstoqueNegativo = currentCompany.permitirEstoqueNegativo ?? false;
+
   const productMap = new Map(current.produtos.map((p) => [p.id, p]));
 
   let valorTotal = 0;
@@ -1036,24 +1056,26 @@ export async function createNewSale(
     });
 
   if (preparedItems.length === 0) {
-    return current;
+    throw new Error("Não é possível finalizar venda com carrinho vazio. Selecione pelo menos 1 produto.");
   }
 
-  // Validação Estrita de Estoque: Nenhum geladinho pode ser vendido sem estoque nem ficar negativo
-  for (const item of preparedItems) {
-    const prod = productMap.get(item.produto_id)!;
-    const lote = current.estoqueLotes.find((e) => e.produto_id === item.produto_id);
-    const estoqueDisponivel = lote ? lote.quantidade_disponivel : 0;
+  // Validação Estrita de Estoque: Bloqueia se <= 0 a menos que a empresa permita estoque negativo
+  if (!permitirEstoqueNegativo) {
+    for (const item of preparedItems) {
+      const prod = productMap.get(item.produto_id)!;
+      const lote = current.estoqueLotes.find((e) => e.produto_id === item.produto_id);
+      const estoqueDisponivel = lote ? lote.quantidade_disponivel : 0;
 
-    if (estoqueDisponivel <= 0) {
-      throw new Error(
-        `Venda bloqueada: O sabor "${prod.nome}" está ESGOTADO (0 un no estoque). Não é permitido vender sem estoque disponível.`
-      );
-    }
-    if (item.quantidade > estoqueDisponivel) {
-      throw new Error(
-        `Venda bloqueada: Estoque insuficiente para "${prod.nome}". Restam apenas ${estoqueDisponivel} un no freezer, mas foi solicitada a venda de ${item.quantidade} un.`
-      );
+      if (estoqueDisponivel <= 0) {
+        throw new Error(
+          `Venda bloqueada: O produto "${prod.nome}" está ESGOTADO (0 un no estoque). Não é permitido vender sem estoque disponível.`
+        );
+      }
+      if (item.quantidade > estoqueDisponivel) {
+        throw new Error(
+          `Venda bloqueada: Estoque insuficiente para "${prod.nome}". Restam apenas ${estoqueDisponivel} un no estoque, mas foi solicitada a venda de ${item.quantidade} un.`
+        );
+      }
     }
   }
 
@@ -1061,6 +1083,7 @@ export async function createNewSale(
 
   if (current.source === "supabase" && supabase) {
     const saleInsertData: Record<string, unknown> = {
+      empresa_id: currentId,
       forma_pagamento: payload.forma_pagamento,
       canal_venda: payload.canal_venda || "Balcao",
       cliente_nome: payload.cliente_nome?.trim() || null,
@@ -1081,17 +1104,19 @@ export async function createNewSale(
       .select()
       .single();
 
-    // Se a coluna canal_venda ainda não existe no banco remoto (PGRST204), retenta sem ela para NUNCA perder a venda
+    // Se a coluna canal_venda ou empresa_id ainda não existir no banco remoto (PGRST204), retenta sem ela
     if (
       vendaErr &&
       (vendaErr.code === "PGRST204" ||
-        vendaErr.message?.toLowerCase().includes("canal_venda"))
+        vendaErr.message?.toLowerCase().includes("canal_venda") ||
+        vendaErr.message?.toLowerCase().includes("empresa_id"))
     ) {
       console.warn(
-        "Coluna canal_venda ausente no Supabase. Salvando venda sem a coluna e registrando canal localmente."
+        "Ajustando payload de venda para compatibilidade com o schema remoto do Supabase."
       );
       const safeData = { ...saleInsertData };
       delete safeData.canal_venda;
+      delete safeData.empresa_id;
       const retry = await supabase
         .from("vendas")
         .insert(safeData)
@@ -1104,7 +1129,7 @@ export async function createNewSale(
     if (!vendaErr && vendaInserida) {
       // Registra o canal de venda mapeado localmente
       if (payload.canal_venda) {
-        setLocalSaleChannel(vendaInserida.id, payload.canal_venda);
+        setLocalSaleChannel(vendaInserida.id, payload.canal_venda, currentId);
       }
 
       const itemsToInsert = preparedItems.map((i) => ({
@@ -1115,14 +1140,15 @@ export async function createNewSale(
       }));
       await supabase.from("itens_venda").insert(itemsToInsert);
 
-      // Salva / atualiza histórico do cliente no CRM se houver dados
+      // Salva / atualiza histórico do cliente no CRM com escopo restrito à empresa atual
       if (saleStatus === "concluida") {
         saveOrUpdateCustomer({
+          empresaId: currentId,
           nome: payload.cliente_nome,
           telefone: payload.cliente_telefone,
           valorCompra: valorTotal,
           itens: preparedItems.map((i) => ({
-            produto_nome: productMap.get(i.produto_id)?.nome || "Geladinho Gourmet",
+            produto_nome: productMap.get(i.produto_id)?.nome || "Produto",
             quantidade: i.quantidade,
           })),
         });
@@ -1135,10 +1161,9 @@ export async function createNewSale(
             (e) => e.produto_id === item.produto_id
           );
           if (lote) {
-            const novaQtd = Math.max(
-              0,
-              lote.quantidade_disponivel - item.quantidade
-            );
+            const novaQtd = permitirEstoqueNegativo
+              ? lote.quantidade_disponivel - item.quantidade
+              : Math.max(0, lote.quantidade_disponivel - item.quantidade);
             await supabase
               .from("estoque_lotes")
               .update({
@@ -1150,7 +1175,7 @@ export async function createNewSale(
         }
       }
 
-      return fetchDashboardData();
+      return fetchDashboardData(currentId);
     } else if (vendaErr) {
       console.error("Erro crítico ao gravar venda no Supabase:", vendaErr);
     }
@@ -1161,6 +1186,7 @@ export async function createNewSale(
 
   const novaVenda: Venda = {
     id: newVendaId,
+    empresaId: currentId,
     cliente_nome: payload.cliente_nome?.trim() || undefined,
     cliente_telefone: payload.cliente_telefone?.trim() || undefined,
     canal_venda: payload.canal_venda || "Balcao",
@@ -1173,14 +1199,15 @@ export async function createNewSale(
     pix_copia_cola: payload.pix_copia_cola,
   };
 
-  // Salva / atualiza histórico do cliente no CRM local se houver dados
+  // Salva / atualiza histórico do cliente no CRM local da empresa ativa
   if (saleStatus === "concluida") {
     saveOrUpdateCustomer({
+      empresaId: currentId,
       nome: payload.cliente_nome,
       telefone: payload.cliente_telefone,
       valorCompra: valorTotal,
       itens: preparedItems.map((i) => ({
-        produto_nome: productMap.get(i.produto_id)?.nome || "Geladinho Gourmet",
+        produto_nome: productMap.get(i.produto_id)?.nome || "Produto",
         quantidade: i.quantidade,
       })),
     });
@@ -1202,12 +1229,12 @@ export async function createNewSale(
             (i) => i.produto_id === lote.produto_id
           );
           if (!soldItem) return lote;
+          const novaQtd = permitirEstoqueNegativo
+            ? lote.quantidade_disponivel - soldItem.quantidade
+            : Math.max(0, lote.quantidade_disponivel - soldItem.quantidade);
           return {
             ...lote,
-            quantidade_disponivel: Math.max(
-              0,
-              lote.quantidade_disponivel - soldItem.quantidade
-            ),
+            quantidade_disponivel: novaQtd,
             updated_at: nowIso,
           };
         })
@@ -1221,7 +1248,7 @@ export async function createNewSale(
     lastSyncedAt: nowIso,
   };
 
-  saveLocalSnapshot(updatedSnapshot);
+  saveLocalSnapshot(updatedSnapshot, currentId);
   return updatedSnapshot;
 }
 
@@ -1499,9 +1526,11 @@ export async function createNewProduct(
     }
   }
 
+  const currentCompId = getActiveCompanyId();
   const novoProdId = `prod-${Date.now()}`;
   const novoProduto: Produto = {
     id: novoProdId,
+    empresaId: currentCompId,
     nome: payload.nome.trim(),
     preco_venda: Number(payload.preco_venda),
     preco_ifood: Number((payload.preco_venda * 1.35).toFixed(2)),
@@ -1512,6 +1541,7 @@ export async function createNewProduct(
 
   const novoLote: EstoqueLote = {
     id: `est-${Date.now()}`,
+    empresaId: currentCompId,
     produto_id: novoProdId,
     quantidade_disponivel: Math.max(0, Math.round(payload.estoque_inicial)),
     updated_at: nowIso,

@@ -70,6 +70,7 @@ export interface FichaTecnicaRelational {
 
 export interface Produto {
   id: string;
+  empresaId: string; // Isolamento estrito multi-tenant
   nome: string;
   preco_venda: number;
   preco_ifood?: number;
@@ -81,6 +82,7 @@ export interface Produto {
 
 export interface Venda {
   id: string;
+  empresaId: string; // Isolamento estrito multi-tenant
   cliente_nome?: string;
   cliente_telefone?: string;
   data_venda: string;
@@ -106,6 +108,7 @@ export interface ItemVenda {
 
 export interface EstoqueLote {
   id: string;
+  empresaId: string; // Isolamento estrito multi-tenant
   produto_id: string;
   quantidade_disponivel: number;
   updated_at: string;
@@ -124,6 +127,7 @@ export interface VendaDetalhada extends Venda {
 
 export interface EstoquePorProduto {
   produto_id: string;
+  empresaId: string; // Isolamento estrito multi-tenant
   nome: string;
   preco_venda: number;
   custo_estimado: number;

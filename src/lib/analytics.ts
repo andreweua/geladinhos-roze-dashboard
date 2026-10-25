@@ -453,6 +453,7 @@ export function computeDashboardAnalytics(
     };
     return {
       produto_id: p.id,
+      empresaId: p.empresaId || "emp-roze-gourmet",
       nome: p.nome,
       preco_venda: p.preco_venda,
       custo_estimado: p.custo_estimado,

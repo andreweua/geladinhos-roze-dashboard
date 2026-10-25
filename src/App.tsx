@@ -483,7 +483,13 @@ export function App() {
       setCashShiftModalOpen(true);
       throw new Error("O caixa está fechado! Abra o caixa informando o fundo de troco antes de registrar vendas.");
     }
-    const updated = await createNewSale(payload);
+    const updated = await createNewSale(
+      {
+        ...payload,
+        empresaId: payload.empresaId || activeCompany.id,
+      },
+      activeCompany.id
+    );
     setSnapshot(updated);
   };
 
@@ -1338,6 +1344,8 @@ export function App() {
           onSubmitSale={handleSubmitSale}
           currentShift={currentShift}
           onOpenCashShift={() => setCashShiftModalOpen(true)}
+          empresaId={activeCompany.id}
+          permitirEstoqueNegativo={activeCompany.permitirEstoqueNegativo}
         />
       )}
 

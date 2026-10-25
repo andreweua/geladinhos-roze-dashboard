@@ -87,4 +87,5 @@ export interface Company {
   criadoEm: string;
   ultimoPagamentoEm?: string;
   observacoes?: string;
+  permitirEstoqueNegativo?: boolean; // Permite vender produtos mesmo se o estoque for <= 0
 }

@@ -39,9 +39,11 @@ import { NewSalePayload } from "@/services/dataService";
 import { CashShift } from "@/services/cashShiftService";
 import {
   searchCustomers,
+  buscarCliente,
   formatPhoneBr,
   ClienteRecorrente,
 } from "@/services/customerService";
+import { getActiveCompany, getActiveCompanyId } from "@/services/companyService";
 import {
   downloadReceiptPdf,
   downloadReceiptTxt,
@@ -61,6 +63,8 @@ interface PointOfSaleModalProps {
   onSubmitSale: (payload: NewSalePayload) => Promise<void>;
   currentShift?: CashShift | null;
   onOpenCashShift?: () => void;
+  empresaId?: string;
+  permitirEstoqueNegativo?: boolean;
 }
 
 export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
@@ -70,7 +74,15 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   onSubmitSale,
   currentShift,
   onOpenCashShift,
+  empresaId,
+  permitirEstoqueNegativo,
 }) => {
+  // Contexto multi-tenant estrito da empresa ativa
+  const activeCompany = useMemo(() => getActiveCompany(), [isOpen, empresaId]);
+  const activeEmpresaId = empresaId || activeCompany.id;
+  const allowNegativeStock =
+    permitirEstoqueNegativo ?? activeCompany.permitirEstoqueNegativo ?? false;
+
   // Step 1: Items selection & Customer details | Step 2: Payment & Pix confirmation
   const [step, setStep] = useState<"cart" | "payment">("cart");
 
@@ -107,12 +119,12 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   // Merchant Ton Config (dinâmico com overrides do painel de configurações)
   const ton = useMemo(() => getCustomBrandConfig().tonConfig, [isOpen]);
 
-  // Clientes sugeridos para autocomplete CRM
+  // Clientes sugeridos para autocomplete CRM estritamente isolado pelo tenant ativo
   const matchingCustomers = useMemo(() => {
     const query = clienteTelefone.trim() || clienteNome.trim();
     if (!query) return [];
-    return searchCustomers(query);
-  }, [clienteTelefone, clienteNome]);
+    return searchCustomers(query, activeEmpresaId);
+  }, [clienteTelefone, clienteNome, activeEmpresaId]);
 
   // Selected items calculation
   const selectedItems = useMemo(() => {
@@ -124,6 +136,13 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       .filter((i) => i.qtdSelecionada > 0);
   }, [inventoryByFlavor, quantities]);
 
+  // Itens selecionados sem estoque suficiente
+  const produtosSemEstoque = useMemo(() => {
+    return selectedItems.filter(
+      (item) => item.quantidade_disponivel <= 0 || item.qtdSelecionada > item.quantidade_disponivel
+    );
+  }, [selectedItems]);
+
   const totalVenda = useMemo(() => {
     return selectedItems.reduce(
       (acc, item) => acc + item.qtdSelecionada * item.preco_venda,
@@ -134,6 +153,10 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   const totalUnidades = useMemo(() => {
     return selectedItems.reduce((acc, item) => acc + item.qtdSelecionada, 0);
   }, [selectedItems]);
+
+  // Trava de segurança no carrinho
+  const isCartEmpty = selectedItems.length === 0 || totalUnidades === 0 || totalVenda <= 0;
+  const hasStockViolation = !allowNegativeStock && produtosSemEstoque.length > 0;
 
   const custoTotalVenda = useMemo(() => {
     return selectedItems.reduce(
@@ -246,10 +269,12 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
     setQuantities((prev) => {
       const current = prev[produtoId] || 0;
-      if (delta > 0 && current >= maxDisponivel) {
+      if (!allowNegativeStock && delta > 0 && current >= maxDisponivel) {
         return prev;
       }
-      const next = Math.max(0, Math.min(maxDisponivel, current + delta));
+      const next = allowNegativeStock
+        ? Math.max(0, current + delta)
+        : Math.max(0, Math.min(maxDisponivel, current + delta));
       return { ...prev, [produtoId]: next };
     });
   };
@@ -259,7 +284,9 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
     const maxDisponivel = item ? item.quantidade_disponivel : 0;
     setQuantities((prev) => ({
       ...prev,
-      [produtoId]: Math.max(0, Math.min(maxDisponivel, val)),
+      [produtoId]: allowNegativeStock
+        ? Math.max(0, val)
+        : Math.max(0, Math.min(maxDisponivel, val)),
     }));
   };
 
@@ -326,6 +353,14 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   // Simulação imediata do Webhook Stone OpenBank para testes
   const handleSimulatePaymentWebhook = async () => {
     if (!stonePixData || isSimulatingWebhook) return;
+    if (isCartEmpty) {
+      alert("O carrinho está vazio. Adicione pelo menos 1 produto para finalizar.");
+      return;
+    }
+    if (!allowNegativeStock && hasStockViolation) {
+      alert("Venda bloqueada: Não é permitido vender produtos sem estoque ou acima do saldo disponível.");
+      return;
+    }
     if (!currentShift) {
       if (onOpenCashShift) {
         onClose();
@@ -340,6 +375,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       setSuccessAnimation(true);
 
       await onSubmitSale({
+        empresaId: activeEmpresaId,
         forma_pagamento: "Pix",
         cliente_nome: clienteNome.trim() || undefined,
         cliente_telefone: clienteTelefone.trim() || undefined,
@@ -372,7 +408,13 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   };
 
   const handleConfirmAndFinalizeSale = async () => {
-    if (selectedItems.length === 0 || isSubmitting) return;
+    if (isCartEmpty || isSubmitting) return;
+
+    // Trava de segurança: impede vender sem estoque se empresa não permitir estoque negativo
+    if (!allowNegativeStock && hasStockViolation) {
+      alert("Venda bloqueada: Não é permitido vender produtos sem estoque ou acima do saldo disponível.");
+      return;
+    }
 
     if (!currentShift) {
       if (onOpenCashShift) {
@@ -385,6 +427,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
     setIsSubmitting(true);
     try {
       await onSubmitSale({
+        empresaId: activeEmpresaId,
         forma_pagamento: paymentMethod,
         cliente_nome: clienteNome.trim() || undefined,
         cliente_telefone: clienteTelefone.trim() || undefined,
@@ -587,9 +630,15 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                     Identificação do Cliente (CRM por WhatsApp):
                   </span>
                   {selectedCustomer && (
-                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
-                      ⭐ Cliente Cadastrado ({selectedCustomer.totalPedidos} {selectedCustomer.totalPedidos === 1 ? "compra" : "compras"})
-                    </span>
+                    selectedCustomer.totalPedidos > 0 ? (
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+                        ⭐ Cliente Cadastrado ({selectedCustomer.totalPedidos} {selectedCustomer.totalPedidos === 1 ? "compra" : "compras"})
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5">
+                        ✨ Novo Cliente nesta Loja (Histórico Isolado)
+                      </span>
+                    )
                   )}
                 </div>
 
@@ -602,8 +651,20 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                       type="tel"
                       value={clienteTelefone}
                       onChange={(e) => {
-                        setClienteTelefone(e.target.value);
+                        const val = e.target.value;
+                        setClienteTelefone(val);
                         setShowSuggestions(true);
+                        // Se digitou número completo, busca e vincula cliente mantendo histórico zerado se de outro tenant
+                        const clean = val.replace(/\D/g, "");
+                        if (clean.length >= 10) {
+                          const match = buscarCliente(clean, activeEmpresaId);
+                          if (match) {
+                            setSelectedCustomer(match);
+                            if (match.nome && !clienteNome) {
+                              setClienteNome(match.nome);
+                            }
+                          }
+                        }
                       }}
                       onFocus={() => setShowSuggestions(true)}
                       placeholder="Ex: 14988183327"
@@ -662,12 +723,20 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                             </p>
                           </div>
                           <div className="text-right">
-                            <span className="inline-block rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-extrabold text-primary">
-                              {cust.totalPedidos} {cust.totalPedidos === 1 ? "pedido" : "pedidos"}
-                            </span>
-                            <p className="text-[10px] text-muted-foreground">
-                              Total: {formatCurrency(cust.totalGasto)}
-                            </p>
+                            {cust.totalPedidos > 0 ? (
+                              <>
+                                <span className="inline-block rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-extrabold text-primary">
+                                  {cust.totalPedidos} {cust.totalPedidos === 1 ? "pedido" : "pedidos"}
+                                </span>
+                                <p className="text-[10px] text-muted-foreground">
+                                  Total: {formatCurrency(cust.totalGasto)}
+                                </p>
+                              </>
+                            ) : (
+                              <span className="inline-block rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                                Novo nesta empresa
+                              </span>
+                            )}
                           </div>
                         </button>
                       ))}
@@ -677,23 +746,53 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
                 {/* Loyalty Info Banner if selected */}
                 {selectedCustomer && (
-                  <div className="mt-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                        Histórico do Cliente:
-                      </span>{" "}
-                      <span className="text-muted-foreground">
-                        {selectedCustomer.totalPedidos} compras • Total: {formatCurrency(selectedCustomer.totalGasto)} • Ticket Médio: {formatCurrency(selectedCustomer.ticketMedio)}
-                      </span>
-                    </div>
-                    {selectedCustomer.saboresFavoritos.length > 0 && (
-                      <div className="text-[11px] text-muted-foreground">
-                        ❤️ Favorito: <strong className="text-foreground">{selectedCustomer.saboresFavoritos[0].sabor}</strong> ({selectedCustomer.saboresFavoritos[0].quantidade} un.)
+                  selectedCustomer.totalPedidos > 0 ? (
+                    <div className="mt-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                          Histórico do Cliente:
+                        </span>{" "}
+                        <span className="text-muted-foreground">
+                          {selectedCustomer.totalPedidos} compras • Total: {formatCurrency(selectedCustomer.totalGasto)} • Ticket Médio: {formatCurrency(selectedCustomer.ticketMedio)}
+                        </span>
                       </div>
-                    )}
-                  </div>
+                      {selectedCustomer.saboresFavoritos.length > 0 && (
+                        <div className="text-[11px] text-muted-foreground">
+                          ❤️ Favorito: <strong className="text-foreground">{selectedCustomer.saboresFavoritos[0].sabor}</strong> ({selectedCustomer.saboresFavoritos[0].quantidade} un.)
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-2 rounded-lg bg-blue-500/10 border border-blue-500/20 p-2.5 text-xs flex items-center justify-between gap-2 text-blue-700 dark:text-blue-300">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                        <span>
+                          <strong>Novo cliente nesta loja!</strong> O histórico de compras de outras empresas foi preservado em sigilo total.
+                        </span>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
+
+              {/* Trava e Alerta de Estoque Esgotado / Insuficiente */}
+              {!allowNegativeStock && produtosSemEstoque.length > 0 && (
+                <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 p-3 text-xs text-rose-900 dark:text-rose-200 flex items-start gap-2.5 shadow-xs animate-in fade-in">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Trava de Segurança de Estoque Ativa</p>
+                    <p className="text-[11px] mt-0.5 text-rose-800 dark:text-rose-300">
+                      Os seguintes sabores selecionados estão esgotados ou excedem o estoque disponível:{" "}
+                      <strong>
+                        {produtosSemEstoque
+                          .map((p) => `${p.nome} (${p.quantidade_disponivel} un. disp.)`)
+                          .join(", ")}
+                      </strong>
+                      . Não é permitido finalizar venda sem estoque a menos que a empresa permita estoque negativo.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Flavor Selector & Stock Status */}
               <div>
@@ -776,11 +875,11 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                           <button
                             type="button"
                             onClick={() => handleQtyChange(prod.produto_id, 1)}
-                            disabled={isOutOfStock || isMaxReached}
+                            disabled={!allowNegativeStock && (isOutOfStock || isMaxReached)}
                             title={
-                              isOutOfStock
-                                ? "Produto sem estoque disponível"
-                                : isMaxReached
+                              !allowNegativeStock && isOutOfStock
+                                ? "Produto esgotado (estoque zerado)"
+                                : !allowNegativeStock && isMaxReached
                                 ? `Limite de estoque atingido (${prod.quantidade_disponivel} un.)`
                                 : "Adicionar 1 unidade"
                             }
@@ -1129,9 +1228,16 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
             ) : step === "cart" ? (
               <button
                 type="button"
-                disabled={totalUnidades === 0}
+                disabled={isCartEmpty || hasStockViolation}
                 onClick={() => setStep("payment")}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-40 transition-opacity"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                title={
+                  hasStockViolation
+                    ? "Existem produtos sem estoque suficiente no carrinho"
+                    : isCartEmpty
+                    ? "Selecione pelo menos um item para continuar"
+                    : "Avançar para pagamento"
+                }
               >
                 <span>Avançar para Pagamento Pix / TON</span>
                 <ArrowRight className="h-4 w-4" />
@@ -1139,9 +1245,16 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
             ) : (
               <button
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isCartEmpty || hasStockViolation}
                 onClick={handleConfirmAndFinalizeSale}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title={
+                  hasStockViolation
+                    ? "Venda bloqueada: produtos sem estoque suficiente"
+                    : isCartEmpty
+                    ? "Carrinho vazio"
+                    : "Confirmar e baixar estoque"
+                }
               >
                 <Check className="h-4 w-4" />
                 <span>Confirmar Pagamento e Baixar Estoque</span>
