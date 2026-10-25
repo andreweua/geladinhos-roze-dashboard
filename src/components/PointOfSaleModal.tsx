@@ -331,6 +331,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   const buildCurrentTempSale = (): VendaDetalhada => {
     return {
       id: `PED-${Date.now().toString().slice(-6)}`,
+      empresaId: activeEmpresaId,
       data_venda: new Date().toISOString(),
       cliente_nome: clienteNome.trim() || undefined,
       cliente_telefone: clienteTelefone.trim() || undefined,

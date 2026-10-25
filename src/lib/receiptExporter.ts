@@ -429,6 +429,7 @@ export function parsePermanentReceiptFromUrl(): VendaDetalhada | null {
 
     const venda: VendaDetalhada = {
       id: p.i || `PED-${Date.now().toString().slice(-6)}`,
+      empresaId: p.e || "emp-roze-gourmet",
       data_venda: p.d || new Date().toISOString(),
       cliente_nome: p.c || undefined,
       cliente_telefone: p.t || undefined,

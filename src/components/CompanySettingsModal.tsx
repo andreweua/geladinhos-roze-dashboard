@@ -238,6 +238,7 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         merchantCity: BRAND_CONFIG.tonConfig.merchantCity,
         tagline: BRAND_CONFIG.tagline,
         whatsappNumber: BRAND_CONFIG.tonConfig.whatsappNumber,
+        permitirEstoqueNegativo: false,
         pixKey: BRAND_CONFIG.tonConfig.pixKey,
         pixKeyType: BRAND_CONFIG.tonConfig.pixKeyType,
         ratePix: BRAND_CONFIG.tonConfig.rates.Pix,

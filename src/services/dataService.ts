@@ -710,7 +710,7 @@ export function seedCompanyInitialProducts(
 
     const prod: Produto = {
       id: prodId,
-      empresaId: currentId,
+      empresaId: companyId,
       nome,
       preco_venda: precoVenda,
       preco_ifood: precoIfood,
@@ -722,7 +722,7 @@ export function seedCompanyInitialProducts(
 
     newLotes.push({
       id: `est-${prodId}`,
-      empresaId: currentId,
+      empresaId: companyId,
       produto_id: prodId,
       quantidade_disponivel: Number(p.estoque_inicial) || 0,
       updated_at: nowIso,
@@ -1474,8 +1474,10 @@ export async function updateProductStock(
   });
 
   if (!found) {
+    const currentCompId = getActiveCompanyId();
     novosLotes.push({
       id: `est-${Date.now()}`,
+      empresaId: currentCompId,
       produto_id: produtoId,
       quantidade_disponivel: qtdSegura,
       updated_at: nowIso,
