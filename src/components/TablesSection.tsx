@@ -331,170 +331,308 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
               Nenhuma venda encontrada para o período selecionado.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs sm:text-sm">
-                <thead>
-                  <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    <th className="pb-3 pr-3">Data / Hora</th>
-                    <th className="pb-3 px-3">Cliente / Contato</th>
-                    <th className="pb-3 px-3">Sabores & Qtd.</th>
-                    <th className="pb-3 px-3">Pagamento</th>
-                    <th className="pb-3 px-3 text-right">Valor Total</th>
-                    <th className="pb-3 pl-3 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {ultimasVendas.map((venda) => {
-                    const isCanceled = venda.status === "cancelada";
+            <>
+              {/* VISÃO MÓVEL (App Nativo Android / PWA): Cartões responsivos sem rolagem lateral */}
+              <div className="block sm:hidden space-y-3">
+                {ultimasVendas.map((venda) => {
+                  const isCanceled = venda.status === "cancelada";
 
-                    return (
-                      <tr
-                        key={venda.id}
-                        className={`transition-colors ${
-                          isCanceled
-                            ? "bg-rose-500/5 opacity-75 hover:bg-rose-500/10"
-                            : "hover:bg-secondary/35"
-                        }`}
-                      >
-                        <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted-foreground">
-                          {formatDateTime(venda.data_venda)}
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span
-                                className={`text-xs font-semibold ${
-                                  isCanceled
-                                    ? "line-through text-muted-foreground"
-                                    : "text-foreground"
-                                }`}
-                              >
-                                {venda.cliente_nome || "Balcão / Presencial"}
-                              </span>
-                              <span className="rounded bg-secondary/80 border border-border/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                {venda.canal_venda === "iFood"
-                                  ? "🛵 iFood"
-                                  : venda.canal_venda === "WhatsApp"
-                                  ? "📱 WhatsApp"
-                                  : venda.canal_venda === "Instagram"
-                                  ? "📸 Instagram"
-                                  : venda.canal_venda === "Outro"
-                                  ? "📦 Outro"
-                                  : "🏪 Balcão"}
-                              </span>
-                            </div>
+                  return (
+                    <div
+                      key={venda.id}
+                      className={`rounded-2xl border p-3.5 space-y-2.5 transition-colors shadow-xs ${
+                        isCanceled
+                          ? "border-rose-500/25 bg-rose-500/5 opacity-80"
+                          : "border-border/80 bg-card hover:border-border"
+                      }`}
+                    >
+                      {/* Top row: Client name, Channel & Value */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`text-xs font-bold truncate ${
+                                isCanceled
+                                  ? "line-through text-muted-foreground"
+                                  : "text-foreground"
+                              }`}
+                            >
+                              {venda.cliente_nome || "Balcão / Presencial"}
+                            </span>
+                            <span className="rounded bg-secondary/80 border border-border/60 px-1.5 py-0.2 text-[9px] font-semibold text-muted-foreground shrink-0">
+                              {venda.canal_venda === "iFood"
+                                ? "🛵 iFood"
+                                : venda.canal_venda === "WhatsApp"
+                                ? "📱 WhatsApp"
+                                : venda.canal_venda === "Instagram"
+                                ? "📸 Instagram"
+                                : "🏪 Balcão"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {formatDateTime(venda.data_venda)}
                             {venda.cliente_telefone && (
-                              <span className="text-[11px] text-muted-foreground font-mono">
-                                {venda.cliente_telefone}
-                              </span>
+                              <span className="font-mono ml-1.5">({venda.cliente_telefone})</span>
                             )}
-                            {isCanceled && venda.motivo_cancelamento && (
-                              <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">
-                                Motivo: {venda.motivo_cancelamento}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="flex flex-wrap gap-1">
-                            {venda.itens.map((item) => (
-                              <span
-                                key={item.id}
-                                className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${
-                                  isCanceled
-                                    ? "bg-secondary/50 text-muted-foreground line-through"
-                                    : "bg-secondary/80 text-secondary-foreground"
-                                }`}
-                              >
-                                {item.quantidade}x {item.produto_nome}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap py-3 px-3">
-                          <div className="flex flex-col gap-1 items-start">
-                            <Badge variant="outline" className="text-[11px]">
-                              {PAYMENT_METHOD_LABELS[venda.forma_pagamento]}
-                            </Badge>
-                            {venda.status === "pendente" ? (
-                              <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400">
-                                ⏳ Pix Pendente
-                              </span>
-                            ) : venda.status === "cancelada" ? (
-                              <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-bold text-rose-700 dark:text-rose-400">
-                                ❌ Estornada
-                              </span>
-                            ) : (
-                              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
-                                ✓ Concluída
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap py-3 px-3 text-right font-bold">
+                          </p>
+                        </div>
+
+                        <div className="text-right shrink-0">
                           <span
-                            className={
-                              isCanceled
-                                ? "line-through text-muted-foreground"
-                                : "text-foreground"
-                            }
+                            className={`text-sm font-extrabold ${
+                              isCanceled ? "line-through text-muted-foreground" : "text-primary"
+                            }`}
                           >
                             {formatCurrency(venda.valor_total)}
                           </span>
-                        </td>
-                        <td className="whitespace-nowrap py-3 pl-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {!isCanceled && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedReceiptSale(venda)}
-                                title="Baixar cupom em PDF, TXT, CSV financeiro ou enviar pelo WhatsApp"
-                                className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors shadow-sm"
-                              >
-                                <Receipt className="h-3.5 w-3.5" />
-                                <span>Cupom</span>
-                              </button>
-                            )}
+                        </div>
+                      </div>
 
-                            {!isCanceled && (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenWhatsAppReceipt(venda)}
-                                title="Enviar resumo do pedido pelo WhatsApp"
-                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
-                              >
-                                <MessageCircle className="h-3.5 w-3.5" />
-                                <span>Whats</span>
-                              </button>
-                            )}
+                      {/* Middle: Flavors list */}
+                      <div className="flex flex-wrap gap-1">
+                        {venda.itens.map((item) => (
+                          <span
+                            key={item.id}
+                            className={`inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-semibold ${
+                              isCanceled
+                                ? "bg-secondary/40 text-muted-foreground line-through"
+                                : "bg-secondary text-secondary-foreground border border-border/50"
+                            }`}
+                          >
+                            {item.quantidade}x {item.produto_nome}
+                          </span>
+                        ))}
+                      </div>
 
-                            {!isCanceled && onCancelSale && (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenRefundModal(venda)}
-                                title="Estornar / Cancelar esta venda"
-                                className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 hover:bg-rose-500/20 transition-colors"
-                              >
-                                <RotateCcw className="h-3 w-3" />
-                                <span>Estornar</span>
-                              </button>
-                            )}
+                      {/* Bottom: Payment badge & Actions */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="text-[10px] py-0">
+                            {PAYMENT_METHOD_LABELS[venda.forma_pagamento]}
+                          </Badge>
+                          {venda.status === "pendente" ? (
+                            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                              ⏳ Pendente
+                            </span>
+                          ) : venda.status === "cancelada" ? (
+                            <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-bold text-rose-700 dark:text-rose-400">
+                              ❌ Cancelada
+                            </span>
+                          ) : (
+                            <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
+                              ✓ Concluída
+                            </span>
+                          )}
+                        </div>
 
-                            {isCanceled && (
-                              <span className="text-[11px] text-muted-foreground italic">
-                                {venda.estornou_estoque
-                                  ? "Estoque devolvido"
-                                  : "Sem devolução"}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        <div className="flex items-center gap-1.5">
+                          {!isCanceled && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedReceiptSale(venda)}
+                              title="Ver e compartilhar cupom"
+                              className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors shadow-xs"
+                            >
+                              <Receipt className="h-3 w-3" />
+                              <span>Cupom</span>
+                            </button>
+                          )}
+
+                          {!isCanceled && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenWhatsAppReceipt(venda)}
+                              title="Enviar pelo WhatsApp"
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                            >
+                              <MessageCircle className="h-3 w-3" />
+                              <span>Whats</span>
+                            </button>
+                          )}
+
+                          {!isCanceled && onCancelSale && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRefundModal(venda)}
+                              title="Estornar venda"
+                              className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 hover:bg-rose-500/20 transition-colors"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* VISÃO DESKTOP / TABLET (Grid tabular para telas médias e grandes) */}
+              <div className="hidden sm:block overflow-x-auto w-full max-w-full">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <th className="pb-3 pr-3">Data / Hora</th>
+                      <th className="pb-3 px-3">Cliente / Contato</th>
+                      <th className="pb-3 px-3">Sabores & Qtd.</th>
+                      <th className="pb-3 px-3">Pagamento</th>
+                      <th className="pb-3 px-3 text-right">Valor Total</th>
+                      <th className="pb-3 pl-3 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {ultimasVendas.map((venda) => {
+                      const isCanceled = venda.status === "cancelada";
+
+                      return (
+                        <tr
+                          key={venda.id}
+                          className={`transition-colors ${
+                            isCanceled
+                              ? "bg-rose-500/5 opacity-75 hover:bg-rose-500/10"
+                              : "hover:bg-secondary/35"
+                          }`}
+                        >
+                          <td className="whitespace-nowrap py-3 pr-3 text-xs text-muted-foreground">
+                            {formatDateTime(venda.data_venda)}
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span
+                                  className={`text-xs font-semibold ${
+                                    isCanceled
+                                      ? "line-through text-muted-foreground"
+                                      : "text-foreground"
+                                  }`}
+                                >
+                                  {venda.cliente_nome || "Balcão / Presencial"}
+                                </span>
+                                <span className="rounded bg-secondary/80 border border-border/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                  {venda.canal_venda === "iFood"
+                                    ? "🛵 iFood"
+                                    : venda.canal_venda === "WhatsApp"
+                                    ? "📱 WhatsApp"
+                                    : venda.canal_venda === "Instagram"
+                                    ? "📸 Instagram"
+                                    : venda.canal_venda === "Outro"
+                                    ? "📦 Outro"
+                                    : "🏪 Balcão"}
+                                </span>
+                              </div>
+                              {venda.cliente_telefone && (
+                                <span className="text-[11px] text-muted-foreground font-mono">
+                                  {venda.cliente_telefone}
+                                </span>
+                              )}
+                              {isCanceled && venda.motivo_cancelamento && (
+                                <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">
+                                  Motivo: {venda.motivo_cancelamento}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="flex flex-wrap gap-1">
+                              {venda.itens.map((item) => (
+                                <span
+                                  key={item.id}
+                                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${
+                                    isCanceled
+                                      ? "bg-secondary/50 text-muted-foreground line-through"
+                                      : "bg-secondary/80 text-secondary-foreground"
+                                  }`}
+                                >
+                                  {item.quantidade}x {item.produto_nome}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap py-3 px-3">
+                            <div className="flex flex-col gap-1 items-start">
+                              <Badge variant="outline" className="text-[11px]">
+                                {PAYMENT_METHOD_LABELS[venda.forma_pagamento]}
+                              </Badge>
+                              {venda.status === "pendente" ? (
+                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                                  ⏳ Pix Pendente
+                                </span>
+                              ) : venda.status === "cancelada" ? (
+                                <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-bold text-rose-700 dark:text-rose-400">
+                                  ❌ Estornada
+                                </span>
+                              ) : (
+                                <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-400">
+                                  ✓ Concluída
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap py-3 px-3 text-right font-bold">
+                            <span
+                              className={
+                                isCanceled
+                                  ? "line-through text-muted-foreground"
+                                  : "text-foreground"
+                              }
+                            >
+                              {formatCurrency(venda.valor_total)}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap py-3 pl-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {!isCanceled && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedReceiptSale(venda)}
+                                  title="Baixar cupom em PDF, TXT, CSV financeiro ou enviar pelo WhatsApp"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition-colors shadow-sm"
+                                >
+                                  <Receipt className="h-3.5 w-3.5" />
+                                  <span>Cupom</span>
+                                </button>
+                              )}
+
+                              {!isCanceled && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenWhatsAppReceipt(venda)}
+                                  title="Enviar resumo do pedido pelo WhatsApp"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                                >
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                  <span>Whats</span>
+                                </button>
+                              )}
+
+                              {!isCanceled && onCancelSale && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenRefundModal(venda)}
+                                  title="Estornar / Cancelar esta venda"
+                                  className="inline-flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 hover:bg-rose-500/20 transition-colors"
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                  <span>Estornar</span>
+                                </button>
+                              )}
+
+                              {isCanceled && (
+                                <span className="text-[11px] text-muted-foreground italic">
+                                  {venda.estornou_estoque
+                                    ? "Estoque devolvido"
+                                    : "Sem devolução"}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -522,7 +660,119 @@ export const TablesSection: React.FC<TablesSectionProps> = ({
         </CardHeader>
 
         <CardContent>
-          <div className="overflow-x-auto">
+          {/* VISÃO MÓVEL (App Nativo Android / PWA): Cartões responsivos de estoque sem rolagem lateral */}
+          <div className="block sm:hidden space-y-3">
+            {reposicaoEstoque.map((item) => {
+              const ficha = fichasTecnicas.find(
+                (f) => f.produto_id === item.produto_id
+              );
+              const rendimento = ficha?.rendimento_unidades || 8;
+
+              return (
+                <div
+                  key={item.produto_id}
+                  className={`rounded-2xl border p-3.5 space-y-2.5 transition-colors shadow-xs ${
+                    item.abaixo_do_minimo
+                      ? "border-amber-500/30 bg-amber-500/5"
+                      : "border-border/80 bg-card"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-foreground truncate">
+                        {item.nome}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                        <span className="font-semibold text-primary">{formatCurrency(item.preco_venda)}/un</span>
+                        <span>•</span>
+                        <span className="inline-flex items-center gap-0.5 text-muted-foreground">
+                          <ChefHat className="h-3 w-3 text-primary" />
+                          {rendimento} un/receita
+                        </span>
+                      </p>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`text-base font-extrabold ${
+                            item.abaixo_do_minimo
+                              ? "text-amber-600 dark:text-amber-400"
+                              : "text-foreground"
+                          }`}
+                        >
+                          {item.quantidade_disponivel}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">un.</span>
+                      </div>
+                      {item.abaixo_do_minimo ? (
+                        <Badge variant="warning" className="text-[9px] py-0 px-1.5 mt-0.5">
+                          Repor (&lt;{BRAND_CONFIG.lowStockThreshold})
+                        </Badge>
+                      ) : (
+                        <Badge variant="success" className="text-[9px] py-0 px-1.5 mt-0.5">
+                          Estoque OK
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  {userRole === "admin" && (
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50">
+                      <span className="text-[10px] text-muted-foreground font-medium">
+                        Ajuste de Freezer:
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onQuickStockChange(
+                              item.produto_id,
+                              Math.max(0, item.quantidade_disponivel - 1)
+                            )
+                          }
+                          title="Diminuir 1 unidade"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-secondary/80 text-foreground active:scale-95 transition-transform"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onQuickStockChange(
+                              item.produto_id,
+                              item.quantidade_disponivel + 1
+                            )
+                          }
+                          title="Adicionar 1 unidade"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-secondary/80 text-foreground active:scale-95 transition-transform"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onQuickStockChange(
+                              item.produto_id,
+                              item.quantidade_disponivel + rendimento
+                            )
+                          }
+                          title={`Repor 1 receita completa (+${rendimento} un.)`}
+                          className="rounded-lg bg-rose-500/10 px-2 py-1 text-[11px] font-bold text-rose-600 dark:text-rose-400 border border-rose-500/25 active:scale-95 transition-transform inline-flex items-center gap-1 shadow-xs"
+                        >
+                          <ChefHat className="h-3 w-3" />
+                          <span>+{rendimento}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* VISÃO DESKTOP / TABLET (Tabela de reposição) */}
+          <div className="hidden sm:block overflow-x-auto w-full max-w-full">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

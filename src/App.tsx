@@ -870,7 +870,7 @@ export function App() {
         </header>
 
         {/* Dynamic Screen View Content */}
-        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-6 sm:px-6 lg:px-8 pb-28 md:pb-12">
+        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-3 py-4 sm:px-6 lg:px-8 pb-28 md:pb-12 min-w-0 max-w-full overflow-x-hidden">
           {!analytics || !snapshot ? (
             <div className="flex h-64 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
               Carregando indicadores de {BRAND_CONFIG.companyName}...
@@ -879,10 +879,10 @@ export function App() {
             <>
               {/* TELA 1: INÍCIO (Overview) */}
               {(activeSection === "inicio" || activeSection === "completo") && (
-                <div className="space-y-6">
+                <div className="space-y-6 w-full max-w-full min-w-0 overflow-x-hidden">
                   {/* Turno de Caixa Bar (Abertura / Fechamento de Caixa) */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-border/80 bg-card p-5 shadow-sm">
-                    <div className="flex items-center gap-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-xs w-full max-w-full overflow-hidden min-w-0">
+                    <div className="flex items-center gap-3.5 min-w-0 flex-1">
                       <div
                         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
                           currentShift
@@ -896,8 +896,8 @@ export function App() {
                           <Lock className="h-6 w-6" />
                         )}
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                               currentShift
@@ -908,7 +908,7 @@ export function App() {
                             {currentShift ? "Caixa Aberto" : "Caixa Fechado"}
                           </span>
                           {currentShift && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground truncate">
                               Turno de <strong>{currentShift.operadorNome}</strong> • Aberto às{" "}
                               {new Date(currentShift.dataAbertura).toLocaleTimeString("pt-BR", {
                                 hour: "2-digit",
@@ -917,7 +917,7 @@ export function App() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5 break-words">
                           {currentShift
                             ? `Fundo de troco inicial: ${formatCurrency(
                                 currentShift.abertura.totalFundoTroco

@@ -1,11 +1,12 @@
 {
-  "version": "3.3.0",
-  "build": 2026102505,
-  "releaseDate": "2026-10-25T06:15:00.000Z",
+  "version": "3.4.0",
+  "build": 2026102506,
+  "releaseDate": "2026-10-25T17:35:00.000Z",
   "features": [
-    "Sincronização Master Multi-Aparelhos (QR Code e Nuvem)",
-    "Login Master com super poderes PereiraLabs em 1 toque",
-    "Auto-instalação de novas empresas via WhatsApp Magic Link",
-    "Responsividade mobile aprimorada e modo app nativo"
+    "Leitor de Código de Barras por Câmera inteligente integrado ao PDV e Lista de Compras",
+    "Detecção inteligente de produtos duplicados com confirmação para adicionar +1 unidade",
+    "Eliminação total de rolagem lateral horizontal no aplicativo nativo Android e PWA",
+    "Interface 100% responsiva para celulares com cartões nativos adaptativos de vendas e estoque",
+    "Modo App Nativo Android offline com sincronização robusta"
   ]
 }

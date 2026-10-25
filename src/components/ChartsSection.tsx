@@ -107,7 +107,7 @@ export const ChartsSection: React.FC<ChartsSectionProps> = ({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full overflow-hidden min-w-0">
       {/* CHART 1 (100% WIDTH): Evolução Diária de Vendas (Faturamento vs Custo Estimado) */}
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

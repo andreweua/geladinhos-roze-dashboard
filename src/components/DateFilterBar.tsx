@@ -51,18 +51,18 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
   return (
     <section
       aria-label="Filtros globais de período"
-      className="rounded-xl border border-border/80 bg-card p-3.5 shadow-sm sm:p-4"
+      className="rounded-2xl border border-border/80 bg-card p-3.5 shadow-xs sm:p-4 w-full max-w-full overflow-hidden"
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         {/* Left label & active date range */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground min-w-0">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Calendar className="h-4 w-4" />
             </div>
-            <div>
-              <span className="font-semibold">Período de Análise</span>
-              <span className="ml-2 rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+            <div className="min-w-0 truncate">
+              <span className="font-semibold text-xs sm:text-sm">Período</span>
+              <span className="ml-2 rounded-md bg-secondary px-2 py-0.5 text-[11px] sm:text-xs font-medium text-secondary-foreground">
                 {formatShortDate(dateFilter.startDate)} —{" "}
                 {formatShortDate(dateFilter.endDate)}
               </span>
@@ -74,15 +74,15 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
             variant="outline"
             size="sm"
             onClick={onOpenStockModal}
-            className="sm:hidden"
+            className="sm:hidden shrink-0 text-xs gap-1"
           >
-            <PackagePlus className="h-3.5 w-3.5 text-rose-500" />
+            <PackagePlus className="h-3.5 w-3.5 text-primary" />
             <span>Estoque</span>
           </Button>
         </div>
 
-        {/* Preset pills */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Preset pills: scroll suave horizontal no mobile nativo */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 w-full lg:w-auto -mx-1 px-1">
           {PRESET_OPTIONS.map((opt) => {
             const active = dateFilter.preset === opt.id;
             return (
@@ -90,10 +90,10 @@ export const DateFilterBar: React.FC<DateFilterBarProps> = ({
                 key={opt.id}
                 type="button"
                 onClick={() => onSelectPreset(opt.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                className={`rounded-lg px-2.5 sm:px-3 py-1.5 text-xs font-semibold shrink-0 transition-all ${
                   active
                     ? "bg-primary text-primary-foreground shadow-sm"
-                    : "bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    : "bg-secondary/70 text-muted-foreground hover:bg-secondary hover:text-foreground"
                 }`}
               >
                 {opt.label}

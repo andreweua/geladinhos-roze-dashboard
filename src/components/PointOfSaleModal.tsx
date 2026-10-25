@@ -29,6 +29,9 @@ import {
   Download,
   Receipt,
   Lock,
+  Camera,
+  Barcode,
+  Search,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
@@ -55,6 +58,9 @@ import {
   simulateStoneWebhookPayment,
   StonePixResult,
 } from "@/services/stonePixService";
+import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
+import { consultarProdutoPorGtin } from "@/services/gtinService";
+import { Button } from "@/components/ui/primitives";
 
 interface PointOfSaleModalProps {
   isOpen: boolean;
@@ -108,6 +114,15 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   const [copiedPix, setCopiedPix] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
+
+  // Barcode Scanner & Duplicate Detection states
+  const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+  const [scanFeedback, setScanFeedback] = useState<string | null>(null);
+  const [duplicatePrompt, setDuplicatePrompt] = useState<{
+    product: EstoquePorProduto;
+    currentQty: number;
+    barcode: string;
+  } | null>(null);
 
   // Stone OpenBank Dynamic Pix states
   const [stonePixData, setStonePixData] = useState<StonePixResult | null>(null);
@@ -459,9 +474,65 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   const valorPagoNum = parseFloat(valorPagoDinheiro.replace(",", ".")) || 0;
   const trocoDinheiro = Math.max(0, valorPagoNum - totalVenda);
 
-  const filteredFlavors = inventoryByFlavor.filter((prod) =>
-    prod.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Leitura de código de barras pela câmera do celular/computador
+  const handleBarcodeScanned = async (scannedCode: string) => {
+    const clean = scannedCode.replace(/\D/g, "").trim();
+    if (!clean) return;
+
+    // 1. Preenche o código de barras no campo de busca/filtro
+    setSearchTerm(clean);
+
+    // 2. Busca produto por GTIN, id ou nome
+    const found = inventoryByFlavor.find(
+      (p) =>
+        (p.gtin && p.gtin === clean) ||
+        p.produto_id === clean ||
+        p.produto_id.toLowerCase().includes(clean.toLowerCase()) ||
+        p.nome.toLowerCase().includes(clean.toLowerCase())
+    );
+
+    if (found) {
+      const currentQty = quantities[found.produto_id] || 0;
+      if (currentQty > 0) {
+        // 3. Se o produto já foi adicionado ao pedido: abre aviso para confirmação de +1 unidade
+        setDuplicatePrompt({
+          product: found,
+          currentQty,
+          barcode: clean,
+        });
+      } else {
+        // Produto encontrado e ainda não no pedido: adiciona 1 unidade imediatamente
+        handleQtyChange(found.produto_id, 1);
+        setScanFeedback(`✓ ${found.nome} adicionado ao pedido (+1 un.)!`);
+        setTimeout(() => setScanFeedback(null), 4000);
+      }
+    } else {
+      // Produto não consta no estoque local: consulta API GTIN para alertar usuário
+      try {
+        const info = await consultarProdutoPorGtin(clean);
+        if (info) {
+          setScanFeedback(
+            `ℹ️ Código ${clean} identificado como "${info.nome}", mas ainda não cadastrado no catálogo desta loja.`
+          );
+        } else {
+          setScanFeedback(`⚠️ Código de barras ${clean} lido, mas nenhum produto correspondente foi encontrado.`);
+        }
+      } catch {
+        setScanFeedback(`Código ${clean} preenchido.`);
+      }
+      setTimeout(() => setScanFeedback(null), 5000);
+    }
+  };
+
+  const filteredFlavors = inventoryByFlavor.filter((prod) => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return true;
+    return (
+      prod.nome.toLowerCase().includes(term) ||
+      (prod.gtin && prod.gtin.includes(term)) ||
+      prod.produto_id.toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div
@@ -797,18 +868,59 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
               {/* Flavor Selector & Stock Status */}
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-2.5">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Cardápio Artesanal (150ml) — Toque para adicionar:
                   </h4>
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Filtrar sabor..."
-                    className="w-48 rounded-lg border border-input bg-background px-2.5 py-1 text-xs focus:border-primary focus:outline-none"
-                  />
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-56">
+                      <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Buscar sabor ou GTIN..."
+                        className="w-full rounded-xl border border-input bg-background pl-8 pr-7 py-1.5 text-xs focus:border-primary focus:outline-none"
+                      />
+                      {searchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchTerm("")}
+                          className="absolute right-2 top-2 text-muted-foreground hover:text-foreground text-xs"
+                          title="Limpar busca"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsScannerOpen(true)}
+                      title="Escanear Código de Barras com a Câmera"
+                      className="gap-1.5 text-xs font-bold border-primary/30 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground shrink-0 shadow-xs"
+                    >
+                      <Camera className="h-3.5 w-3.5" />
+                      <span>Câmera</span>
+                    </Button>
+                  </div>
                 </div>
+
+                {scanFeedback && (
+                  <div className="mb-2.5 rounded-xl border border-primary/30 bg-primary/10 p-2.5 text-xs font-medium text-foreground flex items-center justify-between gap-2 animate-in fade-in">
+                    <span className="truncate">{scanFeedback}</span>
+                    <button
+                      type="button"
+                      onClick={() => setScanFeedback(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-2">
                   {filteredFlavors.map((prod) => {
@@ -1264,6 +1376,77 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Alerta inteligente: Produto já existe no pedido -> Adicionar +1 unidade? */}
+      {duplicatePrompt && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/65 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                <Barcode className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-foreground">Produto Já no Pedido!</h4>
+                <p className="text-[11px] text-muted-foreground font-mono">GTIN: {duplicatePrompt.barcode}</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-secondary/60 p-3 border border-border/70">
+              <p className="text-xs font-bold text-foreground">{duplicatePrompt.product.nome}</p>
+              <div className="flex items-center justify-between mt-1.5 text-xs">
+                <span className="text-muted-foreground">Preço Unitário:</span>
+                <span className="font-bold text-primary">{formatCurrency(duplicatePrompt.product.preco_venda)}</span>
+              </div>
+              <div className="flex items-center justify-between mt-1 text-xs">
+                <span className="text-muted-foreground">Quantidade Atual:</span>
+                <span className="rounded-md bg-primary/10 px-2 py-0.5 font-bold text-primary">
+                  {duplicatePrompt.currentQty} {duplicatePrompt.currentQty === 1 ? "unidade" : "unidades"}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-foreground font-medium leading-relaxed">
+              O produto com este código de barras já está no seu pedido. Deseja <strong>acrescentar mais 1 unidade (+1)</strong> ao carrinho?
+            </p>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={() => setDuplicatePrompt(null)}
+              >
+                Manter ({duplicatePrompt.currentQty} un.)
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="flex-1 text-xs font-bold bg-primary text-primary-foreground gap-1.5 shadow-sm"
+                onClick={() => {
+                  handleQtyChange(duplicatePrompt.product.produto_id, 1);
+                  setScanFeedback(`✓ +1 unidade de ${duplicatePrompt.product.nome} adicionada ao pedido!`);
+                  setTimeout(() => setScanFeedback(null), 3500);
+                  setDuplicatePrompt(null);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Sim, Adicionar +1</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Leitor de Código de Barras com Câmera */}
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScanSuccess={handleBarcodeScanned}
+        title="Escanear Código de Barras (Câmera PDV)"
+        initialMode="camera"
+      />
     </div>
   );
 };

@@ -28,7 +28,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   onClose,
   onScanSuccess,
   title = "Leitor de Código de Barras GTIN / EAN",
-  initialMode = "manual",
+  initialMode = "camera",
 }) => {
   const [activeMode, setActiveMode] = useState<"camera" | "manual">(initialMode);
   const videoRef = useRef<HTMLVideoElement | null>(null);

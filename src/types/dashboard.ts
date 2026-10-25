@@ -77,6 +77,7 @@ export interface Produto {
   custo_estimado: number;
   rendimento_receita?: number;
   ativo: boolean;
+  gtin?: string; // Código de barras GTIN / EAN
   created_at: string;
 }
 
@@ -135,6 +136,7 @@ export interface EstoquePorProduto {
   quantidade_disponivel: number;
   updated_at: string;
   abaixo_do_minimo: boolean;
+  gtin?: string; // Código de barras GTIN / EAN
 }
 
 export interface DreProdutoItem {

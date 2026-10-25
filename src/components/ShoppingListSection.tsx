@@ -70,10 +70,14 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [scannerInitialMode, setScannerInitialMode] = useState<"camera" | "manual">("manual");
+  const [scannerInitialMode, setScannerInitialMode] = useState<"camera" | "manual">("camera");
   const [scanningTargetItemId, setScanningTargetItemId] = useState<string | null>(null);
   const [searchingGtinItemId, setSearchingGtinItemId] = useState<string | null>(null);
   const [gtinFeedback, setGtinFeedback] = useState<string | null>(null);
+  const [duplicateItemPrompt, setDuplicateItemPrompt] = useState<{
+    existingItem: ListaComprasItem;
+    scannedGtin?: string;
+  } | null>(null);
 
   // RSC Sistemas Config Modal State
   const [isRscModalOpen, setIsRscModalOpen] = useState(false);
@@ -224,18 +228,81 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     }
   };
 
-  // Handle Barcode Scan Success for an Item
+  // Handle Barcode Scan Success for an Item or Global Add
   const handleBarcodeScanForItem = async (barcode: string) => {
-    if (!activeList || !scanningTargetItemId) return;
-    const targetId = scanningTargetItemId;
-    setScanningTargetItemId(null);
+    if (!activeList) return;
+    const clean = barcode.replace(/\D/g, "").trim();
+    if (!clean) return;
+
     setIsScannerOpen(false);
-    await handleSearchGtinForItem(targetId, barcode);
+
+    // Caso 1: Escaneamento associado a um item específico da lista
+    if (scanningTargetItemId) {
+      const targetId = scanningTargetItemId;
+      setScanningTargetItemId(null);
+      await handleSearchGtinForItem(targetId, clean);
+      return;
+    }
+
+    // Caso 2: Escaneamento geral de produto com a câmera
+    // Verifica se já existe um item na lista de compras com este GTIN ou nome
+    const existing = activeList.itens.find((i) => i.gtin === clean);
+    if (existing) {
+      // Produto já existe na lista -> Pergunta se quer acrescentar +1 unidade
+      setDuplicateItemPrompt({
+        existingItem: existing,
+        scannedGtin: clean,
+      });
+      return;
+    }
+
+    // Se não existe, busca informações oficiais do GTIN e adiciona à lista
+    try {
+      const info = await consultarProdutoPorGtin(clean);
+      const resolvedName = (info?.nome || `Produto GTIN ${clean}`).toUpperCase();
+      const newItem: ListaComprasItem = {
+        id: `item-${Date.now()}`,
+        insumo_nome: resolvedName,
+        marca: info?.marca || "Genérico",
+        gtin: clean,
+        quantidade_necessaria: 1,
+        unidade_medida: (info?.unidade_medida as ListaComprasItem["unidade_medida"]) || "un",
+        quantidade_embalagem: info?.quantidade_embalagem || 1,
+        preco_estimado: 0,
+        comprado: false,
+      };
+
+      const updatedList = { ...activeList, itens: [...activeList.itens, newItem] };
+      const saved = addOrUpdateShoppingList(updatedList);
+      setLists(saved);
+      setGtinFeedback(`✓ ${resolvedName} adicionado à lista de compras via Leitor de Código de Barras!`);
+      setTimeout(() => setGtinFeedback(null), 4000);
+    } catch {
+      setGtinFeedback(`⚠️ Erro ao consultar GTIN ${clean}.`);
+      setTimeout(() => setGtinFeedback(null), 3000);
+    }
   };
 
   // Handle Selection from Smart Autocorrect Ingredient Search
   const handleSelectInsumoBusca = (insumo: InsumoSearchResult) => {
     if (!activeList) return;
+
+    // Verifica se o item já existe na lista
+    const existing = activeList.itens.find(
+      (i) =>
+        (insumo.gtin && i.gtin === insumo.gtin) ||
+        i.insumo_nome.trim().toUpperCase() === insumo.nomeFormatado.trim().toUpperCase()
+    );
+
+    if (existing) {
+      // Pergunta se deseja acrescentar +1 unidade ao item existente
+      setDuplicateItemPrompt({
+        existingItem: existing,
+        scannedGtin: insumo.gtin,
+      });
+      return;
+    }
+
     const newItem: ListaComprasItem = {
       id: `item-${Date.now()}`,
       insumo_nome: insumo.nomeFormatado, // STRICTLY UPPERCASE
@@ -609,10 +676,30 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
                 Digite em minúsculas (ex: <code>leite mosa</code>, <code>harald</code>) → Retorno em <strong className="uppercase text-foreground">MAIÚSCULAS</strong>
               </span>
             </div>
-            <IngredientSearchInput
-              onSelectInsumo={handleSelectInsumoBusca}
-              placeholder="Digite o insumo em minúsculas (ex: leite mosa, nestle, harald melken)..."
-            />
+            <div className="flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <IngredientSearchInput
+                  onSelectInsumo={handleSelectInsumoBusca}
+                  placeholder="Digite o insumo em minúsculas (ex: leite mosa, nestle, harald melken)..."
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setScanningTargetItemId(null);
+                  setScannerInitialMode("camera");
+                  setIsScannerOpen(true);
+                }}
+                title="Escanear Código de Barras (Câmera) para Adicionar à Lista"
+                className="gap-1.5 bg-primary/10 text-primary border-primary/30 hover:bg-primary hover:text-primary-foreground font-bold text-xs shrink-0 h-10 shadow-xs"
+              >
+                <Camera className="h-4 w-4" />
+                <span className="hidden sm:inline">Escanear Câmera</span>
+                <span className="sm:hidden">Câmera</span>
+              </Button>
+            </div>
           </div>
 
           {/* Table of items */}
@@ -1246,6 +1333,76 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
                 className="bg-primary text-primary-foreground font-bold"
               >
                 Concluir
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta inteligente: Produto já existe na lista de compras -> Adicionar +1 unidade? */}
+      {duplicateItemPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4 text-foreground">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                <Barcode className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold">Produto Já na Lista!</h4>
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  {duplicateItemPrompt.scannedGtin ? `GTIN: ${duplicateItemPrompt.scannedGtin}` : "Insumo Cadastrado"}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-secondary/60 p-3 border border-border/70 space-y-1">
+              <p className="text-xs font-bold text-foreground">{duplicateItemPrompt.existingItem.insumo_nome}</p>
+              <p className="text-[11px] text-muted-foreground">
+                Marca: <strong>{duplicateItemPrompt.existingItem.marca || "Padrão"}</strong>
+              </p>
+              <div className="flex items-center justify-between mt-1 text-xs">
+                <span className="text-muted-foreground">Quantidade Atual na Lista:</span>
+                <span className="rounded-md bg-primary/10 px-2 py-0.5 font-bold text-primary">
+                  {duplicateItemPrompt.existingItem.quantidade_necessaria}{" "}
+                  {duplicateItemPrompt.existingItem.unidade_medida}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-foreground font-medium leading-relaxed">
+              Este produto já está na sua lista de compras. Deseja <strong>acrescentar mais 1 unidade (+1)</strong> à quantidade necessária?
+            </p>
+
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 text-xs"
+                onClick={() => setDuplicateItemPrompt(null)}
+              >
+                Manter ({duplicateItemPrompt.existingItem.quantidade_necessaria} {duplicateItemPrompt.existingItem.unidade_medida})
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="flex-1 text-xs font-bold bg-primary text-primary-foreground gap-1.5 shadow-sm"
+                onClick={() => {
+                  handleUpdateItem(duplicateItemPrompt.existingItem.id, {
+                    quantidade_necessaria: duplicateItemPrompt.existingItem.quantidade_necessaria + 1,
+                  });
+                  setGtinFeedback(
+                    `✓ +1 unidade adicionada a ${duplicateItemPrompt.existingItem.insumo_nome} (Total: ${
+                      duplicateItemPrompt.existingItem.quantidade_necessaria + 1
+                    })!`
+                  );
+                  setTimeout(() => setGtinFeedback(null), 3500);
+                  setDuplicateItemPrompt(null);
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Sim, Adicionar +1</span>
               </Button>
             </div>
           </div>
