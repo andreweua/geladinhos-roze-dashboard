@@ -12,6 +12,9 @@ import {
   Receipt,
   PackageCheck,
   ChevronRight,
+  Barcode,
+  Camera,
+  Layers,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/primitives";
 import { BRAND_CONFIG } from "@/config/brand.config";
@@ -71,29 +74,53 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
 
         {/* Body Content */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
-          {/* Active Version Highlight: v3.2.0 */}
+          {/* Active Version Highlight: v3.4.0 */}
           <div className="rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 sm:p-5 shadow-sm">
             <div className="flex items-center justify-between gap-2 border-b border-primary/20 pb-3">
               <div className="flex items-center gap-2">
                 <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-sm font-black text-foreground">
-                  Versão 3.2.0 (Versão Oficial OTA Instalada)
+                  Versão 3.4.0 (Versão Oficial OTA Instalada)
                 </span>
               </div>
               <span className="text-[11px] font-medium text-muted-foreground">
-                Hoje • Estável
+                25/10/2026 • Estável
               </span>
             </div>
 
             <div className="mt-3.5 space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  <RefreshCw className="h-3.5 w-3.5" />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary mt-0.5">
+                  <Camera className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Atualização Automática Over-The-Air (OTA):</strong>
+                  <strong className="text-foreground">Leitor de Código de Barras por Câmera no PDV & Lista:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    O aplicativo agora verifica e sincroniza novas versões no Android e iOS automaticamente ao abrir o app ou voltar da tela de bloqueio, com notificação instantânea e limpeza de cache.
+                    Abertura direta da câmera sem passos extras. Lê códigos GTIN/EAN com alta precisão e preenche automaticamente os campos de busca e cadastro.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
+                  <Barcode className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <strong className="text-foreground">Detecção Inteligente de Duplicados & Incremento (+1 Unidade):</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5">
+                    Se o produto já estiver no pedido ou na lista de compras, o app notifica imediatamente e permite adicionar +1 unidade com apenas 1 toque.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  <Smartphone className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <strong className="text-foreground">Eliminação de Rolagem Lateral & Design Mobile Nativo:</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5">
+                    Remoção completa de transbordamento horizontal. Tabelas convertidas em cartões adaptativos modernos para telas de celulares Android e PWA.
                   </p>
                 </div>
               </div>
@@ -103,37 +130,43 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <ShieldCheck className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Isolamento Estrito Multi-Tenant:</strong>
+                  <strong className="text-foreground">Segurança Master & APK Oficial PereiraLabs:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Clientes, produtos, vendas e estoques são 100% isolados por filial/empresa. Clientes cadastrados em outra unidade iniciam com histórico zerado e total privacidade.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-rose-500/20 text-rose-600 dark:text-rose-400 mt-0.5">
-                  <Lock className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <strong className="text-foreground">Trava de Segurança de Estoque no PDV:</strong>
-                  <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Bloqueio obrigatório de finalização para vendas com carrinho vazio ou produtos sem estoque físico em freezer (configurável por empresa).
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
-                  <Store className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <strong className="text-foreground">Painel Master & Gestão de Faturamento:</strong>
-                  <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Controle de mensalidades, empresas ativas/bloqueadas, pró-rata e onboarding guiado pelo Painel Master da PereiraLabs.
+                    Remoção de botões de autofill master para proteção de credenciais e empacotamento do APK PereiraLabs PDV Foods v3.4.0.
                   </p>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Past Version: v3.3.0 */}
+          <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-xs font-bold text-foreground">
+                Versão 3.3.0 — Sincronização Master Multi-Aparelhos & SQL Supabase
+              </span>
+              <span className="text-[10px] text-muted-foreground">25/10/2026</span>
+            </div>
+            <ul className="text-[11px] text-muted-foreground space-y-1.5 list-disc list-inside">
+              <li>Sincronização em tempo real das empresas ativas via tabela public.empresas no Supabase.</li>
+              <li>QR Code dinâmico para migração instantânea de portfólio multi-empresa entre aparelhos.</li>
+              <li>Isolamento de dados cadastrais preservando sigilo de clientes entre unidades.</li>
+            </ul>
+          </div>
+
+          {/* Past Version: v3.2.0 */}
+          <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-xs font-bold text-foreground">
+                Versão 3.2.0 — Atualização Automática OTA & Trava de Segurança
+              </span>
+              <span className="text-[10px] text-muted-foreground">24/10/2026</span>
+            </div>
+            <ul className="text-[11px] text-muted-foreground space-y-1.5 list-disc list-inside">
+              <li>Sincronização Over-The-Air automática ao desbloquear celular ou reabrir app.</li>
+              <li>Trava de segurança para impedir finalização de vendas sem estoque em freezer.</li>
+              <li>Onboarding e painel de empresas com cálculo pró-rata.</li>
+            </ul>
           </div>
 
           {/* Past Version: v3.1.0 */}
