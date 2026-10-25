@@ -1,6 +1,6 @@
 {
   "version": "3.2.0",
-  "build": 2026102501,
+  "build": 2026102502,
   "releaseDate": "2026-10-25T05:25:00.000Z",
   "features": [
     "Isolamento estrito multi-tenant (dados por empresa)",

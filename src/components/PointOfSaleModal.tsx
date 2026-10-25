@@ -637,7 +637,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                       </span>
                     ) : (
                       <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5">
-                        ✨ Novo Cliente nesta Loja (Histórico Isolado)
+                        ✨ Novo Cliente
                       </span>
                     )
                   )}
@@ -768,7 +768,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                       <div className="flex items-center gap-1.5">
                         <Sparkles className="h-3.5 w-3.5 shrink-0 text-blue-500" />
                         <span>
-                          <strong>Novo cliente nesta loja!</strong> O histórico de compras de outras empresas foi preservado em sigilo total.
+                          <strong>Novo cliente nesta loja!</strong> Primeira compra registrada.
                         </span>
                       </div>
                     </div>
