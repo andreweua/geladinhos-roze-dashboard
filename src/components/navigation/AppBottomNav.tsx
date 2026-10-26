@@ -31,7 +31,7 @@ export const AppBottomNav: React.FC<AppBottomNavProps> = ({
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 w-full max-w-full overflow-hidden border-t border-border/80 bg-card/95 backdrop-blur-lg md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-40 w-full max-w-full overflow-hidden border-t border-border/80 bg-card/95 backdrop-blur-lg lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 8px)" }}
       aria-label="Navegação móvel principal"
     >

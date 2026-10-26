@@ -37,6 +37,7 @@ import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
 import { ChangelogModal } from "@/components/ChangelogModal";
 import { OtaUpdateBanner } from "@/components/OtaUpdateBanner";
+import { DesktopModeNotice } from "@/components/DesktopModeNotice";
 import { forceHardOtaReload } from "@/services/otaService";
 import { PereiraLabsMasterModal } from "@/components/master/PereiraLabsMasterModal";
 import { ConsultingSection } from "@/components/ConsultingSection";
@@ -739,8 +740,10 @@ export function App() {
 
       {/* 2. Main Body Container (Adaptive to Sidebar) */}
       <div className="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden">
-        {/* Mobile Header (Sticky at top on phones) */}
-        <div className="md:hidden">
+        <DesktopModeNotice />
+
+        {/* Mobile Header (Sticky at top on phones and tablets) */}
+        <div className="lg:hidden">
           <Header
             isDark={isDark}
             companyName={activeCompany.nome}
@@ -764,8 +767,8 @@ export function App() {
           />
         </div>
 
-        {/* Desktop Top Header Bar (Breadcrumb & Fast Actions) */}
-        <header className="hidden md:flex items-center justify-between border-b border-border/80 bg-card/75 backdrop-blur-md px-6 py-3.5 sticky top-0 z-20">
+        {/* Desktop Top Header Bar (Breadcrumb & Fast Actions - Desktop only >= 1024px) */}
+        <header className="hidden lg:flex items-center justify-between border-b border-border/80 bg-card/75 backdrop-blur-md px-6 py-3.5 sticky top-0 z-20">
           <div>
             <h2 className="text-base font-bold text-foreground">
               {currentUser?.role === "operador_caixa"
@@ -873,7 +876,7 @@ export function App() {
         </header>
 
         {/* Dynamic Screen View Content */}
-        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-3 py-4 sm:px-6 lg:px-8 pb-28 md:pb-12 min-w-0 max-w-full overflow-x-hidden">
+        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-3 py-4 sm:px-6 lg:px-8 pb-28 lg:pb-12 min-w-0 max-w-full overflow-x-hidden">
           {!analytics || !snapshot ? (
             <div className="flex h-64 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
               Carregando indicadores de {BRAND_CONFIG.companyName}...

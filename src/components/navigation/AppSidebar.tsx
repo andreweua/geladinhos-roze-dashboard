@@ -73,7 +73,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const isMaster = isPereiraLabsMaster(currentUser);
 
   return (
-    <aside className="hidden md:flex w-64 lg:w-72 shrink-0 flex-col border-r border-border/80 bg-card/90 backdrop-blur-md h-screen sticky top-0 overflow-hidden">
+    <aside className="hidden lg:flex w-64 lg:w-72 shrink-0 flex-col border-r border-border/80 bg-card/90 backdrop-blur-md h-screen sticky top-0 overflow-hidden">
       {/* Brand Header */}
       <div className="p-3.5 lg:p-4 border-b border-border/70 flex items-center justify-between gap-2.5">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">

@@ -1,12 +1,12 @@
 {
-  "version": "3.4.1",
-  "build": 2026102507,
-  "releaseDate": "2026-10-25T23:55:00.000Z",
+  "version": "3.4.2",
+  "build": 2026102601,
+  "releaseDate": "2026-10-26T17:00:00.000Z",
   "features": [
-    "Isolamento Multi-Tenant estrito de Turno de Caixa e Troco por empresa (não mistura caixas)",
-    "Banner com link direto para download de APK nativo atualizado no Android",
-    "Leitor de Código de Barras por Câmera integrado ao PDV com detecção de +1 unidade",
-    "Eliminação total de rolagem lateral horizontal no aplicativo nativo Android e PWA",
-    "Cartões nativos adaptativos de vendas e estoque para celulares"
+    "Habilitação de zoom nativo com pinça (pinch-to-zoom) no PWA e mobile",
+    "Layout 100% responsivo para telas móveis e tablets (< 1024px)",
+    "Detecção e orientação inteligente quando o navegador estiver em modo desktop",
+    "Isolamento Multi-Tenant estrito de Turno de Caixa e Troco por empresa",
+    "Download direto de APK oficial através de Releases do GitHub"
   ]
 }
