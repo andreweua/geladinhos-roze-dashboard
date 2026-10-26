@@ -31,6 +31,7 @@ interface CashShiftModalProps {
   operadorNome: string;
   vendas: VendaDetalhada[];
   onShiftUpdated: (shift: CashShift | null) => void;
+  empresaId?: string;
 }
 
 export const CashShiftModal: React.FC<CashShiftModalProps> = ({
@@ -40,6 +41,7 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
   operadorNome,
   vendas,
   onShiftUpdated,
+  empresaId,
 }) => {
   // Mode: "abertura" ou "fechamento"
   const isOpening = !currentShift;
@@ -88,6 +90,7 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
   const handleConfirmOpen = (e: React.FormEvent) => {
     e.preventDefault();
     const newShift = openCashShift({
+      empresaId,
       operadorNome,
       dinheiroCedulas: parseFloat(dinheiroCedulas) || 0,
       moedas: parseFloat(moedas) || 0,
@@ -104,6 +107,7 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
     if (!currentShift) return;
 
     const closed = closeCashShift({
+      empresaId,
       shiftId: currentShift.id,
       dinheiroCedulas: parseFloat(dinheiroCedulasFechamento) || 0,
       moedas: parseFloat(moedasFechamento) || 0,

@@ -1,9 +1,17 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { VendaDetalhada } from "@/types/dashboard";
+import { getActiveCompanyId } from "@/services/companyService";
 
-const CURRENT_SHIFT_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_current_cash_shift_v1`;
-const SHIFT_HISTORY_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_cash_shift_history_v1`;
+export function getCurrentShiftStorageKey(empresaId?: string): string {
+  const compId = empresaId || getActiveCompanyId();
+  return `${BRAND_CONFIG.storagePrefix}_current_cash_shift_${compId}_v2`;
+}
+
+export function getShiftHistoryStorageKey(empresaId?: string): string {
+  const compId = empresaId || getActiveCompanyId();
+  return `${BRAND_CONFIG.storagePrefix}_cash_shift_history_${compId}_v2`;
+}
 
 export interface CashShiftAbertura {
   dinheiroCedulas: number;
@@ -39,6 +47,7 @@ export interface CashShiftFechamento {
 
 export interface CashShift {
   id: string;
+  empresaId: string; // Isolamento estrito multi-tenant obrigatório
   operadorNome: string;
   dataAbertura: string;
   dataFechamento?: string;
@@ -47,36 +56,42 @@ export interface CashShift {
   fechamento?: CashShiftFechamento;
 }
 
-// Obter turno de caixa atualmente aberto
-export function getCurrentShift(): CashShift | null {
+// Obter turno de caixa atualmente aberto (estritamente isolado por empresa)
+export function getCurrentShift(empresaId?: string): CashShift | null {
+  const compId = empresaId || getActiveCompanyId();
   try {
-    const raw = localStorage.getItem(CURRENT_SHIFT_STORAGE_KEY);
+    const key = getCurrentShiftStorageKey(compId);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed: CashShift = JSON.parse(raw);
-    return parsed.status === "aberto" ? parsed : null;
+    return parsed.status === "aberto" && parsed.empresaId === compId ? parsed : null;
   } catch {
     return null;
   }
 }
 
-// Obter histórico de fechamentos
-export function getShiftHistory(): CashShift[] {
+// Obter histórico de fechamentos da empresa
+export function getShiftHistory(empresaId?: string): CashShift[] {
+  const compId = empresaId || getActiveCompanyId();
   try {
-    const raw = localStorage.getItem(SHIFT_HISTORY_STORAGE_KEY);
+    const key = getShiftHistoryStorageKey(compId);
+    const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-// Abrir novo caixa / turno
+// Abrir novo caixa / turno na empresa especificada
 export function openCashShift(params: {
+  empresaId?: string;
   operadorNome: string;
   dinheiroCedulas: number;
   moedas: number;
   maquininhaCartaoInicial: number;
   observacoes?: string;
 }): CashShift {
+  const compId = params.empresaId || getActiveCompanyId();
   const cedulas = Math.max(0, Number(params.dinheiroCedulas) || 0);
   const moedas = Math.max(0, Number(params.moedas) || 0);
   const maquininha = Math.max(0, Number(params.maquininhaCartaoInicial) || 0);
@@ -84,6 +99,7 @@ export function openCashShift(params: {
 
   const newShift: CashShift = {
     id: `shift-${Date.now()}`,
+    empresaId: compId,
     operadorNome: params.operadorNome || "Operador de Caixa",
     dataAbertura: new Date().toISOString(),
     status: "aberto",
@@ -97,7 +113,8 @@ export function openCashShift(params: {
   };
 
   try {
-    localStorage.setItem(CURRENT_SHIFT_STORAGE_KEY, JSON.stringify(newShift));
+    const key = getCurrentShiftStorageKey(compId);
+    localStorage.setItem(key, JSON.stringify(newShift));
   } catch {
     // ignore
   }
@@ -105,8 +122,9 @@ export function openCashShift(params: {
   return newShift;
 }
 
-// Fechar caixa / turno e calcular balanço
+// Fechar caixa / turno e calcular balanço na empresa especificada
 export function closeCashShift(params: {
+  empresaId?: string;
   shiftId: string;
   dinheiroCedulas: number;
   moedas: number;
@@ -114,7 +132,8 @@ export function closeCashShift(params: {
   observacoes?: string;
   vendasDoTurno: VendaDetalhada[];
 }): CashShift {
-  const current = getCurrentShift();
+  const compId = params.empresaId || getActiveCompanyId();
+  const current = getCurrentShift(compId);
   const shift = current && current.id === params.shiftId ? current : null;
 
   const cedulasInformado = Math.max(0, Number(params.dinheiroCedulas) || 0);
@@ -123,11 +142,12 @@ export function closeCashShift(params: {
   const maquininhaInformado = Math.max(0, Number(params.maquininhaCartao) || 0);
   const totalGeralInformado = totalDinheiroInformado + maquininhaInformado;
 
-  // Filtrar vendas ocorridas desde a abertura deste turno
+  // Filtrar vendas ocorridas desde a abertura deste turno E pertencentes a esta empresa
   const shiftStartTime = shift ? new Date(shift.dataAbertura).getTime() : 0;
   const vendasTurno = params.vendasDoTurno.filter(
     (v) =>
       v.status === "concluida" &&
+      (!v.empresaId || v.empresaId === compId) &&
       new Date(v.data_venda).getTime() >= shiftStartTime
   );
 
@@ -180,6 +200,7 @@ export function closeCashShift(params: {
   const closedShift: CashShift = {
     ...(shift || {
       id: params.shiftId,
+      empresaId: compId,
       operadorNome: "Operador de Caixa",
       dataAbertura: new Date().toISOString(),
       abertura: {
@@ -195,14 +216,16 @@ export function closeCashShift(params: {
   };
 
   try {
-    // Limpar caixa aberto atual
-    localStorage.removeItem(CURRENT_SHIFT_STORAGE_KEY);
+    // Limpar caixa aberto atual da empresa
+    const key = getCurrentShiftStorageKey(compId);
+    localStorage.removeItem(key);
 
-    // Salvar no histórico
-    const history = getShiftHistory();
+    // Salvar no histórico da empresa
+    const history = getShiftHistory(compId);
     history.unshift(closedShift);
+    const histKey = getShiftHistoryStorageKey(compId);
     localStorage.setItem(
-      SHIFT_HISTORY_STORAGE_KEY,
+      histKey,
       JSON.stringify(history.slice(0, 50))
     );
   } catch {

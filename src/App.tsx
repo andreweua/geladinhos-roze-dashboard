@@ -376,8 +376,11 @@ export function App() {
   useEffect(() => {
     return subscribeCompanyChange((comp) => {
       setActiveCompany(comp);
+      // Garante isolamento estrito: cada empresa tem seu próprio caixa aberto ou fechado
+      setCurrentShift(getCurrentShift(comp.id));
+      loadData(false);
     });
-  }, []);
+  }, [loadData]);
 
   // Aplica dinamicamente o tema de cores da empresa ativa e atualiza a aba do navegador
   useEffect(() => {
@@ -391,7 +394,7 @@ export function App() {
   }, [activeCompany]);
 
   const [currentShift, setCurrentShift] = useState<CashShift | null>(() =>
-    getCurrentShift()
+    getCurrentShift(activeCompanyId)
   );
 
   // Authenticated User & Session State (Admin vs Operador de Caixa)
@@ -1518,6 +1521,7 @@ export function App() {
         currentShift={currentShift}
         operadorNome={currentUser?.name || "Operador"}
         vendas={analytics?.ultimasVendas || []}
+        empresaId={activeCompany.id}
         onShiftUpdated={(shift) => {
           setCurrentShift(shift);
           if (shift && shift.status === "aberto") {

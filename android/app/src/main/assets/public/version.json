@@ -1,12 +1,12 @@
 {
-  "version": "3.4.0",
-  "build": 2026102506,
-  "releaseDate": "2026-10-25T17:35:00.000Z",
+  "version": "3.4.1",
+  "build": 2026102507,
+  "releaseDate": "2026-10-25T23:55:00.000Z",
   "features": [
-    "Leitor de Código de Barras por Câmera inteligente integrado ao PDV e Lista de Compras",
-    "Detecção inteligente de produtos duplicados com confirmação para adicionar +1 unidade",
+    "Isolamento Multi-Tenant estrito de Turno de Caixa e Troco por empresa (não mistura caixas)",
+    "Banner com link direto para download de APK nativo atualizado no Android",
+    "Leitor de Código de Barras por Câmera integrado ao PDV com detecção de +1 unidade",
     "Eliminação total de rolagem lateral horizontal no aplicativo nativo Android e PWA",
-    "Interface 100% responsiva para celulares com cartões nativos adaptativos de vendas e estoque",
-    "Modo App Nativo Android offline com sincronização robusta"
+    "Cartões nativos adaptativos de vendas e estoque para celulares"
   ]
 }

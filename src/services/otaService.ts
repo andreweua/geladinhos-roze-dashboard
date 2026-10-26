@@ -126,11 +126,20 @@ export async function checkForOtaUpdate(): Promise<boolean> {
       }
     }
 
-    // Busca version.json direto do servidor sem nenhum cache HTTP
-    const res = await fetch(`./version.json?_t=${Date.now()}`, {
-      cache: "no-store",
-      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-    });
+    // Busca version.json direto do servidor sem nenhum cache HTTP (tenta remoto se estiver no app nativo)
+    const remoteUrl = "https://andreweua.github.io/geladinhos-roze-dashboard/version.json";
+    let res: Response;
+    try {
+      res = await fetch(`${remoteUrl}?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      });
+    } catch {
+      res = await fetch(`./version.json?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      });
+    }
 
     if (res.ok) {
       const data = await res.json();
