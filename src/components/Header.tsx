@@ -72,7 +72,12 @@ export const Header: React.FC<HeaderProps> = ({
   const displayCompanyName = companyName || currentUser?.empresaNome || BRAND_CONFIG.companyName;
 
   return (
-    <header className="sticky top-0 z-30 w-full max-w-full overflow-hidden border-b border-border/80 bg-card/85 backdrop-blur-md">
+    <header
+      className="sticky top-0 z-30 w-full max-w-full overflow-hidden border-b border-border/80 bg-card/85 backdrop-blur-md"
+      style={{
+        paddingTop: "env(safe-area-inset-top, 0px)",
+      }}
+    >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2.5 sm:px-6 lg:px-8">
         {/* Left: Brand Identity */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1">

@@ -876,7 +876,7 @@ export function App() {
         </header>
 
         {/* Dynamic Screen View Content */}
-        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-3 py-4 sm:px-6 lg:px-8 pb-28 lg:pb-12 min-w-0 max-w-full overflow-x-hidden">
+        <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-3 py-4 sm:px-6 lg:px-8 pb-32 lg:pb-12 min-w-0 max-w-full overflow-x-hidden">
           {!analytics || !snapshot ? (
             <div className="flex h-64 items-center justify-center rounded-2xl border border-border bg-card text-sm text-muted-foreground">
               Carregando indicadores de {BRAND_CONFIG.companyName}...

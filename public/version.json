@@ -1,13 +1,13 @@
 {
-  "version": "3.4.3",
-  "build": 2026102602,
-  "releaseDate": "2026-10-26T23:30:00.000Z",
+  "version": "3.4.4",
+  "build": 2026102701,
+  "releaseDate": "2026-10-27T01:00:00.000Z",
   "features": [
-    "Lista de Compras Inteligente: Importação universal CSV/JSON",
-    "Geração automática de Lista de Compras baseada no estoque crítico do freezer e fichas técnicas",
-    "Criação e inclusão manual de itens por leitor de código de barras (câmera) ou digitação",
-    "Integração de Inteligência Artificial Google Gemini protegida por empresa SaaS",
-    "Configuração de chaves Gemini no Painel da Empresa e no Painel Administrador Master",
-    "Correção visual de sobreposição e esmagamento das abas de navegação nas Configurações da Empresa"
+    "Ajuste nativo de Safe Area para Samsung Galaxy A26 e Android 14/15",
+    "Correção de sobreposição sob a barra de notificações (status bar / punch hole)",
+    "Correção de sobreposição sob os botões de navegação inferiores (navigation bar)",
+    "Lista de Compras Inteligente: Importação universal CSV/JSON e reposição automática do freezer",
+    "IA Gemini SaaS Multi-Tenant isolada e segura por empresa",
+    "Abas de configuração fluidas e sem sobreposição"
   ]
 }
