@@ -44,6 +44,7 @@ import {
   PesquisaPrecoLocal,
   CompraNotaFiscalReal,
   FichaTecnicaProduto,
+  EstoquePorProduto,
 } from "@/types/dashboard";
 import {
   loadEstabelecimentos,
@@ -71,6 +72,7 @@ import {
 interface LocalMarketAndInvoicesSectionProps {
   onOpenInvoiceModal: () => void;
   fichasTecnicas?: FichaTecnicaProduto[];
+  reposicaoEstoque?: EstoquePorProduto[];
   onApplyPaidPriceToRecipes?: (
     insumoNome: string,
     novoPrecoUnit: number
@@ -79,7 +81,7 @@ interface LocalMarketAndInvoicesSectionProps {
 
 export const LocalMarketAndInvoicesSection: React.FC<
   LocalMarketAndInvoicesSectionProps
-> = ({ onOpenInvoiceModal, fichasTecnicas, onApplyPaidPriceToRecipes }) => {
+> = ({ onOpenInvoiceModal, fichasTecnicas, reposicaoEstoque = [], onApplyPaidPriceToRecipes }) => {
   const [activeTab, setActiveTab] = useState<
     "estabelecimentos" | "pesquisas" | "historico_inflacao" | "compras" | "lista_compras"
   >("pesquisas");
@@ -1384,6 +1386,8 @@ export const LocalMarketAndInvoicesSection: React.FC<
       {activeTab === "lista_compras" && (
         <ShoppingListSection
           estabelecimentos={estabelecimentos}
+          fichasTecnicas={fichasTecnicas}
+          reposicaoEstoque={reposicaoEstoque}
           onQuotationsSaved={() => setPesquisas(loadPesquisasPreco())}
         />
       )}

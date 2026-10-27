@@ -1292,6 +1292,7 @@ export function App() {
                   <LocalMarketAndInvoicesSection
                     onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
                     fichasTecnicas={snapshot.fichasTecnicas}
+                    reposicaoEstoque={analytics.reposicaoEstoque}
                     onApplyPaidPriceToRecipes={handleApplyPaidPriceToRecipes}
                   />
                 </div>

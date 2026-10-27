@@ -18,6 +18,9 @@ import {
   Cloud,
   Share2,
   Sparkles,
+  Eye,
+  EyeOff,
+  AlertTriangle,
 } from "lucide-react";
 import {
   BRAND_CONFIG,
@@ -48,11 +51,17 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
   onConfigSaved,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    "empresa" | "plano" | "pix_ton" | "stone_api" | "polos" | "supabase"
+    "empresa" | "plano" | "gemini_ia" | "pix_ton" | "stone_api" | "polos" | "supabase"
   >("plano");
 
   const [feedback, setFeedback] = useState<string | null>(null);
   const [copiedSyncLink, setCopiedSyncLink] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [isTestingGemini, setIsTestingGemini] = useState(false);
+  const [geminiTestResult, setGeminiTestResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   // Load live config & active company
   const currentConfig = getCustomBrandConfig();
@@ -66,6 +75,10 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     tagline: currentActiveComp?.nicho || currentConfig.tagline || BRAND_CONFIG.tagline,
     whatsappNumber: currentActiveComp?.whatsapp || currentConfig.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
     permitirEstoqueNegativo: currentActiveComp?.permitirEstoqueNegativo ?? false,
+
+    // Google Gemini AI (SaaS por Empresa)
+    geminiApiKey: currentActiveComp?.geminiApiKey || "",
+    geminiModel: currentActiveComp?.geminiModel || "gemini-2.5-flash",
 
     // Pix & TON
     pixKey: currentActiveComp?.chavePix || currentConfig.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
@@ -107,6 +120,8 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         tagline: activeComp?.nicho || live.tagline || BRAND_CONFIG.tagline,
         whatsappNumber: activeComp?.whatsapp || live.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
         permitirEstoqueNegativo: activeComp?.permitirEstoqueNegativo ?? false,
+        geminiApiKey: activeComp?.geminiApiKey || "",
+        geminiModel: activeComp?.geminiModel || "gemini-2.5-flash",
         pixKey: activeComp?.chavePix || live.tonConfig?.pixKey || BRAND_CONFIG.tonConfig.pixKey,
         pixKeyType: activeComp?.chavePixTipo || live.tonConfig?.pixKeyType || BRAND_CONFIG.tonConfig.pixKeyType,
         ratePix: live.tonConfig?.rates?.Pix ?? BRAND_CONFIG.tonConfig.rates.Pix,
@@ -127,8 +142,54 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         supabaseUrl: live.supabaseConfig?.supabaseUrl || "",
         supabaseAnonKey: live.supabaseConfig?.supabaseAnonKey || "",
       });
+      setGeminiTestResult(null);
     }
   }, [isOpen]);
+
+  const handleTestGeminiKey = async () => {
+    const key = formData.geminiApiKey.trim();
+    if (!key) {
+      setGeminiTestResult({ success: false, message: "Insira uma chave de API antes de testar." });
+      return;
+    }
+
+    setIsTestingGemini(true);
+    setGeminiTestResult(null);
+
+    try {
+      const model = formData.geminiModel || "gemini-2.5-flash";
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: "Diga apenas: 'OK'" }] }],
+          }),
+        }
+      );
+
+      if (res.ok) {
+        setGeminiTestResult({
+          success: true,
+          message: `✓ Chave Gemini validada com sucesso no modelo ${model}!`,
+        });
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setGeminiTestResult({
+          success: false,
+          message: `Falha na validação (${res.status}): ${errorData?.error?.message || "Verifique se a chave é válida e está ativa no Google AI Studio."}`,
+        });
+      }
+    } catch (err: any) {
+      setGeminiTestResult({
+        success: false,
+        message: `Erro de conexão: ${err?.message || "Não foi possível contactar o Google Gemini"}`,
+      });
+    } finally {
+      setIsTestingGemini(false);
+    }
+  };
 
   const handleSave = () => {
     const newCompanyName = formData.companyName.trim() || BRAND_CONFIG.companyName;
@@ -145,6 +206,8 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         responsavel: formData.merchantName.trim() || activeComp.responsavel,
         cidade: formData.merchantCity.trim().toUpperCase() || activeComp.cidade,
         permitirEstoqueNegativo: formData.permitirEstoqueNegativo,
+        geminiApiKey: formData.geminiApiKey.trim(),
+        geminiModel: formData.geminiModel.trim(),
       });
     }
 
@@ -239,6 +302,8 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         tagline: BRAND_CONFIG.tagline,
         whatsappNumber: BRAND_CONFIG.tonConfig.whatsappNumber,
         permitirEstoqueNegativo: false,
+        geminiApiKey: "",
+        geminiModel: "gemini-2.5-flash",
         pixKey: BRAND_CONFIG.tonConfig.pixKey,
         pixKeyType: BRAND_CONFIG.tonConfig.pixKeyType,
         ratePix: BRAND_CONFIG.tonConfig.rates.Pix,
@@ -430,84 +495,97 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Sub-tabs */}
-        <div className="flex border-b border-border text-xs font-semibold overflow-x-auto">
+        {/* Sub-tabs com proteção estrita contra sobreposição (shrink-0 + scroll horizontal suave) */}
+        <div className="flex w-full min-w-0 items-center border-b border-border/80 bg-secondary/30 px-3 text-xs font-semibold overflow-x-auto no-scrollbar gap-1.5 shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab("plano")}
-            className={`flex items-center gap-1.5 px-4 py-2.5 transition-colors border-b-2 whitespace-nowrap ${
+            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
               activeTab === "plano"
-                ? "border-primary text-primary bg-primary/5 font-bold"
-                : "border-transparent text-muted-foreground hover:bg-secondary/40"
+                ? "border-primary text-primary bg-primary/10 shadow-xs"
+                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             }`}
           >
-            <CreditCard className="h-4 w-4" />
-            <span>Meu Plano & Assinatura</span>
+            <CreditCard className="h-4 w-4 shrink-0" />
+            <span>Meu Plano</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("gemini_ia")}
+            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
+              activeTab === "gemini_ia"
+                ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10 shadow-xs"
+                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+            }`}
+          >
+            <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
+            <span>IA Gemini (SaaS)</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("pix_ton")}
-            className={`flex items-center gap-1.5 px-4 py-2.5 transition-colors border-b-2 whitespace-nowrap ${
+            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
               activeTab === "pix_ton"
-                ? "border-primary text-primary bg-primary/5 font-bold"
-                : "border-transparent text-muted-foreground hover:bg-secondary/40"
+                ? "border-primary text-primary bg-primary/10 shadow-xs"
+                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             }`}
           >
-            <QrCode className="h-4 w-4" />
-            <span>Chave Pix & TON PJ</span>
+            <QrCode className="h-4 w-4 shrink-0" />
+            <span>Chave Pix & TON</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("stone_api")}
-            className={`flex items-center gap-1.5 px-4 py-2.5 transition-colors border-b-2 whitespace-nowrap ${
+            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
               activeTab === "stone_api"
-                ? "border-primary text-primary bg-primary/5 font-bold"
-                : "border-transparent text-muted-foreground hover:bg-secondary/40"
+                ? "border-primary text-primary bg-primary/10 shadow-xs"
+                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             }`}
           >
-            <Key className="h-4 w-4" />
-            <span>API Stone OpenBank</span>
+            <Key className="h-4 w-4 shrink-0" />
+            <span>API Stone</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("empresa")}
-            className={`flex items-center gap-1.5 px-4 py-2.5 transition-colors border-b-2 whitespace-nowrap ${
+            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
               activeTab === "empresa"
-                ? "border-primary text-primary bg-primary/5 font-bold"
-                : "border-transparent text-muted-foreground hover:bg-secondary/40"
+                ? "border-primary text-primary bg-primary/10 shadow-xs"
+                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             }`}
           >
-            <Building2 className="h-4 w-4" />
+            <Building2 className="h-4 w-4 shrink-0" />
             <span>Dados da Empresa</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("polos")}
-            className={`flex items-center gap-1.5 px-4 py-2.5 transition-colors border-b-2 whitespace-nowrap ${
+            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
               activeTab === "polos"
-                ? "border-primary text-primary bg-primary/5 font-bold"
-                : "border-transparent text-muted-foreground hover:bg-secondary/40"
+                ? "border-primary text-primary bg-primary/10 shadow-xs"
+                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             }`}
           >
-            <MapPin className="h-4 w-4" />
-            <span>Polos Operacionais & CEPs</span>
+            <MapPin className="h-4 w-4 shrink-0" />
+            <span>Polos & CEPs</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab("supabase")}
-            className={`flex items-center gap-1.5 px-4 py-2.5 transition-colors border-b-2 whitespace-nowrap ${
+            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
               activeTab === "supabase"
-                ? "border-primary text-primary bg-primary/5 font-bold"
-                : "border-transparent text-muted-foreground hover:bg-secondary/40"
+                ? "border-primary text-primary bg-primary/10 shadow-xs"
+                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
             }`}
           >
-            <Database className="h-4 w-4" />
-            <span>Nuvem Supabase (Sincronização)</span>
+            <Database className="h-4 w-4 shrink-0" />
+            <span>Nuvem Supabase</span>
           </button>
         </div>
 
@@ -528,6 +606,139 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                 empresaId={currentActiveComp.id}
                 onPlanChanged={onConfigSaved}
               />
+            </div>
+          )}
+
+          {/* TAB 0.5: INTELIGÊNCIA ARTIFICIAL GOOGLE GEMINI (SaaS MULTI-TENANT POR EMPRESA) */}
+          {activeTab === "gemini_ia" && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-4 text-xs space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-foreground text-sm">
+                      Consultor Virtual IA — Google Gemini da Empresa
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                      Empresa: <strong>{currentActiveComp?.nome}</strong> • Cada assinante do SaaS possui sua própria chave privativa.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-muted-foreground leading-relaxed pt-1">
+                  🔒 <strong>Segurança & Privacidade:</strong> A chave de API do Gemini cadastrada aqui fica salva exclusivamente para esta empresa. Ela <strong>nunca é exposta</strong> no código-fonte público do GitHub Pages.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-border p-4 bg-card space-y-3.5">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+                    <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Key className="h-3.5 w-3.5 text-primary" />
+                      Chave de API do Google Gemini (API Key):
+                    </label>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-bold text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Obter Chave Grátis no Google AI Studio</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showGeminiKey ? "text" : "password"}
+                      value={formData.geminiApiKey}
+                      onChange={(e) => setFormData({ ...formData, geminiApiKey: e.target.value })}
+                      placeholder="AIzaSy..."
+                      className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-mono text-foreground focus:border-primary focus:outline-none pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowGeminiKey((prev) => !prev)}
+                      className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground p-0.5"
+                    >
+                      {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Insira a chave iniciando com <code>AIzaSy...</code>. Se deixar em branco, o sistema utilizará o motor analítico local gratuito.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-foreground block mb-1">
+                    Modelo de Inteligência Artificial Preferencial:
+                  </label>
+                  <select
+                    value={formData.geminiModel}
+                    onChange={(e) => setFormData({ ...formData, geminiModel: e.target.value })}
+                    className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
+                  >
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Recomendado — Ultra-rápido, raciocínio de custos e margem)</option>
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash (Alta velocidade e estabilidade em produção)</option>
+                    <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Nova geração de IA multimodal)</option>
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Versão estável consolidada)</option>
+                  </select>
+                </div>
+
+                {/* Status da Conexão */}
+                <div className="flex items-center justify-between border-t border-border pt-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        formData.geminiApiKey ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"
+                      }`}
+                    />
+                    <span className="text-xs font-semibold text-foreground">
+                      {formData.geminiApiKey ? "Chave de API Configurada" : "Motor Analítico Local Ativo"}
+                    </span>
+                  </div>
+
+                  {formData.geminiApiKey && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleTestGeminiKey}
+                      disabled={isTestingGemini}
+                      className="text-xs font-bold gap-1 border-primary/40 text-primary hover:bg-primary/10"
+                    >
+                      {isTestingGemini ? (
+                        <>
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                          <span>Testando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3 w-3" />
+                          <span>Testar Conexão</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+
+                {geminiTestResult && (
+                  <div
+                    className={`rounded-xl p-3 text-xs font-semibold flex items-center gap-2 ${
+                      geminiTestResult.success
+                        ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                        : "bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-400"
+                    }`}
+                  >
+                    {geminiTestResult.success ? (
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                    ) : (
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                    )}
+                    <span>{geminiTestResult.message}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

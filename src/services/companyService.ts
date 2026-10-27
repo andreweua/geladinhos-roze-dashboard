@@ -104,6 +104,17 @@ export function getActiveCompany(): Company {
 }
 
 /**
+ * Retorna as credenciais e modelo do Google Gemini configurados especificamente
+ * para a empresa ativa (SaaS Multi-Tenant Seguro)
+ */
+export function getActiveCompanyGeminiConfig(): { apiKey: string; model: string } {
+  const comp = getActiveCompany();
+  const apiKey = (comp?.geminiApiKey || "").trim();
+  const model = (comp?.geminiModel || "gemini-2.5-flash").trim();
+  return { apiKey, model };
+}
+
+/**
  * Cria uma nova empresa no sistema multi-empresa da PereiraLabs
  */
 export async function createCompany(

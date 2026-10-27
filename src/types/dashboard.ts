@@ -272,9 +272,10 @@ export interface ListaComprasItem {
   id: string;
   gtin?: string;
   insumo_nome: string;
+  categoria?: string;
   marca?: string;
   quantidade_necessaria: number;
-  unidade_medida: "g" | "kg" | "ml" | "l" | "un";
+  unidade_medida: string; // "g" | "kg" | "ml" | "l" | "un" | "pct" | "fardo" | "cx"
   quantidade_embalagem?: number; // ex: 395g
   preco_estimado?: number;
   preco_cotado?: number;
@@ -283,6 +284,8 @@ export interface ListaComprasItem {
   data_validade?: string;
   em_promocao?: boolean;
   comprado: boolean;
+  status?: "pendente" | "carrinho" | "comprado";
+  prioridade?: "alta" | "media" | "baixa";
   observacoes?: string;
 }
 

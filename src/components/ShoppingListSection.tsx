@@ -23,11 +23,16 @@ import {
   AlertCircle,
   X,
   RefreshCw,
+  FileSpreadsheet,
+  FileUp,
+  Flame,
 } from "lucide-react";
 import {
   ListaCompras,
   ListaComprasItem,
   EstabelecimentoLocal,
+  EstoquePorProduto,
+  FichaTecnicaProduto,
 } from "@/types/dashboard";
 import {
   loadShoppingLists,
@@ -36,6 +41,9 @@ import {
   deleteShoppingList,
   SHOPPING_LIST_TEMPLATES,
   parseShoppingListFromText,
+  parseShoppingListFromJson,
+  parseShoppingListFromCsv,
+  generateShoppingListFromCriticalStock,
   saveBatchQuotationsFromShoppingList,
 } from "@/services/shoppingListService";
 import {
@@ -53,11 +61,15 @@ import { Button, Badge, Card, CardContent } from "@/components/ui/primitives";
 
 interface ShoppingListSectionProps {
   estabelecimentos: EstabelecimentoLocal[];
+  fichasTecnicas?: FichaTecnicaProduto[];
+  reposicaoEstoque?: EstoquePorProduto[];
   onQuotationsSaved?: () => void;
 }
 
 export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
   estabelecimentos,
+  fichasTecnicas = [],
+  reposicaoEstoque = [],
   onQuotationsSaved,
 }) => {
   const [lists, setLists] = useState<ListaCompras[]>(() => loadShoppingLists());
@@ -410,20 +422,67 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     setSelectedTemplateId("");
   };
 
-  // Handle import list from pasted text
-  const handleImportTextList = () => {
-    if (!importText.trim()) return;
-    const parsedItens = parseShoppingListFromText(importText);
-    if (parsedItens.length === 0) {
-      alert("Não foi possível identificar itens no texto colado. Verifique o formato.");
+  const criticalFlavors = useMemo(
+    () => reposicaoEstoque.filter((i) => i.abaixo_do_minimo || i.quantidade_disponivel <= 0),
+    [reposicaoEstoque]
+  );
+
+  const handleGenerateFromCriticalStock = () => {
+    if (criticalFlavors.length === 0) {
+      alert("Tudo certo no freezer! Nenhum sabor está zerado ou abaixo do estoque mínimo.");
+      return;
+    }
+
+    const generated = generateShoppingListFromCriticalStock(reposicaoEstoque, fichasTecnicas);
+    if (!generated || generated.itens.length === 0) {
+      alert("Não foi possível gerar a lista dos itens críticos.");
+      return;
+    }
+
+    const updated = addOrUpdateShoppingList(generated);
+    setLists(updated);
+    setSelectedListId(generated.id);
+    setGtinFeedback(
+      `✓ Lista gerada com ${generated.itens.length} insumos necessários para repor ${criticalFlavors.length} sabor(es) do freezer!`
+    );
+    setTimeout(() => setGtinFeedback(null), 5000);
+  };
+
+  // Handle import list from pasted text, JSON or CSV file
+  const handleImportFileOrText = (rawContent: string, fileName?: string) => {
+    const trimmed = rawContent.trim();
+    if (!trimmed) return;
+
+    let res: { titulo: string; itens: ListaComprasItem[] } | null = null;
+
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      res = parseShoppingListFromJson(trimmed);
+    }
+
+    if (!res && (trimmed.includes(";") || trimmed.includes(","))) {
+      res = parseShoppingListFromCsv(trimmed);
+    }
+
+    if (!res) {
+      const fallbackItens = parseShoppingListFromText(trimmed);
+      if (fallbackItens.length > 0) {
+        res = {
+          titulo: importTitle.trim() || fileName || "Lista Importada (Texto)",
+          itens: fallbackItens,
+        };
+      }
+    }
+
+    if (!res || res.itens.length === 0) {
+      alert("Não foi possível reconhecer o formato do arquivo ou texto. Verifique se é um CSV, JSON ou texto válido.");
       return;
     }
 
     const newList: ListaCompras = {
       id: `lista-importada-${Date.now()}`,
-      titulo: importTitle.trim() || "Lista Importada",
+      titulo: importTitle.trim() || res.titulo,
       cidade: "Jaú - SP",
-      itens: parsedItens,
+      itens: res.itens,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -433,6 +492,24 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     setSelectedListId(newList.id);
     setIsImportModalOpen(false);
     setImportText("");
+    setImportTitle("");
+    setGtinFeedback(`✓ Lista "${newList.titulo}" importada com ${newList.itens.length} itens com sucesso!`);
+    setTimeout(() => setGtinFeedback(null), 4000);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const content = evt.target?.result as string;
+      if (content) {
+        handleImportFileOrText(content, file.name.replace(/\.[^/.]+$/, ""));
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   // Handle share list to WhatsApp
@@ -542,11 +619,28 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
             type="button"
             size="sm"
             variant="outline"
+            onClick={handleGenerateFromCriticalStock}
+            className="gap-1.5 border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 text-xs font-bold shadow-xs"
+            title="Gera lista de compras automática a partir dos geladinhos com estoque zerado ou abaixo do mínimo"
+          >
+            <Flame className="h-3.5 w-3.5 text-rose-500 animate-pulse" />
+            <span>Gerar da Falta de Freezer</span>
+            {criticalFlavors.length > 0 && (
+              <span className="rounded-full bg-rose-500 text-white px-1.5 py-0.2 text-[10px] font-black">
+                {criticalFlavors.length}
+              </span>
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
             onClick={() => setIsImportModalOpen(true)}
             className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10 text-xs font-semibold"
           >
             <Upload className="h-3.5 w-3.5" />
-            <span>Importar Lista (Texto/WhatsApp)</span>
+            <span>Importar (CSV, Excel, JSON)</span>
           </Button>
 
           <Button
@@ -1021,14 +1115,14 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
         </div>
       )}
 
-      {/* MODAL: IMPORTAR LISTA DE COMPRAS (TEXTO / WHATSAPP / CSV) */}
+      {/* MODAL: IMPORTAR LISTA DE COMPRAS (CSV / EXCEL / JSON / TEXTO) */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                <Upload className="h-4 w-4 text-primary" />
-                Importar Lista de Compras (WhatsApp / Notas)
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
+                Importar Lista de Compras Inteligente
               </h3>
               <button
                 type="button"
@@ -1039,33 +1133,52 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3.5 text-xs">
               <div>
                 <label className="block font-semibold text-foreground mb-1">
-                  Título da Lista:
+                  Título da Lista (Opcional):
                 </label>
                 <input
                   type="text"
                   value={importTitle}
                   onChange={(e) => setImportTitle(e.target.value)}
-                  placeholder="Lista de Compras Importada"
+                  placeholder="Ex: Reposição Semanal de Ingredientes"
                   className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
                 />
               </div>
 
+              {/* Botão de Upload de Arquivo .CSV ou .JSON */}
+              <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-4 text-center hover:bg-primary/10 transition-colors">
+                <FileUp className="h-7 w-7 text-primary mx-auto mb-1.5" />
+                <label className="cursor-pointer">
+                  <span className="font-bold text-primary hover:underline text-xs block">
+                    Clique aqui para carregar planilha (.CSV / Excel) ou arquivo (.JSON)
+                  </span>
+                  <span className="text-[11px] text-muted-foreground block mt-0.5">
+                    Aceita colunas: <code>nome;categoria;quantidade;unidade;preco;prioridade;fornecedor</code>
+                  </span>
+                  <input
+                    type="file"
+                    accept=".csv,.json,.txt"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
               <div>
                 <label className="block font-semibold text-foreground mb-1">
-                  Cole o texto da lista abaixo:
+                  Ou cole o texto / dados brutos abaixo (CSV, JSON ou WhatsApp):
                 </label>
                 <textarea
-                  rows={8}
+                  rows={7}
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
-                  placeholder={`Cole linhas como:\n2x Leite Condensado 395g R$ 5,29\nNutella 650g - R$ 38,90\n4 caixas de creme de leite piracanjuba\n1 pacote saquinhos 150ml`}
-                  className="w-full rounded-xl border border-input bg-background p-3 font-mono text-xs focus:border-primary focus:outline-none"
+                  placeholder={`Opção 1 (CSV / Planilha):\nnome;categoria;quantidade;unidade;preco_estimado_unitario;prioridade;fornecedor_sugerido\nLeite Condensado 395g;Laticínios;12;un;5.49;alta;Atacadista Central\nCreme de Leite 200g;Laticínios;15;un;3.19;alta;Atacadista Central\n\nOpção 2 (JSON Universal):\n{\n  "lista_nome": "Reposição Semanal",\n  "itens": [{ "nome": "Liga Neutra 100g", "quantidade": 2, "unidade": "pct" }]\n}\n\nOpção 3 (Texto corrido):\n2x Leite Condensado 395g\n1kg Morangos Congelados`}
+                  className="w-full rounded-xl border border-input bg-background p-3 font-mono text-xs focus:border-primary focus:outline-none leading-relaxed"
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  💡 Nosso parser inteligente extrai quantidades, pesos (ex: 395g, 1kg) e preços automaticamente.
+                  💡 <strong>Parser Inteligente Automático:</strong> Detecta sozinho se o formato colado é JSON estruturado, planilha CSV (separada por vírgula ou ponto-e-vírgula) ou lista do WhatsApp.
                 </p>
               </div>
             </div>
@@ -1084,10 +1197,10 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
                 variant="default"
                 size="sm"
                 disabled={!importText.trim()}
-                onClick={handleImportTextList}
-                className="bg-primary text-primary-foreground font-bold"
+                onClick={() => handleImportFileOrText(importText)}
+                className="bg-primary text-primary-foreground font-bold text-xs"
               >
-                Processar & Importar
+                Processar & Importar Lista
               </Button>
             </div>
           </div>

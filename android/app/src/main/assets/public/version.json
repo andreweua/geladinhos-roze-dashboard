@@ -1,12 +1,13 @@
 {
-  "version": "3.4.2",
-  "build": 2026102601,
-  "releaseDate": "2026-10-26T17:00:00.000Z",
+  "version": "3.4.3",
+  "build": 2026102602,
+  "releaseDate": "2026-10-26T23:30:00.000Z",
   "features": [
-    "Habilitação de zoom nativo com pinça (pinch-to-zoom) no PWA e mobile",
-    "Layout 100% responsivo para telas móveis e tablets (< 1024px)",
-    "Detecção e orientação inteligente quando o navegador estiver em modo desktop",
-    "Isolamento Multi-Tenant estrito de Turno de Caixa e Troco por empresa",
-    "Download direto de APK oficial através de Releases do GitHub"
+    "Lista de Compras Inteligente: Importação universal CSV/JSON",
+    "Geração automática de Lista de Compras baseada no estoque crítico do freezer e fichas técnicas",
+    "Criação e inclusão manual de itens por leitor de código de barras (câmera) ou digitação",
+    "Integração de Inteligência Artificial Google Gemini protegida por empresa SaaS",
+    "Configuração de chaves Gemini no Painel da Empresa e no Painel Administrador Master",
+    "Correção visual de sobreposição e esmagamento das abas de navegação nas Configurações da Empresa"
   ]
 }

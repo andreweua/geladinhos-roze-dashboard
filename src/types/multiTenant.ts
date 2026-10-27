@@ -88,4 +88,6 @@ export interface Company {
   ultimoPagamentoEm?: string;
   observacoes?: string;
   permitirEstoqueNegativo?: boolean; // Permite vender produtos mesmo se o estoque for <= 0
+  geminiApiKey?: string; // Chave de API Google Gemini privativa da empresa assinante
+  geminiModel?: string; // Modelo de IA preferencial (ex: gemini-2.5-flash, gemini-3-flash-preview)
 }

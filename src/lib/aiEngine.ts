@@ -6,6 +6,7 @@ import {
 import { ComputedDashboardAnalytics, calculateDynamicIfoodPrice } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/utils";
 import { loadCurrentQuotations } from "@/services/quotationService";
+import { getActiveCompanyGeminiConfig } from "@/services/companyService";
 import { DashboardDataSnapshot } from "@/types/dashboard";
 
 export interface ProductionRecommendationItem {
@@ -830,8 +831,10 @@ export async function askPereiraLabsAI(
   ifoodFeePct: number,
   apiKey?: string
 ): Promise<{ answer: string; mode: "gemini_cloud" | "pereiralabs_local" }> {
+  const companyGemini = getActiveCompanyGeminiConfig();
   const cleanKey = (
     apiKey ||
+    companyGemini.apiKey ||
     (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ||
     ""
   ).trim();
@@ -865,11 +868,14 @@ CONHECIMENTO COMPLETO DA OPERAÇÃO:
    - Dados Atuais no Período: Faturamento Total: ${formatCurrency(analytics.kpis.faturamentoTotal)} (${analytics.kpis.totalGeladinhosVendidos} un.), Lucro Líquido: ${formatCurrency(analytics.dreConsolidada.lucro_liquido)}.
    - Se o faturamento estiver zerado (início ou teste novo), não diga que está tudo confortável sem fazer nada; oriente ativamente os primeiros passos para a produção e venda.`;
 
+      const preferredModel = companyGemini.model || "gemini-2.5-flash";
       const modelsToTry = [
+        preferredModel,
+        "gemini-2.5-flash",
         "gemini-2.0-flash",
+        "gemini-3-flash-preview",
         "gemini-1.5-flash",
-        "gemini-1.5-pro",
-      ];
+      ].filter((v, i, a) => a.indexOf(v) === i);
 
       for (const model of modelsToTry) {
         try {

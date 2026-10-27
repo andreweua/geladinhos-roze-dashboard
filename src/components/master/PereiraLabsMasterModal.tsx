@@ -199,6 +199,8 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
   const [editCashierPin, setEditCashierPin] = useState("1234");
   const [editStatus, setEditStatus] = useState<SubscriptionStatus>("ativo");
   const [editPlanoId, setEditPlanoId] = useState<string>("plano-pro");
+  const [editGeminiKey, setEditGeminiKey] = useState<string>("");
+  const [editGeminiModel, setEditGeminiModel] = useState<string>("gemini-2.5-flash");
 
   const handleOpenEditCompany = (company: Company) => {
     setEditingCompany(company);
@@ -215,6 +217,8 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
     setEditSenha(company.adminSenha || "");
     setEditCashierPin(company.cashierPin || "1234");
     setEditStatus(company.statusAssinatura || "ativo");
+    setEditGeminiKey(company.geminiApiKey || "");
+    setEditGeminiModel(company.geminiModel || "gemini-2.5-flash");
 
     // Localiza plano da empresa no módulo de faturamento
     const billingEmp = getEmpresasFaturamento().find((b) => b.id === company.id);
@@ -246,6 +250,8 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
       cashierPin: editCashierPin.trim() || "1234",
       statusAssinatura: editStatus,
       valorMensalidade: valorHerdado,
+      geminiApiKey: editGeminiKey.trim(),
+      geminiModel: editGeminiModel.trim(),
     });
 
     // Mantém sincronizado no módulo de faturamento
@@ -1241,6 +1247,48 @@ END $$;`;
                       ))}
                     </select>
                   </div>
+                </div>
+
+                {/* Bloco de Inteligência Artificial Google Gemini (Exclusivo por Empresa) */}
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    <span className="text-xs font-bold text-foreground">
+                      Provisionamento de IA Google Gemini (Privativo da Empresa)
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="text-[11px] font-bold text-foreground block mb-1">
+                        Chave de API Gemini (API Key):
+                      </label>
+                      <input
+                        type="text"
+                        value={editGeminiKey}
+                        onChange={(e) => setEditGeminiKey(e.target.value)}
+                        placeholder="AIzaSy... (Deixe em branco para usar motor local)"
+                        className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-bold text-foreground block mb-1">
+                        Modelo de IA:
+                      </label>
+                      <select
+                        value={editGeminiModel}
+                        onChange={(e) => setEditGeminiModel(e.target.value)}
+                        className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none"
+                      >
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (Padrão)</option>
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Esta chave pertence à empresa e nunca é exposta no código aberto do GitHub Pages.
+                  </p>
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-2">

@@ -1,5 +1,11 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
-import { ListaCompras, ListaComprasItem, PesquisaPrecoLocal } from "@/types/dashboard";
+import {
+  ListaCompras,
+  ListaComprasItem,
+  PesquisaPrecoLocal,
+  EstoquePorProduto,
+  FichaTecnicaProduto,
+} from "@/types/dashboard";
 import { addPesquisaPreco, calculateNormalizedPrice } from "@/services/marketSurveyService";
 import { parsePackagingFromTitle } from "@/services/gtinService";
 
@@ -402,7 +408,13 @@ export function saveBatchQuotationsFromShoppingList(
     const preco = item.preco_cotado || item.preco_estimado;
     if (preco && preco > 0) {
       const qtdEmb = item.quantidade_embalagem || item.quantidade_necessaria || 1;
-      const unMed = item.unidade_medida || "un";
+      const rawUn = (item.unidade_medida || "un").toLowerCase().trim();
+      const unMed: "g" | "ml" | "un" | "kg" | "l" =
+        rawUn === "kg" || rawUn === "quilo" || rawUn === "quilos" ? "kg" :
+        rawUn === "l" || rawUn === "litro" || rawUn === "litros" ? "l" :
+        rawUn === "g" || rawUn === "grama" || rawUn === "gramas" ? "g" :
+        rawUn === "ml" || rawUn === "mililitro" || rawUn === "mililitros" ? "ml" : "un";
+
       const precoNormalizado = calculateNormalizedPrice(preco, qtdEmb, unMed);
 
       const novaCotacao: PesquisaPrecoLocal = {
@@ -429,4 +441,245 @@ export function saveBatchQuotationsFromShoppingList(
   }
 
   return salvos;
+}
+
+/**
+ * Faz o parse de arquivo ou texto JSON segundo o schema universal de compras
+ */
+export function parseShoppingListFromJson(jsonString: string): { titulo: string; itens: ListaComprasItem[] } | null {
+  try {
+    const data = JSON.parse(jsonString.trim());
+    const rawItens = Array.isArray(data) ? data : data.itens || data.items || [];
+    const titulo = data.lista_nome || data.titulo || "Lista Importada (JSON)";
+
+    if (!Array.isArray(rawItens) || rawItens.length === 0) {
+      return null;
+    }
+
+    const itens: ListaComprasItem[] = rawItens.map((it: any, idx: number) => {
+      const nome = String(it.nome || it.insumo_nome || it.descricao || `Insumo ${idx + 1}`).trim();
+      const qtd = Number(it.quantidade || it.quantidade_necessaria || it.qtd || 1);
+      const preco = Number(it.preco_estimado_unitario || it.preco_estimado || it.preco || 0);
+      const statusRaw = String(it.status || "").toLowerCase();
+      const status: "pendente" | "carrinho" | "comprado" =
+        statusRaw === "comprado" ? "comprado" : statusRaw === "carrinho" ? "carrinho" : "pendente";
+
+      return {
+        id: String(it.id_item || it.id || `item-json-${Date.now()}-${idx}`),
+        insumo_nome: nome,
+        categoria: it.categoria || "Geral",
+        quantidade_necessaria: isNaN(qtd) || qtd <= 0 ? 1 : qtd,
+        unidade_medida: String(it.unidade || it.unidade_medida || "un").toLowerCase(),
+        preco_estimado: isNaN(preco) || preco <= 0 ? undefined : preco,
+        prioridade: it.prioridade === "alta" || it.prioridade === "baixa" ? it.prioridade : "media",
+        estabelecimento_nome: it.fornecedor_sugerido || it.estabelecimento_nome || undefined,
+        status,
+        comprado: status === "comprado",
+        gtin: it.gtin || undefined,
+        observacoes: it.observacoes || undefined,
+      };
+    });
+
+    return { titulo, itens };
+  } catch (err) {
+    console.warn("Erro ao fazer parse de lista JSON:", err);
+    return null;
+  }
+}
+
+/**
+ * Faz o parse de texto CSV (compatível com Excel / Google Sheets, separador ';' ou ',')
+ * Cabeçalhos suportados: nome;categoria;quantidade;unidade;preco_estimado_unitario;prioridade;fornecedor_sugerido
+ */
+export function parseShoppingListFromCsv(csvText: string): { titulo: string; itens: ListaComprasItem[] } | null {
+  try {
+    const lines = csvText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    if (lines.length === 0) return null;
+
+    // Detect delimiter (; or ,)
+    const firstLine = lines[0];
+    const delimiter = firstLine.includes(";") ? ";" : ",";
+
+    // Split headers
+    const rawHeaders = firstLine.split(delimiter).map((h) => h.toLowerCase().trim().replace(/['"]/g, ""));
+    const hasHeader = rawHeaders.some((h) => h.includes("nome") || h.includes("item") || h.includes("insumo") || h.includes("produto"));
+
+    const dataLines = hasHeader ? lines.slice(1) : lines;
+    if (dataLines.length === 0) return null;
+
+    const itens: ListaComprasItem[] = [];
+
+    dataLines.forEach((line, idx) => {
+      const parts = line.split(delimiter).map((p) => p.trim().replace(/^["']|["']$/g, ""));
+      if (parts.length === 0 || !parts[0]) return;
+
+      let nome = parts[0];
+      let categoria = "Geral";
+      let qtd = 1;
+      let unidade = "un";
+      let preco: number | undefined = undefined;
+      let prioridade: "alta" | "media" | "baixa" = "media";
+      let fornecedor: string | undefined = undefined;
+
+      if (hasHeader) {
+        rawHeaders.forEach((h, colIdx) => {
+          const val = parts[colIdx];
+          if (!val) return;
+          if (h.includes("nome") || h.includes("insumo") || h.includes("produto")) nome = val;
+          else if (h.includes("cat")) categoria = val;
+          else if (h.includes("quant") || h === "qtd") {
+            const parsed = parseFloat(val.replace(",", "."));
+            if (!isNaN(parsed) && parsed > 0) qtd = parsed;
+          } else if (h.includes("unid") || h === "un") unidade = val.toLowerCase();
+          else if (h.includes("prec") || h.includes("valor")) {
+            const parsed = parseFloat(val.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
+            if (!isNaN(parsed) && parsed > 0) preco = parsed;
+          } else if (h.includes("prior")) {
+            const low = val.toLowerCase();
+            if (low === "alta" || low === "baixa") prioridade = low;
+          } else if (h.includes("fornec") || h.includes("loja") || h.includes("estab")) fornecedor = val;
+        });
+      } else {
+        // Fallback positional: nome;categoria;quantidade;unidade;preco;prioridade;fornecedor
+        if (parts[1]) categoria = parts[1];
+        if (parts[2]) {
+          const parsed = parseFloat(parts[2].replace(",", "."));
+          if (!isNaN(parsed) && parsed > 0) qtd = parsed;
+        }
+        if (parts[3]) unidade = parts[3].toLowerCase();
+        if (parts[4]) {
+          const parsed = parseFloat(parts[4].replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
+          if (!isNaN(parsed) && parsed > 0) preco = parsed;
+        }
+        if (parts[5]) {
+          const low = parts[5].toLowerCase();
+          if (low === "alta" || low === "baixa") prioridade = low;
+        }
+        if (parts[6]) fornecedor = parts[6];
+      }
+
+      if (nome) {
+        itens.push({
+          id: `item-csv-${Date.now()}-${idx}`,
+          insumo_nome: nome,
+          categoria,
+          quantidade_necessaria: qtd,
+          unidade_medida: unidade,
+          preco_estimado: preco,
+          prioridade,
+          estabelecimento_nome: fornecedor,
+          status: "pendente",
+          comprado: false,
+        });
+      }
+    });
+
+    if (itens.length === 0) return null;
+
+    return {
+      titulo: `Lista Importada Excel/CSV (${new Date().toLocaleDateString("pt-BR")})`,
+      itens,
+    };
+  } catch (err) {
+    console.warn("Erro ao fazer parse de lista CSV:", err);
+    return null;
+  }
+}
+
+/**
+ * Gera automaticamente uma Lista de Compras baseada na Falta de Freezer (Estoque Crítico)
+ * Analisa os produtos com estoque zerado ou abaixo do mínimo e explode suas fichas técnicas.
+ */
+export function generateShoppingListFromCriticalStock(
+  reposicaoEstoque: EstoquePorProduto[],
+  fichasTecnicas: FichaTecnicaProduto[]
+): ListaCompras | null {
+  const criticos = reposicaoEstoque.filter(
+    (item) => item.abaixo_do_minimo || item.quantidade_disponivel <= 0
+  );
+
+  if (criticos.length === 0) return null;
+
+  const aggregatedMap = new Map<
+    string,
+    {
+      nome: string;
+      categoria: string;
+      quantidade: number;
+      unidade: string;
+      precoEstimadoUnit?: number;
+      gtin?: string;
+      sabores: string[];
+    }
+  >();
+
+  // Para cada sabor com estoque crítico, calcula o lote necessário e adiciona os insumos da receita
+  for (const item of criticos) {
+    const ficha = fichasTecnicas.find((f) => f.produto_id === item.produto_id);
+    const lotes = item.quantidade_disponivel <= 0 ? 2 : 1;
+
+    if (ficha && ficha.ingredientes && ficha.ingredientes.length > 0) {
+      for (const ing of ficha.ingredientes) {
+        const key = ing.nome.toLowerCase().trim();
+        const existing = aggregatedMap.get(key);
+        const totalIngQtd = (ing.quantidade_receita || 1) * lotes;
+
+        if (existing) {
+          existing.quantidade += totalIngQtd;
+          if (!existing.sabores.includes(item.nome)) {
+            existing.sabores.push(item.nome);
+          }
+        } else {
+          aggregatedMap.set(key, {
+            nome: ing.nome,
+            categoria: ing.nome.toLowerCase().includes("saquinho") || ing.unidade === "un" ? "Embalagens & Descartáveis" : "Laticínios & Confeitaria",
+            quantidade: totalIngQtd,
+            unidade: ing.unidade,
+            precoEstimadoUnit: ing.custo_receita && ing.quantidade_receita ? ing.custo_receita / ing.quantidade_receita : undefined,
+            sabores: [item.nome],
+          });
+        }
+      }
+    } else {
+      // Insumo básico padrão se não houver ficha detalhada
+      const baseKey = `base-leite-${item.produto_id}`;
+      aggregatedMap.set(baseKey, {
+        nome: `Insumos p/ ${item.nome} (${lotes} lote)`,
+        categoria: "Produção",
+        quantidade: lotes,
+        unidade: "lote",
+        sabores: [item.nome],
+      });
+    }
+  }
+
+  const itens: ListaComprasItem[] = Array.from(aggregatedMap.values()).map(
+    (agg, idx) => ({
+      id: `item-critico-${Date.now()}-${idx}`,
+      insumo_nome: agg.nome,
+      categoria: agg.categoria,
+      quantidade_necessaria: Math.ceil(agg.quantidade * 10) / 10,
+      unidade_medida: agg.unidade,
+      preco_estimado: agg.precoEstimadoUnit,
+      prioridade: "alta",
+      status: "pendente",
+      comprado: false,
+      gtin: agg.gtin,
+      observacoes: `Falta de estoque nos sabores: ${agg.sabores.join(", ")}`,
+    })
+  );
+
+  return {
+    id: `lista-critica-${Date.now()}`,
+    titulo: `Reposição Crítica: ${criticos.length} Sabor(es) em Falta (${new Date().toLocaleDateString("pt-BR")})`,
+    descricao: `Gerada automaticamente da falta de freezer para repor: ${criticos.map((c) => c.nome).join(", ")}.`,
+    cidade: "Jaú - SP",
+    itens,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
 }
