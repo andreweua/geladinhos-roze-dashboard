@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Sparkles,
   Camera,
@@ -21,6 +21,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Flame,
+  Upload,
+  Eye,
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui/primitives";
 import { getActiveCompanyGeminiConfig } from "@/services/companyService";
@@ -66,7 +68,7 @@ export const PACKAGING_PRESETS: Record<
     label: "Saquinho Geladinho (Padrão)",
     description: "Saquinho plástico tubular transparente com nó/lacre no topo, recheio cremoso visível e gotículas de gelo.",
     promptSnippet:
-      "authentic Brazilian artisanal geladinho gourmet (also called sacolé, chup-chup, dindin), frozen ice pop dessert packaged inside an authentic long clear transparent plastic tube sleeve bag (sacolinha plástica tubular de geladinho), tightly tied with a knot or ribbon at the top. The rich thick creamy marbled filling with swirls of cream and toppings is clearly visible through the clear plastic pouch. Cold frosty freezer condensation and fine ice droplets glistening on the plastic bag surface. Frozen handheld treat displayed on an artisanal tabletop with raw ingredients nearby. Strictly NOT served in a drinking glass cup, NOT on a porcelain plate, NOT in a ceramic bowl. Authentic handheld frozen ice pop tubular plastic bag packaging",
+      "Authentic Brazilian artisanal geladinho gourmet (also known as sacolé, chup-chup, dindin). The frozen dessert MUST be packaged inside a clear transparent long cylindrical plastic tube sleeve bag (sacolinha tubular plástica), tightly knotted and tied at the top. The rich thick creamy marbled swirls of gourmet filling and toppings are clearly visible through the glossy clear plastic pouch. Cold frosty freezer condensation and fine ice droplets glistening on the plastic bag surface. Frozen handheld ice pop treat. Strictly NOT served in a drinking glass cup, NOT on a porcelain plate, NOT in a ceramic bowl, NO spoons. Authentic handheld frozen ice pop tubular plastic sleeve packaging only.",
     icon: "🧊",
   },
   pote_redondo: {
@@ -149,40 +151,6 @@ const STYLE_PRESETS: Record<
   },
 };
 
-// Exemplos gastronômicos curados para teste rápido
-const CULINARY_DEMO_PRESETS = [
-  {
-    flavor: "Geladinho Gourmet Ninho com Nutella",
-    packaging: "saquinho_geladinho" as CulinaryPackagingType,
-    category: "Gourmet Gelado no Saquinho",
-    demoImg: "https://images.unsplash.com/photo-1501443762994-82bd5dace89a?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    flavor: "Geladinho Gourmet de Maracujá Trufado",
-    packaging: "saquinho_geladinho" as CulinaryPackagingType,
-    category: "Gourmet Gelado no Saquinho",
-    demoImg: "https://images.unsplash.com/photo-1488900128323-21503983a07e?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    flavor: "Pão de Mel com Doce de Leite & Casquinha Crocante",
-    packaging: "caixa_artesanal" as CulinaryPackagingType,
-    category: "Confeitaria & Chocolateria",
-    demoImg: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    flavor: "Bolo no Pote Red Velvet com Cream Cheese",
-    packaging: "pote_redondo" as CulinaryPackagingType,
-    category: "Sobremesas no Pote",
-    demoImg: "https://images.unsplash.com/photo-1587314168485-3236d6710814?auto=format&fit=crop&w=900&q=80",
-  },
-  {
-    flavor: "Bombom de Morango Aberto na Taça",
-    packaging: "copo_taca" as CulinaryPackagingType,
-    category: "Doceria na Taça",
-    demoImg: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=900&q=80",
-  },
-];
-
 function generateAutomaticPrompt(
   productName: string,
   packaging: CulinaryPackagingType,
@@ -192,7 +160,7 @@ function generateAutomaticPrompt(
   const pkg = PACKAGING_PRESETS[packaging];
   const stl = STYLE_PRESETS[style];
   const notesPart = customNotes.trim() ? `, additional garnish and detail: ${customNotes.trim()}` : "";
-  return `Professional gourmet culinary advertisement photography of "${productName}". Packaging presentation: ${pkg.promptSnippet}. Setting and camera style: ${stl.promptTemplate}${notesPart}. Ultra sharp focus, mouth-watering appetizing food styling, commercial quality 8k photorealistic.`;
+  return `Professional gourmet culinary advertisement photography of "${productName}". Packaging presentation: ${pkg.promptSnippet}. Setting and camera style: ${stl.promptTemplate}${notesPart}. Ultra sharp focus, mouth-watering appetizing food styling, commercial quality 8k photorealistic. NO cups, NO bowls, NO plates, authentic packaging only.`;
 }
 
 export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> = ({
@@ -202,6 +170,8 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
   initialFlavor,
   onOpenSettingsModal,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [productName, setProductName] = useState(
     initialFlavor || fichasTecnicas?.[0]?.subtitulo_receita || "Geladinho Gourmet Ninho com Nutella"
   );
@@ -249,7 +219,23 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
     setIsPromptCustomized(false);
   };
 
-  // Gerador de imagens chamando a API do Google Gemini / Imagen
+  // Upload de foto real do usuário (câmera do celular ou arquivo)
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setGeneratedImageUrl(reader.result);
+        setGenerationError(null);
+        setQuotaWarning(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Gerador de imagens chamando a API do Google Gemini
   const handleGenerateImage = async () => {
     setIsGenerating(true);
     setGenerationError(null);
@@ -259,16 +245,13 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
     const apiKey = geminiConfig.apiKey?.trim();
 
     if (!apiKey) {
-      // Sem chave configurada: carrega o mockup ultra-realista curado e orienta o usuário
-      await new Promise((r) => setTimeout(r, 1000));
-      const match =
-        CULINARY_DEMO_PRESETS.find((p) => p.packaging === packagingType) ||
-        CULINARY_DEMO_PRESETS[0];
-
-      setGeneratedImageUrl(match.demoImg);
+      // Sem chave configurada
+      await new Promise((r) => setTimeout(r, 600));
+      setGeneratedImageUrl(null);
       setIsGenerating(false);
+      setQuotaWarning(true);
       setGenerationError(
-        "Modo Demonstração Ativo: Nenhuma chave da API Google Gemini cadastrada para esta empresa. Para gerar fotos inéditas, configure a Chave de API nas Opções da Empresa."
+        "Nenhuma chave da API Google Gemini está cadastrada para esta empresa. Para tentar gerar diretamente ou usar a consultoria de texto, configure a chave nas Opções da Empresa."
       );
       return;
     }
@@ -282,6 +265,7 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Api-Revision": "2026-05-20",
             },
             body: JSON.stringify({
               model: "gemini-nano-banana-2.1",
@@ -359,28 +343,16 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
         }
       }
 
-      // Se a Google retornou 404 ou restrição de cota do Imagen no AI Studio
-      const errorJson = await response.json().catch(() => ({}));
-      const errorMsg = errorJson?.error?.message || "";
-      
-      const match =
-        CULINARY_DEMO_PRESETS.find((p) => p.packaging === packagingType) ||
-        CULINARY_DEMO_PRESETS[0];
-
-      setGeneratedImageUrl(match.demoImg);
+      // IMPORTANTE: Se o Google retornou erro/404, NÃO colocar foto fake de sobremesa que confunda o usuário!
+      // Mantemos generatedImageUrl como NULL para não parecer que gerou algo errado.
+      setGeneratedImageUrl(null);
       setQuotaWarning(true);
       setGenerationError(
-        `Aviso da API Google (${response.status}): ${
-          errorMsg.includes("not found") || response.status === 404
-            ? "O Google AI Studio liberou sua chave para texto (Gemini 2.5 Flash), mas a geração nativa de imagens pelo modelo Google Imagen requer faturamento 'Pay-As-You-Go' ativo na sua conta do Google AI Studio."
-            : errorMsg || "Cota de geração de imagem do Google AI Studio indisponível no momento."
-        }`
+        "Acesso à geração direta de imagens restrito pelo Google AI Studio: O Google desativou a geração direta de imagens por API para chaves sem faturamento corporativo no Google Cloud. Nenhuma imagem foi gerada diretamente pela API para evitar cobranças indevidas."
       );
     } catch (err: any) {
-      const match =
-        CULINARY_DEMO_PRESETS.find((p) => p.packaging === packagingType) ||
-        CULINARY_DEMO_PRESETS[0];
-      setGeneratedImageUrl(match.demoImg);
+      setGeneratedImageUrl(null);
+      setQuotaWarning(true);
       setGenerationError(`Falha de conexão com a API Google: ${err?.message || "Verifique sua internet"}`);
     } finally {
       setIsGenerating(false);
@@ -392,7 +364,7 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
     const link = document.createElement("a");
     link.href = generatedImageUrl;
     const cleanFileName = productName.toLowerCase().replace(/[^a-z0-9]/g, "_");
-    link.download = `foto_culinaria_${cleanFileName}.jpg`;
+    link.download = `foto_geladinho_${cleanFileName}.jpg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -402,6 +374,11 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
     navigator.clipboard.writeText(editablePrompt);
     setCopiedPrompt(true);
     setTimeout(() => setCopiedPrompt(false), 2000);
+  };
+
+  const handleOpenExternalAi = (url: string) => {
+    handleCopyPrompt();
+    window.open(url, "_blank");
   };
 
   return (
@@ -420,11 +397,11 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
                 </h3>
                 <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-[10px] font-bold gap-1">
                   <Sparkles className="h-3 w-3" />
-                  Google Imagen & Gemini 2.5
+                  Geladinho no Saquinho • Prompt Calibrado
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
-                Gere fotos profissionais no saquinho de geladinho, pote ou taça com prompt 100% editável
+                Gere fotos realistas no saquinho tubular de geladinho/chup-chup com nó, gelo e recheio cremoso
               </p>
             </div>
           </div>
@@ -445,7 +422,7 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
             {/* 1. Escolha do Produto / Sabor */}
             <div>
               <label className="block font-bold text-foreground mb-1">
-                Nome do Prato / Sobremesa / Sabor *
+                Nome do Prato / Sabor de Geladinho *
               </label>
               <input
                 type="text"
@@ -462,7 +439,7 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
               {fichasTecnicas && fichasTecnicas.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 mt-2">
                   <span className="text-[10px] text-muted-foreground">Do seu cardápio:</span>
-                  {fichasTecnicas.slice(0, 4).map((f) => (
+                  {fichasTecnicas.slice(0, 5).map((f) => (
                     <button
                       key={f.produto_id}
                       type="button"
@@ -479,12 +456,12 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
               )}
             </div>
 
-            {/* 2. NOVO: Tipo de Embalagem / Apresentação Real (Crucial para Geladinhos) */}
+            {/* 2. Tipo de Embalagem Real (Focado no Saquinho de Geladinho) */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="font-bold text-foreground flex items-center gap-1.5">
                   <Package className="h-3.5 w-3.5 text-primary" />
-                  <span>Embalagem / Apresentação Real *</span>
+                  <span>Embalagem Real *</span>
                 </label>
                 <span className="text-[10px] text-primary font-bold">
                   {PACKAGING_PRESETS[packagingType].label}
@@ -525,7 +502,7 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
             {/* 3. Estilo de Fotografia Gastronômica */}
             <div>
               <label className="block font-bold text-foreground mb-1.5">
-                Estilo Fotográfico Desejado *
+                Estilo Fotográfico *
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {(Object.keys(STYLE_PRESETS) as CulinaryPhotoStyle[]).map((key) => {
@@ -593,13 +570,13 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
                     setCustomNotes(e.target.value);
                     setIsPromptCustomized(false);
                   }}
-                  placeholder="Ex: bastante calda escorrendo, gotas de condensação"
+                  placeholder="Ex: bastante Nutella na parede interna, gotas de gelo"
                   className="w-full rounded-xl border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
                 />
               </div>
             </div>
 
-            {/* 5. NOVO: PROMPT GASTRONÔMICO 100% EDITÁVEL */}
+            {/* 5. PROMPT GASTRONÔMICO EDITÁVEL */}
             <div className="rounded-2xl border border-border/90 bg-card p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <label className="font-bold text-foreground flex items-center gap-1.5">
@@ -636,14 +613,14 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
               />
 
               <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
-                <span>Você pode alterar palavras em português ou inglês antes de gerar.</span>
+                <span>O texto especifica explicitamente o saquinho plástico tubular e proíbe copos/pratos.</span>
                 <button
                   type="button"
                   onClick={handleCopyPrompt}
                   className="inline-flex items-center gap-1 text-primary hover:underline font-bold"
                 >
                   {copiedPrompt ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                  {copiedPrompt ? "Copiado!" : "Copiar"}
+                  {copiedPrompt ? "Copiado!" : "Copiar Prompt"}
                 </button>
               </div>
             </div>
@@ -654,12 +631,12 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
                 <KeyRound className="h-4 w-4 text-primary shrink-0" />
                 <div>
                   <span className="font-bold text-foreground text-[11px] block">
-                    {hasApiKey ? "Chave de IA Google Ativa na Empresa" : "Modo Demonstração (Sem Chave)"}
+                    {hasApiKey ? "Chave de IA Google Ativa na Empresa" : "Sem Chave de API"}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     {hasApiKey
-                      ? "Conectado ao Google AI Studio da sua empresa"
-                      : "Configure nas Opções da Empresa para gerar fotos inéditas em 4K"}
+                      ? "Chave conectada para relatórios e texto (Gemini 2.5 Flash)"
+                      : "Configure nas Opções da Empresa"}
                   </span>
                 </div>
               </div>
@@ -672,33 +649,52 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
                   onClick={onOpenSettingsModal}
                   className="text-[10px] h-7 px-2.5 border-primary/40 text-primary hover:bg-primary/10 shrink-0 font-bold rounded-lg"
                 >
-                  Configurar Chave
+                  Opções da Empresa
                 </Button>
               )}
             </div>
 
-            {/* Botão Principal de Geração */}
-            <Button
-              type="button"
-              disabled={isGenerating || !productName.trim()}
-              onClick={handleGenerateImage}
-              className="w-full bg-gradient-to-r from-amber-500 via-rose-500 to-primary text-white font-black text-xs py-3 rounded-2xl shadow-md hover:opacity-95 transition-all gap-2"
-            >
-              {isGenerating ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Criando Fotografia Culinária com IA...</span>
-                </>
-              ) : (
-                <>
-                  <Wand2 className="h-4 w-4" />
-                  <span>Gerar Imagem Culinária com IA</span>
-                </>
-              )}
-            </Button>
+            {/* Botões de Ação: Gerar ou Enviar Foto Real */}
+            <div className="space-y-2">
+              <Button
+                type="button"
+                disabled={isGenerating || !productName.trim()}
+                onClick={handleGenerateImage}
+                className="w-full bg-gradient-to-r from-amber-500 via-rose-500 to-primary text-white font-black text-xs py-3 rounded-2xl shadow-md hover:opacity-95 transition-all gap-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Conectando à IA...</span>
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4" />
+                    <span>Tentar Gerar com Chave Google AI</span>
+                  </>
+                )}
+              </Button>
+
+              {/* Botão de Envio de Foto Real do Celular / Galeria */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-border/80 bg-background text-[11px] font-semibold text-foreground hover:bg-secondary transition-colors"
+              >
+                <Upload className="h-3.5 w-3.5 text-primary" />
+                <span>Carregar Foto Real do Meu Geladinho (Câmera / Celular)</span>
+              </button>
+            </div>
           </div>
 
-          {/* Coluna 2: Visualizador & Exportação (6 Colunas) */}
+          {/* Coluna 2: Visualizador & Solução Gratuita (6 Colunas) */}
           <div className="lg:col-span-6 flex flex-col items-center justify-center rounded-3xl border border-border/80 bg-secondary/20 p-4 relative overflow-hidden min-h-[380px]">
             {generatedImageUrl ? (
               <div className="w-full flex flex-col items-center space-y-3">
@@ -718,75 +714,7 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
                   </div>
                 </div>
 
-                {/* Bloco de Tratamento de Erro / Orientação Google AI Studio */}
-                {generationError && (
-                  <div className="w-full rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-[11px] text-amber-900 dark:text-amber-200 space-y-2">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold block">Status da Conexão com Google AI:</span>
-                        <p className="mt-0.5 leading-relaxed">{generationError}</p>
-                      </div>
-                    </div>
-
-                    {/* Botões Rápidos para Gerar Grátis na Web */}
-                    {quotaWarning && (
-                      <div className="pt-2 border-t border-amber-500/20 space-y-2">
-                        <span className="font-bold text-[10px] uppercase tracking-wider text-amber-700 dark:text-amber-300 block">
-                          💡 Dica PereiraLabs: Gere Grátis e com 1 Clique em Qualquer IA
-                        </span>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              handleCopyPrompt();
-                              window.open("https://gemini.google.com", "_blank");
-                            }}
-                            className="text-[10px] h-7 px-2.5 bg-card hover:bg-secondary border-amber-500/40 text-foreground font-bold gap-1 rounded-lg"
-                          >
-                            <ExternalLink className="h-3 w-3 text-primary" />
-                            Abrir Google Gemini Web (Grátis)
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              handleCopyPrompt();
-                              window.open("https://chatgpt.com", "_blank");
-                            }}
-                            className="text-[10px] h-7 px-2.5 bg-card hover:bg-secondary border-amber-500/40 text-foreground font-bold gap-1 rounded-lg"
-                          >
-                            <ExternalLink className="h-3 w-3 text-emerald-500" />
-                            ChatGPT / DALL-E (Grátis)
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              handleCopyPrompt();
-                              window.open("https://copilot.microsoft.com", "_blank");
-                            }}
-                            className="text-[10px] h-7 px-2.5 bg-card hover:bg-secondary border-amber-500/40 text-foreground font-bold gap-1 rounded-lg"
-                          >
-                            <ExternalLink className="h-3 w-3 text-blue-500" />
-                            Copilot Designer (Grátis)
-                          </Button>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground italic">
-                          (Ao clicar, o prompt do saquinho de geladinho já é copiado automaticamente para a sua área de transferência!)
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Ações da Imagem Gerada */}
+                {/* Ações da Imagem */}
                 <div className="flex flex-wrap items-center justify-center gap-2 w-full pt-1">
                   <Button
                     type="button"
@@ -814,7 +742,7 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      const zapText = `📸 *Foto Culinária Criada com IA PereiraLabs*\n\n🍰 *Produto:* ${productName}\n📦 *Embalagem:* ${PACKAGING_PRESETS[packagingType].name}\n✨ *Estilo:* ${STYLE_PRESETS[photoStyle].name}\n🖼️ *Link/Arquivo:* Gerado pelo Estúdio Culinário`;
+                      const zapText = `📸 *Foto de Geladinho Gourmet PereiraLabs*\n\n🍧 *Sabor:* ${productName}\n🧊 *Embalagem:* ${PACKAGING_PRESETS[packagingType].name}\n✨ *Estilo:* ${STYLE_PRESETS[photoStyle].name}`;
                       window.open(`https://wa.me/?text=${encodeURIComponent(zapText)}`, "_blank");
                     }}
                     className="text-xs font-semibold gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-xl"
@@ -824,7 +752,101 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
                   </Button>
                 </div>
               </div>
+            ) : quotaWarning ? (
+              /* CARD DE ORIENTAÇÃO QUANDO A CHAVE GOOGLE ESTÁ COM IMAGEM RESTRITA */
+              <div className="w-full flex flex-col space-y-3.5 p-4 rounded-2xl border border-amber-500/40 bg-card text-foreground shadow-sm">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-foreground">
+                      Geração Direta Restrita pelo Google AI Studio
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                      Sua Chave Google Gemini está ativa para textos e finanças (Gemini 2.5 Flash), mas o Google não permite gerar imagens por API sem cobrança de cartão corporativo no Google Cloud. <strong>Nenhuma imagem errada foi gerada pelo app.</strong>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/80 bg-secondary/30 p-3 space-y-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <span>Como Gerar a Foto Real do Geladinho 100% Grátis:</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    O seu prompt em inglês já está calibrado para exigir a <strong>sacolinha plástica tubular com nó e recheio de geladinho</strong> (sem copos nem pratos). Basta clicar em um botão abaixo para abrir a IA e colar com <code>Ctrl + V</code>:
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenExternalAi("https://gemini.google.com")}
+                      className="flex items-center justify-between p-2.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 text-left transition-colors"
+                    >
+                      <div>
+                        <span className="font-bold text-xs text-primary block">
+                          1. Google Gemini Web
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Gera imagens grátis na sua conta Google
+                        </span>
+                      </div>
+                      <ExternalLink className="h-3.5 w-3.5 text-primary shrink-0" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenExternalAi("https://chatgpt.com")}
+                      className="flex items-center justify-between p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-left transition-colors"
+                    >
+                      <div>
+                        <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400 block">
+                          2. ChatGPT / DALL-E
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Gera grátis com conta OpenAI
+                        </span>
+                      </div>
+                      <ExternalLink className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenExternalAi("https://copilot.microsoft.com")}
+                      className="flex items-center justify-between p-2.5 rounded-xl border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-left transition-colors sm:col-span-2"
+                    >
+                      <div>
+                        <span className="font-bold text-xs text-blue-600 dark:text-blue-400 block">
+                          3. Microsoft Designer (Copilot)
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Geração instantânea e fotorealista em 4K
+                        </span>
+                      </div>
+                      <ExternalLink className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-muted-foreground italic">
+                    Ao clicar em qualquer botão acima, o prompt é copiado automaticamente!
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyPrompt}
+                    className="text-xs font-bold gap-1 border-primary/40 text-primary h-7"
+                  >
+                    {copiedPrompt ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                    <span>{copiedPrompt ? "Copiado!" : "Copiar Prompt"}</span>
+                  </Button>
+                </div>
+              </div>
             ) : (
+              /* ESTADO INICIAL VAZIO */
               <div className="text-center p-6 space-y-3">
                 <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-3xl bg-primary/10 text-primary">
                   <ImageIcon className="h-8 w-8" />
@@ -834,25 +856,19 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
                     Sua foto culinária aparecerá aqui
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Escolha a embalagem (saquinho, pote ou taça), o estilo e clique em <strong>"Gerar Imagem Culinária com IA"</strong>.
+                    O estúdio está configurado para o <strong>Saquinho Tubular de Geladinho</strong>. Você pode tentar gerar ou carregar uma foto da sua câmera.
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2">
-                  {CULINARY_DEMO_PRESETS.map((item, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setProductName(item.flavor);
-                        setPackagingType(item.packaging);
-                        setGeneratedImageUrl(item.demoImg);
-                      }}
-                      className="text-[10px] px-2.5 py-1 rounded-lg border border-border bg-card hover:bg-primary/10 hover:text-primary transition-colors text-muted-foreground"
-                    >
-                      {PACKAGING_PRESETS[item.packaging].icon} {item.flavor.split(" ")[0]} {item.flavor.split(" ")[1]}
-                    </button>
-                  ))}
+                <div className="flex flex-col items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyPrompt}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+                  >
+                    {copiedPrompt ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copiedPrompt ? "Prompt Copiado!" : "Copiar Prompt Pronto de Geladinho"}</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -862,7 +878,7 @@ export const CulinaryImageStudioModal: React.FC<CulinaryImageStudioModalProps> =
         {/* Rodapé do Modal */}
         <div className="flex items-center justify-between border-t border-border/80 bg-card/90 px-5 py-3 text-xs text-muted-foreground">
           <span>
-            Tecnologia <strong>Google Imagen & PereiraLabs AI</strong> • Gastronomia Digital
+            Tecnologia <strong>PereiraLabs Gastronomia Digital</strong> • Especializado em Geladinhos Gourmet
           </span>
           <Button
             type="button"

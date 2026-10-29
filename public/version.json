@@ -1,12 +1,11 @@
 {
-  "version": "3.4.6",
-  "build": 2026102902,
-  "releaseDate": "2026-10-29T17:30:00.000Z",
+  "version": "3.4.7",
+  "build": 2026102903,
+  "releaseDate": "2026-10-29T18:30:00.000Z",
   "features": [
-    "Estúdio Culinário: Seleção de Embalagem Real (Saquinho Tubular de Geladinho/Sacolé, Pote Cristal, Caixa, etc.)",
-    "Estúdio Culinário: Prompt Gastronômico 100% Editável com botão de restaurar sugestão automática da IA",
-    "Estúdio Culinário: Tratamento de cota Google Imagen e botões com 1 clique para Gemini Web, ChatGPT e Copilot",
-    "Padronização e garantia ativa do Gemini 2.5 Flash em toda a plataforma SaaS",
-    "Download de modelos CSV e JSON da Lista de Compras Inteligente"
+    "Estúdio Culinário: Remoção definitiva de fotos genéricas/fake no erro de cota da API Google",
+    "Estúdio Culinário: Painel de Diagnóstico transparente e atalhos rápidos com 1 clique (Gemini Web, ChatGPT e Copilot)",
+    "Estúdio Culinário: Upload direto de foto real do celular/câmera para visualização e cardápio",
+    "Prompt aperfeiçoado exclusivamente para sacolinha plástica tubular com nó e recheio de geladinho (proibição de copos e pratos)"
   ]
 }
