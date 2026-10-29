@@ -288,7 +288,7 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
               </span>
               <span className="inline-flex items-center gap-1 rounded-full border border-border bg-card/80 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                 {geminiApiKey || import.meta.env.VITE_GEMINI_API_KEY
-                  ? "⚡ Motor Híbrido Ativo (Local + Gemini 2.0 Flash)"
+                  ? "⚡ Motor Híbrido Ativo (Local + Gemini 2.5 Flash)"
                   : "🧠 Motor Analítico Local Ativo (100% Gratuito)"}
               </span>
             </div>
@@ -334,7 +334,7 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="flex-1">
                 <label className="block text-xs font-bold text-foreground">
-                  Chave da API Google Gemini (`gemini-2.0-flash` / `gemini-1.5-flash`) — Opcional
+                  Chave da API Google Gemini (`gemini-2.5-flash` / `gemini-2.0-flash`) — Opcional
                 </label>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   O painel já funciona 100% sem chave através do Motor Analítico PereiraLabs. Se desejar respostas generativas livres via nuvem Google AI Studio, insira sua chave abaixo (salva apenas no seu navegador):
@@ -1197,7 +1197,7 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
                       <Sparkles className="h-3.5 w-3.5" />
                       <span>
                         {msg.mode === "gemini_cloud"
-                          ? "PereiraLabs IA • Google Gemini 2.0 Flash"
+                          ? "PereiraLabs IA • Google Gemini 2.5 Flash"
                           : "PereiraLabs IA • Motor Analítico em Tempo Real"}
                       </span>
                       <span className="text-muted-foreground font-normal">

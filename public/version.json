@@ -1,12 +1,12 @@
 {
-  "version": "3.4.5",
-  "build": 2026102901,
-  "releaseDate": "2026-10-29T16:30:00.000Z",
+  "version": "3.4.6",
+  "build": 2026102902,
+  "releaseDate": "2026-10-29T17:30:00.000Z",
   "features": [
-    "Consultoria Exclusiva: Emissão restrita a consultores credenciados PereiraLabs e homologação de consultores externos",
-    "Estúdio de Geração de Imagens Culinárias com IA (Google Imagen & Gemini)",
-    "Download de Modelos prontos de Planilha CSV (Excel) e arquivo JSON para a Lista de Compras Inteligente",
-    "Suporte aprimorado aos modelos mais velozes e econômicos do Gemini AI Studio (Flash 2.5 / 2.0)",
-    "Ajuste nativo de Safe Area no Galaxy A26 e Android 14/15"
+    "Estúdio Culinário: Seleção de Embalagem Real (Saquinho Tubular de Geladinho/Sacolé, Pote Cristal, Caixa, etc.)",
+    "Estúdio Culinário: Prompt Gastronômico 100% Editável com botão de restaurar sugestão automática da IA",
+    "Estúdio Culinário: Tratamento de cota Google Imagen e botões com 1 clique para Gemini Web, ChatGPT e Copilot",
+    "Padronização e garantia ativa do Gemini 2.5 Flash em toda a plataforma SaaS",
+    "Download de modelos CSV e JSON da Lista de Compras Inteligente"
   ]
 }
