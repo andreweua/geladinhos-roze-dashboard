@@ -1,13 +1,12 @@
 {
-  "version": "3.4.4",
-  "build": 2026102701,
-  "releaseDate": "2026-10-27T01:00:00.000Z",
+  "version": "3.4.5",
+  "build": 2026102901,
+  "releaseDate": "2026-10-29T16:30:00.000Z",
   "features": [
-    "Ajuste nativo de Safe Area para Samsung Galaxy A26 e Android 14/15",
-    "Correção de sobreposição sob a barra de notificações (status bar / punch hole)",
-    "Correção de sobreposição sob os botões de navegação inferiores (navigation bar)",
-    "Lista de Compras Inteligente: Importação universal CSV/JSON e reposição automática do freezer",
-    "IA Gemini SaaS Multi-Tenant isolada e segura por empresa",
-    "Abas de configuração fluidas e sem sobreposição"
+    "Consultoria Exclusiva: Emissão restrita a consultores credenciados PereiraLabs e homologação de consultores externos",
+    "Estúdio de Geração de Imagens Culinárias com IA (Google Imagen & Gemini)",
+    "Download de Modelos prontos de Planilha CSV (Excel) e arquivo JSON para a Lista de Compras Inteligente",
+    "Suporte aprimorado aos modelos mais velozes e econômicos do Gemini AI Studio (Flash 2.5 / 2.0)",
+    "Ajuste nativo de Safe Area no Galaxy A26 e Android 14/15"
   ]
 }

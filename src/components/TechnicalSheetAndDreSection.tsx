@@ -18,6 +18,7 @@ import {
   PackageCheck,
   Percent,
   Receipt,
+  Camera,
 } from "lucide-react";
 import {
   Card,
@@ -62,6 +63,7 @@ interface TechnicalSheetAndDreSectionProps {
   onOpenInvoiceModal?: () => void;
   onOpenCreateProduct?: () => void;
   onDeleteProduct?: (produtoId: string) => Promise<void>;
+  onOpenCulinaryStudio?: (flavor?: string) => void;
 }
 
 export const TechnicalSheetAndDreSection: React.FC<
@@ -79,6 +81,7 @@ export const TechnicalSheetAndDreSection: React.FC<
   onOpenInvoiceModal,
   onOpenCreateProduct,
   onDeleteProduct,
+  onOpenCulinaryStudio,
 }) => {
   const isRozeCompany = getActiveCompanyId() === "emp-roze-gourmet";
   const activeProducts = produtos.filter((p) => p.ativo);
@@ -502,33 +505,49 @@ export const TechnicalSheetAndDreSection: React.FC<
               )}
             </div>
 
-            {/* Delete current product button */}
-            {onDeleteProduct && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isDeleting}
-                onClick={async () => {
-                  if (
-                    window.confirm(
-                      `Deseja realmente excluir permanentemente o produto "${currentProduct.nome}" e sua ficha técnica deste estabelecimento?`
-                    )
-                  ) {
-                    setIsDeleting(true);
-                    try {
-                      await onDeleteProduct(currentProduct.id);
-                    } finally {
-                      setIsDeleting(false);
+            <div className="flex flex-wrap items-center gap-2">
+              {onOpenCulinaryStudio && currentProduct && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onOpenCulinaryStudio(currentProduct.nome)}
+                  className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-primary/10 border-primary/40 text-primary hover:bg-primary/20 gap-1.5 text-xs font-bold rounded-xl shadow-xs"
+                  title={`Criar foto culinária profissional com IA para ${currentProduct.nome}`}
+                >
+                  <Camera className="h-3.5 w-3.5 text-primary" />
+                  <span>Foto Culinária IA</span>
+                </Button>
+              )}
+
+              {/* Delete current product button */}
+              {onDeleteProduct && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isDeleting}
+                  onClick={async () => {
+                    if (
+                      window.confirm(
+                        `Deseja realmente excluir permanentemente o produto "${currentProduct.nome}" e sua ficha técnica deste estabelecimento?`
+                      )
+                    ) {
+                      setIsDeleting(true);
+                      try {
+                        await onDeleteProduct(currentProduct.id);
+                      } finally {
+                        setIsDeleting(false);
+                      }
                     }
-                  }
-                }}
-                className="border-rose-500/30 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400 gap-1.5 text-xs font-semibold"
-                title="Excluir este produto e sua receita"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                <span>{isDeleting ? "Excluindo..." : "Excluir Produto"}</span>
-              </Button>
-            )}
+                  }}
+                  className="border-rose-500/30 text-rose-600 hover:bg-rose-500/10 dark:text-rose-400 gap-1.5 text-xs font-semibold rounded-xl"
+                  title="Excluir este produto e sua receita"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>{isDeleting ? "Excluindo..." : "Excluir Produto"}</span>
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

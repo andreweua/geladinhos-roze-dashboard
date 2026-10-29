@@ -41,6 +41,7 @@ import { DesktopModeNotice } from "@/components/DesktopModeNotice";
 import { forceHardOtaReload } from "@/services/otaService";
 import { PereiraLabsMasterModal } from "@/components/master/PereiraLabsMasterModal";
 import { ConsultingSection } from "@/components/ConsultingSection";
+import { CulinaryImageStudioModal } from "@/components/CulinaryImageStudioModal";
 import { logConsultingActivity } from "@/services/consultingService";
 import {
   getActiveCompany,
@@ -372,6 +373,8 @@ export function App() {
   const [cashShiftModalOpen, setCashShiftModalOpen] = useState<boolean>(false);
   const [changelogModalOpen, setChangelogModalOpen] = useState<boolean>(false);
   const [masterModalOpen, setMasterModalOpen] = useState<boolean>(false);
+  const [culinaryStudioOpen, setCulinaryStudioOpen] = useState<boolean>(false);
+  const [culinaryStudioFlavor, setCulinaryStudioFlavor] = useState<string | undefined>();
 
   // Sincronização reativa instantânea quando a empresa ativa mudar de nome, dados ou tema
   useEffect(() => {
@@ -1282,6 +1285,10 @@ export function App() {
                       setModalOpen(true);
                     }}
                     onDeleteProduct={handleDeleteProduct}
+                    onOpenCulinaryStudio={(flavor) => {
+                      setCulinaryStudioFlavor(flavor);
+                      setCulinaryStudioOpen(true);
+                    }}
                   />
                 </div>
               )}
@@ -1342,6 +1349,10 @@ export function App() {
                       onUpdateStock={handleUpdateStock}
                       onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
                       companyName={activeCompany.nome}
+                      onOpenCulinaryStudio={(flavor) => {
+                        setCulinaryStudioFlavor(flavor);
+                        setCulinaryStudioOpen(true);
+                      }}
                     />
                   )}
 
@@ -1548,6 +1559,14 @@ export function App() {
           setActiveCompanyId(id);
           loadData(true);
         }}
+      />
+
+      <CulinaryImageStudioModal
+        isOpen={culinaryStudioOpen}
+        onClose={() => setCulinaryStudioOpen(false)}
+        fichasTecnicas={snapshot?.fichasTecnicas}
+        initialFlavor={culinaryStudioFlavor}
+        onOpenSettingsModal={() => setSettingsModalOpen(true)}
       />
 
       {/* Floating Refresh Success Toast */}

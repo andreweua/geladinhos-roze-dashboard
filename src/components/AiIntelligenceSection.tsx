@@ -20,6 +20,7 @@ import {
   Receipt,
   Share2,
   ExternalLink,
+  Camera,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
@@ -30,6 +31,7 @@ import {
 import { ComputedDashboardAnalytics } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/utils";
 import { DashboardDataSnapshot } from "@/types/dashboard";
+import { Button } from "@/components/ui/primitives";
 
 interface AiIntelligenceSectionProps {
   snapshot: DashboardDataSnapshot;
@@ -38,6 +40,7 @@ interface AiIntelligenceSectionProps {
   onUpdateStock: (produtoId: string, newQty: number) => Promise<void>;
   onOpenInvoiceModal?: () => void;
   companyName?: string;
+  onOpenCulinaryStudio?: (flavor?: string) => void;
 }
 
 const GEMINI_KEY_STORAGE = `${BRAND_CONFIG.storagePrefix}_gemini_api_key`;
@@ -66,6 +69,7 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
   onUpdateStock,
   onOpenInvoiceModal,
   companyName,
+  onOpenCulinaryStudio,
 }) => {
   const companyDisplayName = companyName || BRAND_CONFIG.companyName;
   const numFichas = snapshot.fichasTecnicas?.length || 0;
@@ -298,6 +302,17 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
+            {onOpenCulinaryStudio && (
+              <Button
+                type="button"
+                onClick={() => onOpenCulinaryStudio()}
+                className="bg-gradient-to-r from-amber-500 via-rose-500 to-primary text-white font-bold text-xs py-2 px-3.5 rounded-xl shadow-xs hover:opacity-95 transition-opacity gap-1.5"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                <span>Estúdio de Fotos Culinárias IA</span>
+              </Button>
+            )}
+
             <button
               type="button"
               onClick={() => {

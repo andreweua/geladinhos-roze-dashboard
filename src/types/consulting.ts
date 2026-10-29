@@ -38,3 +38,19 @@ export interface ConsultingDiagnosticNote {
   planoDeAcao: string[];
   dataEmissao: string;
 }
+
+export interface ConsultorAutorizado {
+  id: string;
+  empresaId: string;
+  nome: string;
+  email: string;
+  telefone?: string;
+  especialidade: string;
+  tipo: "oficial_pereiralabs" | "externo_cadastrado";
+  statusAprovacao: "aprovado" | "pendente_aprovacao" | "rejeitado";
+  dataCadastro: string;
+  solicitadoPor?: string;
+  aprovadoPor?: string;
+  aprovadoEm?: string;
+  observacoes?: string;
+}

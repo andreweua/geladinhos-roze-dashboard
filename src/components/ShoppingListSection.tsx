@@ -512,6 +512,102 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     e.target.value = "";
   };
 
+  const handleDownloadCsvTemplate = () => {
+    const csvContent =
+`nome;categoria;quantidade;unidade;preco_estimado_unitario;prioridade;fornecedor_sugerido;gtin
+Leite Condensado 395g;Laticínios;12;un;5.49;alta;Atacadista Central;7891000100101
+Creme de Leite 200g;Laticínios;15;un;3.19;alta;Atacadista Central;7891000200202
+Leite Integral 1L;Laticínios;10;l;4.29;media;Supermercado Dia;7891000300303
+Liga Neutra 100g;Confeitaria & Insumos;2;un;7.80;alta;Distribuidora Doce Sabor;
+Emulsificante 200g;Confeitaria & Insumos;2;un;8.90;media;Distribuidora Doce Sabor;
+Saquinho Geladinho 6x24cm (Fardo c/ 1000);Embalagens & Descartáveis;1;fardo;28.50;alta;Distribuidora Plast;
+Nutella Balde 3kg;Chocolates & Recheios;1;un;149.90;alta;Sam's Club;
+Polpa de Maracujá Congelada 1kg;Frutas & Mercearia;3;kg;18.00;media;Pomar Natural;
+Açúcar Cristal 5kg;Mercearia;2;pct;17.50;baixa;Atacadista Central;`;
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "modelo_lista_compras_pereiralabs.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadJsonTemplate = () => {
+    const jsonContent = JSON.stringify(
+      {
+        versao_schema: "1.0",
+        lista_nome: "Modelo de Reposição Semanal PereiraLabs",
+        cidade: "Jaú - SP",
+        data_criacao: new Date().toISOString(),
+        itens: [
+          {
+            nome: "Leite Condensado 395g",
+            categoria: "Laticínios",
+            quantidade: 12,
+            unidade: "un",
+            preco_estimado_unitario: 5.49,
+            prioridade: "alta",
+            fornecedor_sugerido: "Atacadista Central",
+            gtin: "7891000100101"
+          },
+          {
+            nome: "Creme de Leite 200g",
+            categoria: "Laticínios",
+            quantidade: 15,
+            unidade: "un",
+            preco_estimado_unitario: 3.19,
+            prioridade: "alta",
+            fornecedor_sugerido: "Atacadista Central",
+            gtin: "7891000200202"
+          },
+          {
+            nome: "Liga Neutra 100g",
+            categoria: "Confeitaria & Insumos",
+            quantidade: 2,
+            unidade: "un",
+            preco_estimado_unitario: 7.80,
+            prioridade: "alta",
+            fornecedor_sugerido: "Distribuidora Doce Sabor"
+          },
+          {
+            nome: "Nutella Balde 3kg",
+            categoria: "Chocolates & Recheios",
+            quantidade: 1,
+            unidade: "un",
+            preco_estimado_unitario: 149.90,
+            prioridade: "alta",
+            fornecedor_sugerido: "Sam's Club"
+          },
+          {
+            nome: "Saquinho Geladinho 6x24cm (Fardo c/ 1000)",
+            categoria: "Embalagens & Descartáveis",
+            quantidade: 1,
+            unidade: "fardo",
+            preco_estimado_unitario: 28.50,
+            prioridade: "alta",
+            fornecedor_sugerido: "Distribuidora Plast"
+          }
+        ]
+      },
+      null,
+      2
+    );
+
+    const blob = new Blob([jsonContent], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "modelo_lista_compras_pereiralabs.json");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Handle share list to WhatsApp
   const handleShareWhatsApp = () => {
     if (!activeList) return;
@@ -641,6 +737,18 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
           >
             <Upload className="h-3.5 w-3.5" />
             <span>Importar (CSV, Excel, JSON)</span>
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={handleDownloadCsvTemplate}
+            title="Baixar Modelo de Planilha CSV (.csv) para preencher no Excel e importar"
+            className="hidden sm:inline-flex gap-1.5 text-muted-foreground hover:text-foreground text-xs"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>Baixar Modelo CSV</span>
           </Button>
 
           <Button
@@ -1164,6 +1272,40 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
                     className="hidden"
                   />
                 </label>
+              </div>
+
+              {/* Baixar Modelos Prontos de CSV e JSON */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 rounded-2xl border border-border/80 bg-secondary/40 shadow-xs">
+                <div>
+                  <span className="font-bold text-foreground text-xs block">
+                    Não tem uma planilha ou arquivo pronto?
+                  </span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    Baixe o modelo oficial com exemplos para só preencher e carregar:
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDownloadCsvTemplate}
+                    className="flex-1 sm:flex-initial text-[11px] h-8 gap-1.5 border-emerald-500/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 font-bold rounded-xl"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Baixar Modelo .CSV (Excel)</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleDownloadJsonTemplate}
+                    className="flex-1 sm:flex-initial text-[11px] h-8 gap-1.5 border-primary/50 text-primary hover:bg-primary/10 font-bold rounded-xl"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Baixar Modelo .JSON</span>
+                  </Button>
+                </div>
               </div>
 
               <div>
