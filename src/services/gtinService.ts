@@ -302,8 +302,10 @@ export async function loginRscSistemas(
       method: "POST",
       headers: {
         Authorization: `Basic ${credentials}`,
+        "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json",
       },
+      body: "grant_type=client_credentials",
     });
 
     if (!response.ok) {
@@ -415,22 +417,31 @@ export async function consultarProdutoPorGtin(
 
       if (response.ok) {
         const data = await response.json();
-        if (data && (data.nome || data.descricao)) {
-          const nomeProduto = data.nome || data.descricao || "";
+        const nomeProduto = data?.nome || data?.descricao || data?.nome_acento || "";
+        if (nomeProduto) {
           const parsed = parsePackagingFromTitle(nomeProduto);
+
+          // Tenta extrair a marca do nome se vier "Desconhecido" da RSC Sistemas
+          let marcaFinal = data.marca && data.marca !== "Desconhecido" ? data.marca : "";
+          if (!marcaFinal) {
+            const firstWord = nomeProduto.split(" ").find((w: string) => w.length > 2 && !["MIST", "BOLO", "LEITE", "DOCE", "PO", "ZERO"].includes(w.toUpperCase()));
+            marcaFinal = firstWord ? firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase() : "Apti";
+          }
 
           return {
             gtin: cleanGtin,
             nome: nomeProduto,
-            marca: data.marca || "Marca Diversa",
+            marca: marcaFinal,
             quantidade_embalagem: parsed.quantidade,
             unidade_medida: parsed.unidade,
             categoria: data.categoria || "Confeitaria / Insumos",
-            ncm: data.ncm,
+            ncm: data.ncm ? parseInt(String(data.ncm).replace(/\D/g, ""), 10) : undefined,
             foto_url: data.link_foto || `https://gtin.rscsistemas.com.br/api/v3/gtin/${cleanGtin}/image`,
             fonte: "rsc_sistemas",
           };
         }
+      } else {
+        console.warn(`RSC Sistemas retornou HTTP ${response.status} para GTIN ${cleanGtin}`);
       }
     } catch (err) {
       console.warn("Consulta à API v3 RSC Sistemas falhou:", err);
