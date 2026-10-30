@@ -1,11 +1,12 @@
 {
-  "version": "3.4.8",
-  "build": 2026102904,
-  "releaseDate": "2026-10-29T21:15:00.000Z",
+  "version": "3.4.9",
+  "build": 2026102905,
+  "releaseDate": "2026-10-29T21:28:00.000Z",
   "features": [
+    "Lista de Compras Mobile-First: Visualização em Cards responsivos padrão UI/UX otimizados para telas de celular e PWA",
+    "Alternância Cards x Tabela: Opção rápida para alternar entre visão em cards individuais e tabela completa clássica",
     "Cotações de Insumos: Suporte nativo a Preço de Varejo, Preço de Atacado e Quantidade Mínima para desconto",
     "Lista de Compras Inteligente: Detecção automática de preço de atacado por volume com cálculo de economia real",
-    "Gravação e Importação: Download de modelos CSV e JSON enriquecidos com colunas de atacado/varejo",
-    "Comparador de Mercados: Exibição visual de preços escalonados (Mart Minas, Tenda, Simão Doces, Jaú Serve)"
+    "Gravação e Importação: Download de modelos CSV e JSON enriquecidos com colunas de atacado/varejo"
   ]
 }

@@ -26,6 +26,8 @@ import {
   FileSpreadsheet,
   FileUp,
   Flame,
+  LayoutGrid,
+  Table as TableIcon,
 } from "lucide-react";
 import {
   ListaCompras,
@@ -109,6 +111,7 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
   // Feedback states
   const [copiedFeedback, setCopiedFeedback] = useState(false);
   const [batchSaveFeedback, setBatchSaveFeedback] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
 
   // Active list
   const activeList = useMemo(() => {
@@ -932,8 +935,342 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
             </div>
           </div>
 
-          {/* Table of items */}
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          {/* Barra de Ações Rápidas: Alternar Visão (Cards vs Tabela) e Adicionar Insumo */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground">Visualização:</span>
+              <div className="inline-flex rounded-xl bg-secondary/60 p-1 border border-border">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("cards")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === "cards"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Visão em Cards Mobile First (Otimizado para Celulares e PWA)"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span>Cards (Recomendado)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("table")}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    viewMode === "table"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Visão em Planilha/Tabela Clássica"
+                >
+                  <TableIcon className="h-3.5 w-3.5" />
+                  <span>Tabela</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 justify-between sm:justify-end">
+              <span className="text-xs text-muted-foreground">
+                Itens na lista: <strong className="text-foreground">{activeList.itens.length}</strong>
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleAddBlankItem}
+                className="gap-1.5 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Adicionar Insumo</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* VISUALIZAÇÃO EM CARDS MOBILE-FIRST (Padrão e Recomendado) */}
+          {viewMode === "cards" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5">
+              {activeList.itens.map((item) => {
+                const qtd = item.quantidade_necessaria || 1;
+                const isAtacadoAplicado = Boolean(
+                  item.preco_atacado &&
+                  item.preco_atacado > 0 &&
+                  item.qtd_minima_atacado &&
+                  item.qtd_minima_atacado > 0 &&
+                  qtd >= item.qtd_minima_atacado
+                );
+                const precoUnitarioAplicado = isAtacadoAplicado
+                  ? item.preco_atacado!
+                  : item.preco_varejo || item.preco_cotado || item.preco_estimado || 0;
+                const subtotal = precoUnitarioAplicado * qtd;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`relative rounded-2xl border p-4 shadow-sm transition-all duration-200 flex flex-col justify-between gap-3.5 ${
+                      item.comprado
+                        ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/15 opacity-85"
+                        : "border-border bg-card hover:border-primary/40 hover:shadow-md"
+                    }`}
+                  >
+                    {/* Topo do Card: Checkbox + Nome do Insumo + Botão de Excluir */}
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleBought(item.id)}
+                        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border-2 transition-all ${
+                          item.comprado
+                            ? "border-emerald-600 bg-emerald-600 text-white shadow-xs"
+                            : "border-border bg-background hover:border-emerald-500 text-transparent hover:text-emerald-500/40"
+                        }`}
+                        title={item.comprado ? "Desmarcar como comprado" : "Marcar como comprado no carrinho"}
+                      >
+                        <Check className="h-4 w-4 stroke-[3]" />
+                      </button>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={item.insumo_nome}
+                            onChange={(e) => handleUpdateItem(item.id, { insumo_nome: e.target.value })}
+                            placeholder="Nome do Insumo..."
+                            className={`w-full bg-transparent font-extrabold text-sm rounded px-1 py-0.5 focus:bg-background focus:border focus:border-primary focus:outline-none ${
+                              item.comprado ? "line-through text-muted-foreground" : "text-foreground"
+                            }`}
+                          />
+                        </div>
+
+                        {item.marca && (
+                          <span className="block text-[11px] text-muted-foreground px-1 font-medium">
+                            Marca: <strong className="text-foreground/80">{item.marca}</strong>
+                          </span>
+                        )}
+
+                        {/* Badges de Atacado ou Dica de Economia */}
+                        {isAtacadoAplicado && (
+                          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                            🏷️ Preço Atacado Ativo ({qtd}/{item.qtd_minima_atacado}+ un)
+                          </div>
+                        )}
+                        {!isAtacadoAplicado && item.preco_atacado && item.qtd_minima_atacado && item.qtd_minima_atacado > qtd && (
+                          <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                            💡 Faltam {item.qtd_minima_atacado - qtd} un p/ atacado ({formatCurrency(item.preco_atacado)})
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveItem(item.id)}
+                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0"
+                        title="Remover Item da Lista"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    {/* Linha de Código GTIN / EAN com Atalhos Rápidos */}
+                    <div className="rounded-xl border border-border/80 bg-background/50 p-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <input
+                          type="text"
+                          value={item.gtin || ""}
+                          onChange={(e) =>
+                            handleUpdateItem(item.id, {
+                              gtin: e.target.value.replace(/\D/g, ""),
+                            })
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && item.gtin) {
+                              e.preventDefault();
+                              handleSearchGtinForItem(item.id, item.gtin);
+                            }
+                          }}
+                          placeholder="Código GTIN/EAN..."
+                          title="Digite o código e busque ou tecle Enter"
+                          className="w-full bg-transparent font-mono text-xs text-foreground focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleSearchGtinForItem(item.id, item.gtin || "")}
+                          disabled={!item.gtin || searchingGtinItemId === item.id}
+                          className="rounded-lg bg-secondary px-2 py-1 text-primary hover:bg-primary hover:text-primary-foreground disabled:opacity-40 transition-colors text-[10px] font-bold flex items-center gap-1"
+                          title="Buscar dados do produto"
+                        >
+                          {searchingGtinItemId === item.id ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Search className="h-3 w-3" />
+                          )}
+                          <span className="hidden sm:inline">Buscar</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setScanningTargetItemId(item.id);
+                            setScannerInitialMode("camera");
+                            setIsScannerOpen(true);
+                          }}
+                          className="rounded-lg bg-primary/10 p-1.5 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                          title="Escanear com a Câmera do Celular"
+                        >
+                          <Camera className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Grade de Informações Operacionais: Quantidade, Embalagem e Preços */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {/* Qtd. Necessária */}
+                      <div className="rounded-xl border border-border/70 bg-secondary/30 p-2">
+                        <span className="text-[10px] font-semibold text-muted-foreground block mb-1">
+                          Qtd. Necessária
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="1"
+                            step="any"
+                            value={item.quantidade_necessaria}
+                            onChange={(e) =>
+                              handleUpdateItem(item.id, {
+                                quantidade_necessaria: Math.max(1, parseFloat(e.target.value) || 1),
+                              })
+                            }
+                            className="w-full rounded-lg border border-input bg-background px-2 py-1 text-center font-extrabold text-sm focus:border-primary focus:outline-none"
+                          />
+                          <span className="text-xs font-bold text-muted-foreground">
+                            {item.unidade_medida || "un"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Embalagem */}
+                      <div className="rounded-xl border border-border/70 bg-secondary/30 p-2">
+                        <span className="text-[10px] font-semibold text-muted-foreground block mb-1">
+                          Embalagem / Tamanho
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step="any"
+                            value={item.quantidade_embalagem || ""}
+                            onChange={(e) =>
+                              handleUpdateItem(item.id, {
+                                quantidade_embalagem: parseFloat(e.target.value) || undefined,
+                              })
+                            }
+                            placeholder="395"
+                            className="w-full rounded-lg border border-input bg-background px-2 py-1 text-center font-bold text-xs focus:border-primary focus:outline-none"
+                          />
+                          <select
+                            value={item.unidade_medida}
+                            onChange={(e) =>
+                              handleUpdateItem(item.id, {
+                                unidade_medida: e.target.value as ListaComprasItem["unidade_medida"],
+                              })
+                            }
+                            className="rounded-lg border border-input bg-background px-1.5 py-1 text-xs font-bold focus:border-primary focus:outline-none"
+                          >
+                            <option value="g">g</option>
+                            <option value="kg">kg</option>
+                            <option value="ml">ml</option>
+                            <option value="l">L</option>
+                            <option value="un">un</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preços: Varejo & Atacado */}
+                    <div className="rounded-xl border border-border/70 bg-secondary/20 p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[11px] font-medium text-muted-foreground">Preço Varejo (un):</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-muted-foreground">R$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.preco_varejo !== undefined ? item.preco_varejo : item.preco_cotado !== undefined ? item.preco_cotado : item.preco_estimado || ""}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              handleUpdateItem(item.id, {
+                                preco_varejo: val,
+                                preco_cotado: val,
+                              });
+                            }}
+                            placeholder="0,00"
+                            className="w-20 rounded-lg border border-input bg-background px-2 py-0.5 text-right font-mono font-bold text-xs text-foreground focus:border-primary focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs border-t border-border/40 pt-1.5">
+                        <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                          Preço Atacado:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-emerald-600 font-bold">R$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={item.preco_atacado !== undefined ? item.preco_atacado : ""}
+                            onChange={(e) =>
+                              handleUpdateItem(item.id, {
+                                preco_atacado: e.target.value ? parseFloat(e.target.value) : undefined,
+                              })
+                            }
+                            placeholder="Atacado"
+                            title="Preço unitário no atacado"
+                            className="w-20 rounded-lg border border-emerald-500/40 bg-background px-2 py-0.5 text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
+                          />
+                          <span className="text-[10px] text-muted-foreground font-semibold">mín:</span>
+                          <input
+                            type="number"
+                            step="1"
+                            min="1"
+                            value={item.qtd_minima_atacado !== undefined ? item.qtd_minima_atacado : ""}
+                            onChange={(e) =>
+                              handleUpdateItem(item.id, {
+                                qtd_minima_atacado: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                              })
+                            }
+                            placeholder="12"
+                            title="Mínimo de unidades para atacado"
+                            className="w-12 rounded-lg border border-emerald-500/40 bg-background px-1 py-0.5 text-center font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rodapé do Card: Subtotal com Destaque e Condição Aplicada */}
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-2.5 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                          Subtotal Calculado
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {qtd} × {formatCurrency(precoUnitarioAplicado)} ({isAtacadoAplicado ? "Atacado" : "Varejo"})
+                        </span>
+                      </div>
+                      <strong className="text-base font-black font-mono text-primary">
+                        {formatCurrency(subtotal)}
+                      </strong>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* VISUALIZAÇÃO EM TABELA (Para visualização clássica em telas desktop largas) */}
+          {viewMode === "table" && (
+            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-border bg-secondary/40 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -1209,6 +1546,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
               </span>
             </div>
           </div>
+          )}
         </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
