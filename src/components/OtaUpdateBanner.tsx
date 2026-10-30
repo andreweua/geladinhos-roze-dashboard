@@ -10,21 +10,41 @@ import {
 } from "@/services/otaService";
 import { soundNotificationService } from "@/services/soundNotificationService";
 
+const DISMISSED_OTA_KEY = "pereiralabs_dismissed_ota_version";
+
 export const OtaUpdateBanner: React.FC = () => {
   const [otaState, setOtaState] = useState<OtaUpdateInfo | null>(null);
   const [dismissed, setDismissed] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled] = useState(true);
   const hasNotifiedRef = useRef<string | null>(null);
+  const dismissedVersionRef = useRef<string | null>(
+    typeof window !== "undefined" ? sessionStorage.getItem(DISMISSED_OTA_KEY) : null
+  );
   const isNative = Capacitor.isNativePlatform();
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    if (otaState?.remoteVersion) {
+      dismissedVersionRef.current = otaState.remoteVersion;
+      try {
+        sessionStorage.setItem(DISMISSED_OTA_KEY, otaState.remoteVersion);
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   useEffect(() => {
     return subscribeToOta((info) => {
       setOtaState(info);
       if (info.hasUpdate) {
-        setDismissed(false);
+        // Só reabre o banner se for uma versão diferente da que o usuário já fechou
+        if (dismissedVersionRef.current !== info.remoteVersion) {
+          setDismissed(false);
+        }
 
         // Dispara notificação sonora e vibração apenas uma vez por versão nova
-        if (hasNotifiedRef.current !== info.remoteVersion) {
+        if (hasNotifiedRef.current !== info.remoteVersion && dismissedVersionRef.current !== info.remoteVersion) {
           hasNotifiedRef.current = info.remoteVersion;
           if (soundEnabled) {
             soundNotificationService.playUpdateChime();
@@ -68,7 +88,10 @@ export const OtaUpdateBanner: React.FC = () => {
   };
 
   return (
-    <div className="fixed top-3 left-3 right-3 sm:left-auto sm:right-4 sm:max-w-md z-50 animate-in slide-in-from-top duration-300">
+    <div
+      className="fixed left-3 right-3 sm:left-auto sm:right-4 sm:max-w-md z-[100] animate-in slide-in-from-top duration-300"
+      style={{ top: "calc(env(safe-area-inset-top, 0px) + 0.75rem)" }}
+    >
       <div className="rounded-2xl border-2 border-primary bg-card/95 p-4 shadow-2xl backdrop-blur-md ring-4 ring-primary/20 text-foreground transition-all">
         <div className="flex items-start justify-between gap-3">
           {/* Ícone Animado com Efeito de Pulso Sonoro */}
@@ -168,10 +191,12 @@ export const OtaUpdateBanner: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setDismissed(true)}
-                className="rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                onClick={handleDismiss}
+                className="inline-flex items-center gap-1 rounded-xl border border-border bg-secondary/60 px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary transition-colors cursor-pointer"
+                title="Fechar esta notificação"
               >
-                Lembrar Depois
+                <X className="h-3.5 w-3.5" />
+                <span>Fechar</span>
               </button>
             </div>
 
@@ -188,14 +213,15 @@ export const OtaUpdateBanner: React.FC = () => {
             </div>
           </div>
 
-          {/* Botão Fechar Notificação */}
+          {/* Botão Fechar Notificação no Topo Direito (Ampliado para Toque Fácil no Celular) */}
           <button
             type="button"
-            onClick={() => setDismissed(true)}
-            className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
-            title="Dispensar aviso por enquanto"
+            onClick={handleDismiss}
+            aria-label="Fechar notificação"
+            className="flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-secondary/80 text-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors shrink-0 cursor-pointer shadow-xs"
+            title="Fechar notificação"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4 stroke-[2.5]" />
           </button>
         </div>
       </div>

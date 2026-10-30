@@ -1,113 +1,97 @@
-# 🍧 Geladinhos Gourmet da Roze — Sistema de Gestão, PDV & Inteligência Artificial
+# 🍧 Geladinhos Gourmet da Roze — Sistema de Gestão, PDV, Cotações & Inteligência Artificial
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-3.1.0-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-3.5.6-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK-38bdf8)
+![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v50%29-38bdf8)
+![RSC Sistemas](https://img.shields.io/badge/GTIN%20%2F%20EAN--13-RSC%20Sistemas%20%2B%20Fotos-f59e0b)
+![Atacado e Varejo](https://img.shields.io/badge/Cota%C3%A7%C3%B5es-Atacado%20%26%20Varejo-8b5cf6)
 ![Segurança de Caixa](https://img.shields.io/badge/Caixa-Abertura%20Obrigat%C3%B3ria-10b981)
 ![Stone OpenBank](https://img.shields.io/badge/Stone%20OpenBank-Pix%20Din%C3%A2mico-00a868)
-![CRM WhatsApp](https://img.shields.io/badge/CRM-WhatsApp%20por%20Telefone-25d366)
 
-Sistema integrado de gestão financeira, frente de caixa (PDV), controle de estoque, auditoria e inteligência artificial desenvolvido em **React 18 + Vite 6 + TypeScript + Tailwind CSS + Capacitor (Android) + Supabase (PostgreSQL) + PereiraLabs IA**.
+Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fichas técnicas, lista de compras atacado/varejo com scanner de código de barras (GTIN/EAN), auditoria de estoque e inteligência artificial desenvolvido em **React 18 + Vite 6 + TypeScript + Tailwind CSS + Capacitor 8 (Android) + Supabase (PostgreSQL) + PereiraLabs IA**.
 
-- 🌐 **Demonstração Online (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
+- 🌐 **Aplicação Web / PWA (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
+- 📲 **Download Direto do Aplicativo Android (APK Oficial)**: [Baixar APK Mais Recente (GitHub Releases)](https://github.com/andreweua/geladinhos-roze-dashboard/releases/latest)
 - 📋 **Histórico Completo de Alterações**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
 
 ---
 
-## 🚀 Novidades da Versão 3.1.0
+## 🚀 Destaques das Versões 3.5.x (Última Atualização: v3.5.6)
 
-### 1. 🔒 Segurança Operacional & Controle Estrito de Caixa
-- **Abertura Obrigatória de Caixa**: Tanto o **Administrador** quanto o **Operador de Caixa** são impedidos de lançar vendas sem antes abrir o turno de caixa informando a contagem de fundo de troco inicial. Qualquer tentativa de acesso ao PDV redireciona automaticamente para a abertura de caixa.
-- **Fechamento de Caixa estilo Cupom Fiscal**: Relatório para envio via WhatsApp com padrão de cupom não fiscal (`===`), contagem de gaveta (cédulas/moedas), total de vendas por forma de recebimento, conferência da maquininha de cartão e balanço automático de sobra ou falta no caixa.
+### 1. 🛒 Lista de Compras & Cotações em Cards Mobile-First (Atacado & Varejo)
+- **Layout em Cards Responsivos**: Visualização otimizada para telas de celulares e PWA, eliminando rolagem horizontal e compressão de tabelas. Permite alternar com um toque entre **Cards (Recomendado)** e **Tabela**.
+- **Independência Total entre Quantidade de Compra e Embalagem**:
+  - **Qtd. Necessária (Compra)**: Quantidade de itens a comprar com seletor próprio de unidade comercial (`un`, `cx`, `pct`, `fardo`, `lata`, `pote`, `kg`, `L`).
+  - **Embalagem / Tamanho**: Peso, volume ou contagem unitária do rótulo (`395 g`, `200 g`, `1 L`, `1,01 kg`, `1000 un`) com seletor independente (`g`, `kg`, `ml`, `L`, `un`).
+- **Preços de Varejo e Atacado com Gatilho Mínimo**:
+  - Suporte simultâneo a **Preço de Varejo**, **Preço de Atacado** e **Quantidade Mínima de Atacado** (ex: pacote fechado a partir de 6, 12 ou 24 unidades).
+  - Cálculo automático de subtotal ativando a tarifa de atacado assim que a quantidade mínima é atingida e aviso inteligente de economia (*"💡 Faltam X un p/ atacado"*).
+- **Importador Universal Inteligente (CSV, Excel, JSON e Tabelas de Mercado)**:
+  - Parser monetário compatível tanto com formato brasileiro (`5,78` / `1.250,50`) quanto internacional (`5.49`), sem multiplicar valores decimais.
+  - Suporte a colagem direta de múltiplas tabelas concatenadas (Modelo Oficial + planilhas de cotação de atacarejos como *Mart Minas*, *Tenda* e *Atacadão*).
 
-### 2. 🛵 Rastreamento de Canais de Venda (Origem)
-- **Seleção no PDV**: Identificação com um clique do canal de onde veio o pedido:
-  - 🏪 **Balcão** (Presencial)
-  - 🛵 **iFood** (Delivery)
-  - 📱 **WhatsApp** (Encomendas)
-  - 📸 **Instagram** (Direct)
-  - 📦 **Outros** (Eventos e parceiros)
-- **Gráfico Analítico de Origem**: No painel do Administrador, o **Gráfico 3** permite alternar instantaneamente entre **"Pagamento"** e **"Canal / Origem"**, demonstrando o faturamento e volume de cada canal de venda.
-- **Histórico com Tags**: A tabela de últimas vendas exibe a origem de cada venda realizada.
+### 2. 🔍 Scanner GTIN / EAN-13 Integrado à RSC Sistemas & Fotos Reais
+- **Autenticação Automática RSC Sistemas (API v3)**: Integração direta com o portal `gtin.rscsistemas.com.br` e fallback para o catálogo aberto *Open Food Facts Brasil*.
+- **Exibição de Fotos Oficiais das Embalagens**: Carregamento automático da miniatura real do produto nos Cards e na Tabela da Lista de Compras ao escanear ou buscar um código de barras.
+- **Extração Inteligente de Marca e Gramatura**: Identifica automaticamente marca, categoria, peso líquido e volume a partir da descrição oficial do GTIN.
 
-### 3. 👥 CRM Inteligente com Chave Única por Telefone (WhatsApp)
-- **Cadastro Automático & Zero Fricção**: O número de WhatsApp do cliente serve como chave primária única sem exigir senhas ou cadastros prévios demorados.
-- **Autocomplete em Tempo Real**: Ao digitar o telefone ou o nome do cliente no PDV, o sistema busca e sugere clientes cadastrados, exibindo o número de compras acumuladas e badge de fidelidade.
-- **Histórico & Sabores Favoritos**: O sistema calcula automaticamente o ticket médio, valor total gasto e o ranking dos sabores que o cliente mais compra.
+### 3. 🎨 Estúdio Culinário IA (Fidelidade ao Produto Real na Sacolinha)
+- **Apresentação Fiel em Saquinho de Geladinho (6x24cm)**: Geração de imagens promocionais com seleção do formato real do produto (**No Saquinho Tradicional Transparente**, **Saquinho Cortado Mostrando a Cremosa Calda/Recheio** ou **Taça Gourmet**).
+- **Prompt Customizável em Português**: Permite editar livremente os detalhes visuais antes de gerar cada fotografia e utiliza o motor **Google Gemini 2.5 Flash** e **Imagen 3** com fallback inteligente.
 
-### 4. 🧾 Emissão e Exportação de Cupons Permanentes (Sem Custo de Storage)
-- **Links Permanentes Auto-Contidos**: Os dados da venda são compactados e codificados na própria URL (Base64), permitindo que o cliente abra e baixe o cupom meses ou anos depois sem custos de hospedagem de arquivos em nuvem.
-- **4 Formatos de Exportação**:
-  - 📄 **PDF Térmico (80mm)**: Formatado para leitura no celular ou impressoras térmicas não fiscais de balcão.
-  - 📝 **Texto (.txt)**: Texto estruturado com lista de compras limpa para anotações e controles pessoais.
-  - 📊 **CSV Financeiro (.csv)**: Com delimitador padrão e UTF-8 BOM, pronto para abrir no Excel, Google Sheets, Mobills, Organizze e Notion.
-  - 🏦 **OFX Bancário (.ofx)**: Padrão universal para importação em softwares de contabilidade e ERPs.
+### 4. 🔔 Sistema de Atualização OTA (Over-The-Air) & APK Android
+- **Notificação Sonora, Tátil e Visual**: Aviso de nova versão com chime melódico sintetizado via *Web Audio API*, vibração háptica e botão claro para **Fechar Notificação** (persistindo o fechamento na sessão sem reabrir sozinho).
+- **Rastreabilidade Técnica no Rodapé**: Exibição exata da versão instalada em execução (`Versão: v3.5.6 • Build: 2026103006 • Ambiente: PWA Web App / Android Nativo versionCode 50`).
+- **Links Permanentes de Atualização Android**: Botões diretos para baixar o `.APK` atualizado disponíveis no rodapé do sistema, no alerta de atualização e na janela **Novidades ✨**.
 
 ---
 
 ## 📊 Principais Módulos da Aplicação
 
 1. **Frente de Caixa (PDV) & Meios de Pagamento**:
-   - Pix Dinâmico Stone OpenBank com liquidação em tempo real via Webhook e WebSocket.
-   - Fallback dinâmico Ton Pix BACEN (chave oficial) com QR Code EMV e chave Copia e Cola.
-   - Venda no Cartão de Crédito, Débito e Dinheiro com calculadora automática de troco.
+   - Abertura obrigatória de turno de caixa com contagem de fundo de troco inicial.
+   - Pix Dinâmico Stone OpenBank com liquidação em tempo real e fallback Ton Pix BACEN (QR Code EMV + Copia e Cola).
+   - Rastreamento de Canais de Venda (*Balcão, iFood, WhatsApp, Instagram, Outros*) e CRM automático por telefone WhatsApp.
+   - Emissão de Cupons Não Fiscais permanentes em 4 formatos (**PDF Térmico 80mm, TXT, CSV e OFX**).
 2. **Visão Geral & Inteligência Analítica**:
-   - 5 KPIs Financeiros em tempo real (Faturamento, Lucro Líquido, Unidades Vendidas, Ticket Médio e Alerta de Estoque Baixo).
-   - 5 Gráficos Recharts (Evolução Diária, Top 5 Sabores, Pagamento vs. Canal, Nível de Estoque e Margem de Contribuição).
+   - 5 KPIs Financeiros em tempo real e 5 Gráficos interativos (Evolução Diária, Top 5 Sabores, Pagamento vs. Canal, Nível de Estoque e Margem de Contribuição).
 3. **Fichas Técnicas & Engenharia de Receitas (150ml)**:
-   - 8 Fichas Técnicas reais dos cadernos oficiais da confeitaria.
-   - Precificação dinâmica para o iFood ($\text{Preço} / 0,738$) garantindo lucro idêntico ao balcão.
-   - DRE individual por produto e matriz comparativa de rentabilidade.
-4. **Pesquisa de Mercados & Radar Anti-Inflação**:
-   - Cotações com cálculo de preço normalizado por Kg e Litro nas praças de Jaú (SP) e Três Pontas (MG).
-   - Alerta `🔥 Oportunidade de Estocar` e validação de ofertas vigentes.
-   - Scanner de código de barras físico (EAN / GTIN) via câmera do celular.
+   - 9 Fichas Técnicas oficiais da confeitaria com precificação dinâmica para o iFood ($\text{Preço} / 0,738$) e DRE individual por sabor.
+4. **Pesquisa de Mercados, Cotações & Notas Fiscais**:
+   - Comparador de preços Varejo vs. Atacado normalizado por Kg e Litro nas praças de Jaú (SP) e Três Pontas (MG).
+   - Alerta `🔥 Oportunidade de Estocar` e bloqueio de ofertas com validade expirada.
 5. **Auditoria de Estoque & Controle de Perdas**:
-   - Reposição por rendimento de receitas inteiras ou ajuste administrativo manual.
-   - Registro formal de perdas/avarias com justificativa e disparo de alerta por e-mail.
-6. **Central de Inteligência PereiraLabs IA**:
-   - Planejamento de produção anti-ruptura ("O que produzir hoje?").
-   - Lista de compras com dedução automática de sobras disponíveis na despensa.
-   - Consultor Financeiro e Operacional 24h (Motor local + Google Gemini 2.0 Flash).
+   - Reposição por rendimento de receitas inteiras, trava contra venda sem estoque e registro formal de avarias.
+6. **Painel Master Multi-Empresa & Consultoria PereiraLabs**:
+   - Sincronização em tempo real entre múltiplos aparelhos via Supabase (`public.empresas`), migração instantânea via QR Code e módulo exclusivo para consultores homologados PereiraLabs.
 
 ---
 
 ## 📱 Suporte PWA e Aplicativo Android Nativo
 
-- **Aplicativo Android Nativo (Capacitor)**:
-  - Projeto integrado via `@capacitor/android` e `@capacitor-mlkit/barcode-scanning`.
-  - Sincronização automatizada com `npx cap copy android`.
+- **Aplicativo Android Nativo (Capacitor 8 + Google ML Kit)**:
+  - Compilação automatizada via GitHub Actions (`.github/workflows/build-apk.yml`) gerando o pacote oficial `PereiraLabs-PDV-Foods-v3.5.6.apk` e `PereiraLabs-PDV-Foods-latest.apk`.
+  - Safe Area nativa configurada para celulares modernos (incluindo Samsung Galaxy A26 / Android 15).
 - **PWA (Progressive Web App)**:
-  - Instalação nativa em Android (WebAPK) e iOS (Safari Adicionar à Tela de Início).
-  - Suporte offline via Service Worker (`public/sw.js`).
-  - Atalhos na tela de início para "Nova Venda" e "Repor Estoque".
+  - Instalação em 1 clique no Android, iOS e Desktop com funcionamento offline e atualização automática via Service Worker (`public/sw.js`).
 
 ---
 
-## 🚀 Como Executar o Projeto
+## 🛠️ Como Executar o Projeto Localmente
 
 ```bash
-# Instalar dependências
+# 1. Instalar dependências
 npm install
 
-# Iniciar servidor de desenvolvimento local
+# 2. Iniciar servidor de desenvolvimento local
 npm run dev
 
-# Compilar para produção e validar tipos TypeScript
+# 3. Compilar para produção e validar tipos TypeScript
 npm run build
 
-# Sincronizar alterações com o projeto Android Capacitor
-npx cap copy android
+# 4. Sincronizar alterações com o projeto Android Capacitor
+npx cap sync android
 ```
-
----
-
-## 🔄 Arquitetura White-Label
-
-A personalização de marca e configurações centrais pode ser feita tanto via código quanto diretamente pela interface da empresa:
-
-1. **Via Painel de Configurações**: Ícone de engrenagem no cabeçalho com salvamento persistente.
-2. **Via Código-Fonte**: [`src/config/brand.config.ts`](./src/config/brand.config.ts) e [`src/index.css`](./src/index.css).
 
 ---
 

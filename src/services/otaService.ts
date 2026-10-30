@@ -179,14 +179,16 @@ export async function checkForOtaUpdate(): Promise<boolean> {
 
     const ts = Date.now();
     // Lista de fontes remotas sem headers não-padrão (CORS Simple GET Request compatível com Android WebView)
-    const remoteSources = [
-      `https://raw.githubusercontent.com/andreweua/geladinhos-roze-dashboard/main/public/version.json?_t=${ts}`,
-      `https://andreweua.github.io/geladinhos-roze-dashboard/version.json?_t=${ts}`,
-    ];
-
-    if (!Capacitor.isNativePlatform()) {
-      remoteSources.push(`./version.json?_t=${ts}`);
-    }
+    // Prioriza o servidor de produção (GitHub Pages) para garantir que os arquivos JS da nova versão já estejam publicados
+    const remoteSources = Capacitor.isNativePlatform()
+      ? [
+          `https://andreweua.github.io/geladinhos-roze-dashboard/version.json?_t=${ts}`,
+          `https://raw.githubusercontent.com/andreweua/geladinhos-roze-dashboard/main/public/version.json?_t=${ts}`,
+        ]
+      : [
+          `https://andreweua.github.io/geladinhos-roze-dashboard/version.json?_t=${ts}`,
+          `./version.json?_t=${ts}`,
+        ];
 
     let data: any = null;
     for (const url of remoteSources) {

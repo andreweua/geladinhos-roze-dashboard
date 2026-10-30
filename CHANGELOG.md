@@ -7,6 +7,40 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.5.6] - 2026-10-30
+
+### Adicionado & Corrigido
+- **Fechamento Persistente da Notificação de Nova Versão (PWA & Android)**:
+  - Quando o banner de nova versão aparece na tela inicial, o usuário pode fechá-lo livremente pelo botão **✕ Fechar** (no canto superior direito ou nos botões de ação). A escolha é memorizada na sessão (`sessionStorage`), impedindo que a notificação volte a abrir sozinha ao alternar abas ou sincronizar em segundo plano.
+  - Posicionamento ajustado com `safe-area-inset-top` para nunca colidir com a barra de status do celular.
+- **Independência Total entre "Qtd. Necessária (Compra)" e "Embalagem / Tamanho"**:
+  - Criação dos campos dedicados `unidade_compra` (`un`, `cx`, `pct`, `fardo`, `lata`, `pote`, `kg`, `L`) e `unidade_embalagem` (`g`, `kg`, `ml`, `L`, `un`), além de migração automática (`normalizeShoppingListItem`) das listas já salvas no navegador.
+- **Correção de Atualização Android & Link Direto de Download APK**:
+  - Requisições `fetch` de checagem de versão agora utilizam *Simple GET Request* sem cabeçalhos customizados que bloqueavam o CORS no WebView Android (`https://localhost`).
+  - Inclusão de botão permanente **Baixar APK Android** no rodapé da aplicação e na janela **Novidades ✨**.
+  - Esteira GitHub Actions (`build-apk.yml`) atualizada para ler dinamicamente a versão do `package.json` e publicar `PereiraLabs-PDV-Foods-latest.apk`.
+- **Parser Financeiro CSV/Excel & Tabelas Múltiplas**:
+  - Suporte simultâneo a valores decimais separados por ponto (`5.49`) ou vírgula (`5,78`), eliminando a multiplicação indevida por 100.
+  - Suporte a importação de múltiplos blocos colados (Modelo Oficial + cotações de atacadistas como Mart Minas e Tenda).
+- **Integração RSC Sistemas GTIN v3 & Fotos Reais de Produtos**:
+  - Exibição automática de fotos reais das embalagens nos Cards e na Tabela da Lista de Compras, com fallback para Open Food Facts Brasil.
+- **Lista de Compras em Cards Responsivos Mobile-First & Preços Atacado/Varejo**:
+  - Layout em cards para leitura rápida em celulares e suporte completo a preço de atacado condicionado à quantidade mínima.
+
+---
+
+## [3.4.9] - 2026-10-29
+
+### Adicionado & Aprimorado
+- **Estúdio Culinário IA com Embalagem Real de Sacolinha**:
+  - Seleção do modo de apresentação em saquinho plástico transparente tradicional (6x24cm), saquinho cortado ou taça gourmet, com prompt editável.
+- **Proteção de Safe Area Mobile (Samsung Galaxy A26 / Android 15)**:
+  - Ajuste completo de `viewport-fit=cover` e espaçamento inferior para evitar sobreposição com os botões de navegação do Android.
+- **Módulo de Consultoria PereiraLabs**:
+  - Controle de acesso restrito a consultores homologados pela PereiraLabs.
+
+---
+
 ## [3.1.0] - 2026-10-23
 
 ### Segurança & Controle Operacional
