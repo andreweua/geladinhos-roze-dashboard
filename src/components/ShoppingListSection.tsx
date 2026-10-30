@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ShoppingCart,
   Plus,
@@ -28,6 +28,8 @@ import {
   Flame,
   LayoutGrid,
   Table as TableIcon,
+  Lock,
+  ShieldCheck,
 } from "lucide-react";
 import {
   ListaCompras,
@@ -55,8 +57,12 @@ import {
   saveRscGtinToken,
   loginRscSistemas,
   GtinProductInfo,
+  isOfficialProductItem,
+  getPendingEditRequestForProduct,
+  subscribeProductGovernanceChanges,
 } from "@/services/gtinService";
 import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
+import { ProductEditRequestModal, OfficialProductTarget } from "@/components/ProductEditRequestModal";
 import { IngredientSearchInput } from "@/components/ingredients/IngredientSearchInput";
 import { InsumoSearchResult } from "@/types/ingredients";
 import { formatCurrency } from "@/lib/utils";
@@ -93,6 +99,19 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     existingItem: ListaComprasItem;
     scannedGtin?: string;
   } | null>(null);
+  const [editRequestTarget, setEditRequestTarget] = useState<{
+    itemId?: string;
+    product: OfficialProductTarget;
+  } | null>(null);
+  const [, setGovernanceTick] = useState(0);
+
+  useEffect(() => {
+    const unsub = subscribeProductGovernanceChanges(() => {
+      setLists(loadShoppingLists());
+      setGovernanceTick((t) => t + 1);
+    });
+    return unsub;
+  }, []);
 
   // RSC Sistemas Config Modal State
   const [isRscModalOpen, setIsRscModalOpen] = useState(false);
@@ -191,6 +210,8 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     const newItem: ListaComprasItem = {
       id: `item-${Date.now()}`,
       insumo_nome: "Novo Insumo",
+      dados_oficiais: false,
+      fonte_dados: "manual",
       quantidade_necessaria: 1,
       unidade_compra: "un",
       unidade_medida: "g",
@@ -221,6 +242,7 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
       const prodInfo = await consultarProdutoPorGtin(clean);
       if (prodInfo) {
         const currentItem = activeList?.itens.find((i) => i.id === itemId);
+        const isOfficial = prodInfo.fonte !== "manual" && !prodInfo.nome.startsWith("Produto GTIN");
         const resolvedName =
           prodInfo.nome && !prodInfo.nome.startsWith("Produto GTIN")
             ? prodInfo.nome
@@ -239,6 +261,8 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
           insumo_nome: resolvedName,
           marca: resolvedBrand,
           foto_url: prodInfo.foto_url || currentItem?.foto_url,
+          dados_oficiais: isOfficial,
+          fonte_dados: isOfficial ? prodInfo.fonte : "manual",
           unidade_compra: currentItem?.unidade_compra || displayPkg.containerHint || "un",
           quantidade_embalagem: resolvedEmbQtd,
           unidade_embalagem: resolvedEmbUnit,
@@ -298,6 +322,7 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     // Se não existe, busca informações oficiais do GTIN e adiciona à lista
     try {
       const info = await consultarProdutoPorGtin(clean);
+      const isOfficial = Boolean(info && info.fonte !== "manual" && !info.nome.startsWith("Produto GTIN"));
       const resolvedName = (info?.nome || `Produto GTIN ${clean}`).toUpperCase();
       const displayPkg = parseDisplayPackaging(resolvedName);
       const embUnit = displayPkg.unidade || info?.unidade_medida || "g";
@@ -307,6 +332,8 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
         marca: info?.marca || "Genérico",
         gtin: clean,
         foto_url: info?.foto_url,
+        dados_oficiais: isOfficial,
+        fonte_dados: isOfficial ? info?.fonte : "manual",
         quantidade_necessaria: 1,
         unidade_compra: displayPkg.containerHint || "un",
         unidade_medida: embUnit,
@@ -355,6 +382,8 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
       insumo_nome: insumo.nomeFormatado, // STRICTLY UPPERCASE
       marca: insumo.marca,
       gtin: insumo.gtin,
+      dados_oficiais: true,
+      fonte_dados: insumo.origem === "rcsistemas_sincronizado" ? "rsc_sistemas" : "catalogo_local",
       quantidade_necessaria: 1,
       unidade_compra: displayPkg.containerHint || "un",
       unidade_medida: embUnit,
@@ -1024,6 +1053,27 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                   ? item.preco_atacado!
                   : item.preco_varejo || item.preco_cotado || item.preco_estimado || 0;
                 const subtotal = precoUnitarioAplicado * qtd;
+                const isOfficial = isOfficialProductItem(item);
+                const pendingReq = isOfficial
+                  ? getPendingEditRequestForProduct(item.gtin, item.insumo_nome)
+                  : undefined;
+
+                const openEditRequestForItem = () => {
+                  setEditRequestTarget({
+                    itemId: item.id,
+                    product: {
+                      gtin: item.gtin,
+                      nome_atual: item.insumo_nome,
+                      marca_atual: item.marca || "Geral",
+                      quantidade_embalagem_atual: item.quantidade_embalagem || 1,
+                      unidade_medida_atual: (item.unidade_embalagem ||
+                        item.unidade_medida ||
+                        "g") as "g" | "kg" | "ml" | "l" | "un",
+                      fonte_original:
+                        item.fonte_dados === "catalogo_local" ? "catalogo_local" : "rsc_sistemas",
+                    },
+                  });
+                };
 
                 return (
                   <div
@@ -1066,20 +1116,61 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                       )}
 
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={item.insumo_nome}
-                            onChange={(e) => handleUpdateItem(item.id, { insumo_nome: e.target.value })}
-                            placeholder="Nome do Insumo..."
-                            className={`w-full bg-transparent font-extrabold text-sm rounded px-1 py-0.5 focus:bg-background focus:border focus:border-primary focus:outline-none ${
-                              item.comprado ? "line-through text-muted-foreground" : "text-foreground"
-                            }`}
-                          />
-                        </div>
+                        {isOfficial ? (
+                          <div className="space-y-1">
+                            <div
+                              onClick={openEditRequestForItem}
+                              title="Produto oficial (RSC Sistemas / Banco de Dados). Edição direta bloqueada — clique para solicitar revisão caso haja divergência."
+                              className={`font-extrabold text-sm leading-snug px-1 py-0.5 cursor-pointer select-none ${
+                                item.comprado ? "line-through text-muted-foreground" : "text-foreground"
+                              }`}
+                            >
+                              {item.insumo_nome}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-1.5 px-1">
+                              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                                <Lock className="h-2.5 w-2.5" />
+                                Oficial RSC Sistemas
+                              </span>
+
+                              {pendingReq ? (
+                                <button
+                                  type="button"
+                                  onClick={openEditRequestForItem}
+                                  className="inline-flex items-center gap-1 rounded-md bg-primary/15 border border-primary/30 px-1.5 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/25 transition-colors"
+                                >
+                                  <Clock className="h-2.5 w-2.5 animate-pulse" />
+                                  Em análise pela PereiraLabs
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={openEditRequestForItem}
+                                  className="inline-flex items-center gap-1 rounded-md bg-secondary hover:bg-primary/15 border border-border hover:border-primary/40 px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors"
+                                >
+                                  <Edit2 className="h-2.5 w-2.5" />
+                                  Dados divergentes? Solicitar edição
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={item.insumo_nome}
+                              onChange={(e) => handleUpdateItem(item.id, { insumo_nome: e.target.value })}
+                              placeholder="Nome do Insumo..."
+                              className={`w-full bg-transparent font-extrabold text-sm rounded px-1 py-0.5 focus:bg-background focus:border focus:border-primary focus:outline-none ${
+                                item.comprado ? "line-through text-muted-foreground" : "text-foreground"
+                              }`}
+                            />
+                          </div>
+                        )}
 
                         {item.marca && (
-                          <span className="block text-[11px] text-muted-foreground px-1 font-medium">
+                          <span className="block text-[11px] text-muted-foreground px-1 font-medium mt-0.5">
                             Marca: <strong className="text-foreground/80">{item.marca}</strong>
                           </span>
                         )}
@@ -1113,12 +1204,14 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <input
                           type="text"
+                          readOnly={isOfficial}
                           value={item.gtin || ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            if (isOfficial) return;
                             handleUpdateItem(item.id, {
                               gtin: e.target.value.replace(/\D/g, ""),
-                            })
-                          }
+                            });
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && item.gtin) {
                               e.preventDefault();
@@ -1126,8 +1219,14 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                             }
                           }}
                           placeholder="Código GTIN/EAN..."
-                          title="Digite o código e busque ou tecle Enter"
-                          className="w-full bg-transparent font-mono text-xs text-foreground focus:outline-none"
+                          title={
+                            isOfficial
+                              ? "Código GTIN oficial vinculado ao RSC Sistemas"
+                              : "Digite o código e busque ou tecle Enter"
+                          }
+                          className={`w-full bg-transparent font-mono text-xs focus:outline-none ${
+                            isOfficial ? "text-muted-foreground cursor-not-allowed" : "text-foreground"
+                          }`}
                         />
                       </div>
 
@@ -1137,7 +1236,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                           onClick={() => handleSearchGtinForItem(item.id, item.gtin || "")}
                           disabled={!item.gtin || searchingGtinItemId === item.id}
                           className="rounded-lg bg-secondary px-2 py-1 text-primary hover:bg-primary hover:text-primary-foreground disabled:opacity-40 transition-colors text-[10px] font-bold flex items-center gap-1"
-                          title="Buscar dados do produto"
+                          title="Buscar ou sincronizar dados oficiais do produto"
                         >
                           {searchingGtinItemId === item.id ? (
                             <RefreshCw className="h-3 w-3 animate-spin" />
@@ -1147,18 +1246,20 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                           <span className="hidden sm:inline">Buscar</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setScanningTargetItemId(item.id);
-                            setScannerInitialMode("camera");
-                            setIsScannerOpen(true);
-                          }}
-                          className="rounded-lg bg-primary/10 p-1.5 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
-                          title="Escanear com a Câmera do Celular"
-                        >
-                          <Camera className="h-3.5 w-3.5" />
-                        </button>
+                        {!isOfficial && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setScanningTargetItemId(item.id);
+                              setScannerInitialMode("camera");
+                              setIsScannerOpen(true);
+                            }}
+                            className="rounded-lg bg-primary/10 p-1.5 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                            title="Escanear com a Câmera do Celular"
+                          >
+                            <Camera className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -1205,41 +1306,68 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                       </div>
 
                       {/* Embalagem / Tamanho (Peso/Volume do Produto: 395g, 1L, 1.01kg...) */}
-                      <div className="rounded-xl border border-border/70 bg-secondary/30 p-2">
-                        <span className="text-[10px] font-semibold text-muted-foreground block mb-1">
-                          Embalagem / Tamanho
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            step="any"
-                            value={item.quantidade_embalagem || ""}
-                            onChange={(e) =>
-                              handleUpdateItem(item.id, {
-                                quantidade_embalagem: parseFloat(e.target.value) || undefined,
-                              })
-                            }
-                            placeholder="395"
-                            className="w-full rounded-lg border border-input bg-background px-2 py-1 text-center font-bold text-xs focus:border-primary focus:outline-none"
-                          />
-                          <select
-                            value={item.unidade_embalagem || item.unidade_medida || "g"}
-                            onChange={(e) =>
-                              handleUpdateItem(item.id, {
-                                unidade_embalagem: e.target.value,
-                                unidade_medida: e.target.value,
-                              })
-                            }
-                            title="Unidade de medida do tamanho/peso da embalagem (ex: g, kg, ml, L)"
-                            className="rounded-lg border border-input bg-background px-1.5 py-1 text-xs font-bold focus:border-primary focus:outline-none"
-                          >
-                            <option value="g">g</option>
-                            <option value="kg">kg</option>
-                            <option value="ml">ml</option>
-                            <option value="l">L</option>
-                            <option value="un">un</option>
-                          </select>
+                      <div
+                        className={`rounded-xl border p-2 ${
+                          isOfficial
+                            ? "border-amber-500/25 bg-amber-500/5"
+                            : "border-border/70 bg-secondary/30"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-semibold text-muted-foreground">
+                            Embalagem / Tamanho
+                          </span>
+                          {isOfficial && (
+                            <span title="Tamanho da embalagem oficial RSC Sistemas (para corrigir, solicite edição à PereiraLabs)">
+                              <Lock className="h-2.5 w-2.5 text-amber-500 shrink-0" />
+                            </span>
+                          )}
                         </div>
+                        {isOfficial ? (
+                          <div
+                            onClick={openEditRequestForItem}
+                            title="Dado oficial RSC Sistemas. Clique para solicitar correção à PereiraLabs caso divergente."
+                            className="flex items-center justify-between rounded-lg border border-border/70 bg-background/70 px-2.5 py-1 text-xs font-bold text-foreground cursor-pointer hover:border-primary/40"
+                          >
+                            <span>
+                              {item.quantidade_embalagem || 1}{" "}
+                              {item.unidade_embalagem || item.unidade_medida || "g"}
+                            </span>
+                            <Edit2 className="h-3 w-3 text-muted-foreground" />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              step="any"
+                              value={item.quantidade_embalagem || ""}
+                              onChange={(e) =>
+                                handleUpdateItem(item.id, {
+                                  quantidade_embalagem: parseFloat(e.target.value) || undefined,
+                                })
+                              }
+                              placeholder="395"
+                              className="w-full rounded-lg border border-input bg-background px-2 py-1 text-center font-bold text-xs focus:border-primary focus:outline-none"
+                            />
+                            <select
+                              value={item.unidade_embalagem || item.unidade_medida || "g"}
+                              onChange={(e) =>
+                                handleUpdateItem(item.id, {
+                                  unidade_embalagem: e.target.value,
+                                  unidade_medida: e.target.value,
+                                })
+                              }
+                              title="Unidade de medida do tamanho/peso da embalagem (ex: g, kg, ml, L)"
+                              className="rounded-lg border border-input bg-background px-1.5 py-1 text-xs font-bold focus:border-primary focus:outline-none"
+                            >
+                              <option value="g">g</option>
+                              <option value="kg">kg</option>
+                              <option value="ml">ml</option>
+                              <option value="l">L</option>
+                              <option value="un">un</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1355,6 +1483,29 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                       ? item.preco_atacado!
                       : item.preco_varejo || item.preco_cotado || item.preco_estimado || 0;
                     const subtotal = precoUnitarioAplicado * qtd;
+                    const isOfficial = isOfficialProductItem(item);
+                    const pendingReq = isOfficial
+                      ? getPendingEditRequestForProduct(item.gtin, item.insumo_nome)
+                      : undefined;
+
+                    const openEditRequestForItem = () => {
+                      setEditRequestTarget({
+                        itemId: item.id,
+                        product: {
+                          gtin: item.gtin,
+                          nome_atual: item.insumo_nome,
+                          marca_atual: item.marca || "Geral",
+                          quantidade_embalagem_atual: item.quantidade_embalagem || 1,
+                          unidade_medida_atual: (item.unidade_embalagem ||
+                            item.unidade_medida ||
+                            "g") as "g" | "kg" | "ml" | "l" | "un",
+                          fonte_original:
+                            item.fonte_dados === "catalogo_local"
+                              ? "catalogo_local"
+                              : "rsc_sistemas",
+                        },
+                      });
+                    };
 
                     return (
                       <tr
@@ -1386,14 +1537,42 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                               />
                             )}
                             <div className="flex-1 min-w-0">
-                              <input
-                                type="text"
-                                value={item.insumo_nome}
-                                onChange={(e) => handleUpdateItem(item.id, { insumo_nome: e.target.value })}
-                                className={`w-full bg-transparent font-bold text-xs focus:bg-background focus:border focus:border-primary rounded px-1.5 py-0.5 ${
-                                  item.comprado ? "line-through text-muted-foreground" : "text-foreground"
-                                }`}
-                              />
+                              {isOfficial ? (
+                                <div className="space-y-0.5 px-1.5">
+                                  <div
+                                    onClick={openEditRequestForItem}
+                                    className={`font-bold text-xs cursor-pointer ${
+                                      item.comprado ? "line-through text-muted-foreground" : "text-foreground"
+                                    }`}
+                                    title="Produto oficial RSC Sistemas (não editável diretamente)"
+                                  >
+                                    {item.insumo_nome}
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    <span className="inline-flex items-center gap-0.5 rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">
+                                      <Lock className="h-2.5 w-2.5" />
+                                      Oficial RSC
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={openEditRequestForItem}
+                                      className="inline-flex items-center gap-0.5 rounded bg-secondary hover:bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold text-primary transition-colors"
+                                    >
+                                      <Edit2 className="h-2.5 w-2.5" />
+                                      {pendingReq ? "Em análise PereiraLabs" : "Solicitar edição"}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={item.insumo_nome}
+                                  onChange={(e) => handleUpdateItem(item.id, { insumo_nome: e.target.value })}
+                                  className={`w-full bg-transparent font-bold text-xs focus:bg-background focus:border focus:border-primary rounded px-1.5 py-0.5 ${
+                                    item.comprado ? "line-through text-muted-foreground" : "text-foreground"
+                                  }`}
+                                />
+                              )}
                               {item.marca && (
                                 <span className="block text-[10px] text-muted-foreground px-1.5">
                                   Marca: {item.marca}
@@ -1417,12 +1596,14 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                           <div className="flex items-center gap-1">
                             <input
                               type="text"
+                              readOnly={isOfficial}
                               value={item.gtin || ""}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                if (isOfficial) return;
                                 handleUpdateItem(item.id, {
                                   gtin: e.target.value.replace(/\D/g, ""),
-                                })
-                              }
+                                });
+                              }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" && item.gtin) {
                                   e.preventDefault();
@@ -1430,8 +1611,14 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                                 }
                               }}
                               placeholder="Código EAN..."
-                              title="Digite o código e tecle Enter ou use a lupa para buscar na RSC Sistemas"
-                              className="w-28 rounded-lg border border-input bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
+                              title={
+                                isOfficial
+                                  ? "Código GTIN oficial RSC Sistemas"
+                                  : "Digite o código e tecle Enter ou use a lupa para buscar na RSC Sistemas"
+                              }
+                              className={`w-28 rounded-lg border border-input bg-background px-2 py-1 font-mono text-[11px] focus:border-primary focus:outline-none ${
+                                isOfficial ? "text-muted-foreground cursor-not-allowed" : "text-foreground"
+                              }`}
                             />
                             {/* Buscar no RSC Sistemas / Catálogo */}
                             <button
@@ -1447,32 +1634,36 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                                 <Search className="h-3 w-3" />
                               )}
                             </button>
-                            {/* Digitar no modal */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setScanningTargetItemId(item.id);
-                                setScannerInitialMode("manual");
-                                setIsScannerOpen(true);
-                              }}
-                              className="rounded-md bg-secondary p-1 text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
-                              title="Digitar código com teclado ampliado"
-                            >
-                              <Edit2 className="h-3 w-3" />
-                            </button>
-                            {/* Câmera */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setScanningTargetItemId(item.id);
-                                setScannerInitialMode("camera");
-                                setIsScannerOpen(true);
-                              }}
-                              className="rounded-md bg-secondary p-1 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
-                              title="Escanear com a Câmera"
-                            >
-                              <Camera className="h-3 w-3" />
-                            </button>
+                            {!isOfficial && (
+                              <>
+                                {/* Digitar no modal */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setScanningTargetItemId(item.id);
+                                    setScannerInitialMode("manual");
+                                    setIsScannerOpen(true);
+                                  }}
+                                  className="rounded-md bg-secondary p-1 text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
+                                  title="Digitar código com teclado ampliado"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </button>
+                                {/* Câmera */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setScanningTargetItemId(item.id);
+                                    setScannerInitialMode("camera");
+                                    setIsScannerOpen(true);
+                                  }}
+                                  className="rounded-md bg-secondary p-1 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                                  title="Escanear com a Câmera"
+                                >
+                                  <Camera className="h-3 w-3" />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
 
@@ -1513,37 +1704,51 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         </td>
 
                         <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              step="any"
-                              value={item.quantidade_embalagem || ""}
-                              onChange={(e) =>
-                                handleUpdateItem(item.id, {
-                                  quantidade_embalagem: parseFloat(e.target.value) || undefined,
-                                })
-                              }
-                              placeholder="395"
-                              className="w-16 rounded border border-input bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
-                            />
-                            <select
-                              value={item.unidade_embalagem || item.unidade_medida || "g"}
-                              onChange={(e) =>
-                                handleUpdateItem(item.id, {
-                                  unidade_embalagem: e.target.value,
-                                  unidade_medida: e.target.value,
-                                })
-                              }
-                              title="Unidade do tamanho da embalagem (g, kg, ml, L)"
-                              className="rounded border border-input bg-background px-1.5 py-1 text-xs focus:border-primary focus:outline-none"
+                          {isOfficial ? (
+                            <div
+                              onClick={openEditRequestForItem}
+                              title="Embalagem oficial RSC Sistemas. Clique para solicitar correção à PereiraLabs."
+                              className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-xs font-bold text-foreground cursor-pointer"
                             >
-                              <option value="g">g</option>
-                              <option value="kg">kg</option>
-                              <option value="ml">ml</option>
-                              <option value="l">L</option>
-                              <option value="un">un</option>
-                            </select>
-                          </div>
+                              <Lock className="h-2.5 w-2.5 text-amber-500" />
+                              <span>
+                                {item.quantidade_embalagem || 1}
+                                {item.unidade_embalagem || item.unidade_medida || "g"}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                step="any"
+                                value={item.quantidade_embalagem || ""}
+                                onChange={(e) =>
+                                  handleUpdateItem(item.id, {
+                                    quantidade_embalagem: parseFloat(e.target.value) || undefined,
+                                  })
+                                }
+                                placeholder="395"
+                                className="w-16 rounded border border-input bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
+                              />
+                              <select
+                                value={item.unidade_embalagem || item.unidade_medida || "g"}
+                                onChange={(e) =>
+                                  handleUpdateItem(item.id, {
+                                    unidade_embalagem: e.target.value,
+                                    unidade_medida: e.target.value,
+                                  })
+                                }
+                                title="Unidade do tamanho da embalagem (g, kg, ml, L)"
+                                className="rounded border border-input bg-background px-1.5 py-1 text-xs focus:border-primary focus:outline-none"
+                              >
+                                <option value="g">g</option>
+                                <option value="kg">kg</option>
+                                <option value="ml">ml</option>
+                                <option value="l">L</option>
+                                <option value="un">un</option>
+                              </select>
+                            </div>
+                          )}
                         </td>
 
                         <td className="py-2.5 px-3 text-right">
@@ -2191,6 +2396,35 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
         }}
         onScanSuccess={handleBarcodeScanForItem}
         title="Escanear Código GTIN / EAN do Produto"
+      />
+
+      {/* Modal de Solicitação de Correção de Produto Oficial (Aprovação Exclusiva PereiraLabs) */}
+      <ProductEditRequestModal
+        isOpen={Boolean(editRequestTarget)}
+        onClose={() => setEditRequestTarget(null)}
+        product={editRequestTarget?.product || null}
+        onSuccess={({ action, updatedData }) => {
+          if (action === "approved" && updatedData && editRequestTarget?.itemId) {
+            handleUpdateItem(editRequestTarget.itemId, {
+              insumo_nome: updatedData.nome,
+              marca: updatedData.marca,
+              quantidade_embalagem: updatedData.quantidade_embalagem,
+              unidade_embalagem: updatedData.unidade_medida,
+              unidade_medida: updatedData.unidade_medida,
+              dados_oficiais: true,
+            });
+            setGtinFeedback(
+              `✅ Produto oficial atualizado e aprovado pela PereiraLabs: ${updatedData.nome}`
+            );
+          } else if (action === "requested") {
+            setGtinFeedback(
+              `⏳ Solicitação de revisão enviada! Somente a PereiraLabs pode aprovar alterações em produtos oficiais.`
+            );
+          }
+          setLists(loadShoppingLists());
+          setGovernanceTick((t) => t + 1);
+          setTimeout(() => setGtinFeedback(null), 5000);
+        }}
       />
     </div>
   );

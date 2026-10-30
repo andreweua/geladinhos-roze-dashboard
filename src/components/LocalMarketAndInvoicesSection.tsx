@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Store,
   MapPin,
@@ -28,6 +28,7 @@ import {
   ShoppingCart,
   Upload,
   Key,
+  Lock,
 } from "lucide-react";
 import {
   Card,
@@ -61,12 +62,15 @@ import {
   calculateWeightedAverageCost,
 } from "@/services/marketSurveyService";
 import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
+import { ProductEditRequestModal, OfficialProductTarget } from "@/components/ProductEditRequestModal";
 import { ShoppingListSection } from "@/components/ShoppingListSection";
 import {
   consultarProdutoPorGtin,
   getRscGtinToken,
   saveRscGtinToken,
   loginRscSistemas,
+  getPendingEditRequestForProduct,
+  subscribeProductGovernanceChanges,
 } from "@/services/gtinService";
 
 interface LocalMarketAndInvoicesSectionProps {
@@ -126,6 +130,8 @@ export const LocalMarketAndInvoicesSection: React.FC<
     marca: "",
     gtin: "",
     foto_url: "",
+    dados_oficiais: false as boolean,
+    fonte_dados: "manual" as "rsc_sistemas" | "catalogo_local" | "manual",
     quantidade_embalagem: 395,
     unidade_medida: "g" as PesquisaPrecoLocal["unidade_medida"],
     preco_pesquisado: 4.89,
@@ -142,6 +148,14 @@ export const LocalMarketAndInvoicesSection: React.FC<
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isSearchingGtin, setIsSearchingGtin] = useState(false);
   const [gtinSearchFeedback, setGtinSearchFeedback] = useState<string | null>(null);
+  const [editRequestModalProduct, setEditRequestModalProduct] = useState<OfficialProductTarget | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeProductGovernanceChanges(() => {
+      setPesquisas(loadPesquisasPreco());
+    });
+    return unsub;
+  }, []);
   const [rscTokenModalOpen, setRscTokenModalOpen] = useState(false);
   const [rscTokenInput, setRscTokenInput] = useState(() => getRscGtinToken());
   const [rscEmailInput, setRscEmailInput] = useState(() => BRAND_CONFIG.rscGtinConfig?.email || "ANDREWEUA@GMAIL.COM");
@@ -252,6 +266,7 @@ export const LocalMarketAndInvoicesSection: React.FC<
     try {
       const info = await consultarProdutoPorGtin(clean);
       if (info) {
+        const isOfficial = info.fonte !== "manual" && !info.nome.startsWith("Produto GTIN");
         setPesquisaForm((prev) => ({
           ...prev,
           gtin: clean,
@@ -260,9 +275,13 @@ export const LocalMarketAndInvoicesSection: React.FC<
           quantidade_embalagem: info.quantidade_embalagem || prev.quantidade_embalagem,
           unidade_medida: info.unidade_medida || prev.unidade_medida,
           foto_url: info.foto_url || prev.foto_url,
+          dados_oficiais: isOfficial,
+          fonte_dados: isOfficial ? info.fonte : "manual",
         }));
         setGtinSearchFeedback(
-          `Identificado (${info.fonte === "rsc_sistemas" ? "API RSC Sistemas" : "Catálogo Oficial"}): ${info.nome}`
+          isOfficial
+            ? `🔒 Produto Oficial Identificado (${info.fonte === "rsc_sistemas" ? "API RSC Sistemas" : "Catálogo Oficial"}): ${info.nome}`
+            : `Código GTIN ${clean} não consta na base oficial. Preencha os dados manualmente.`
         );
       } else {
         setGtinSearchFeedback("Código GTIN não localizado. Preencha os campos abaixo.");
@@ -317,6 +336,8 @@ export const LocalMarketAndInvoicesSection: React.FC<
       marca: "",
       gtin: "",
       foto_url: "",
+      dados_oficiais: false,
+      fonte_dados: "manual",
       quantidade_embalagem: 395,
       unidade_medida: "g",
       preco_pesquisado: 4.89,
@@ -370,6 +391,8 @@ export const LocalMarketAndInvoicesSection: React.FC<
       em_promocao: pesquisaForm.em_promocao,
       gtin: pesquisaForm.gtin?.trim() || undefined,
       foto_url: pesquisaForm.foto_url?.trim() || undefined,
+      dados_oficiais: pesquisaForm.dados_oficiais,
+      fonte_dados: pesquisaForm.fonte_dados,
       observacoes: pesquisaForm.observacoes.trim() || undefined,
     });
 
@@ -1810,7 +1833,16 @@ export const LocalMarketAndInvoicesSection: React.FC<
                     {pesquisaForm.gtin && (
                       <button
                         type="button"
-                        onClick={() => setPesquisaForm((prev) => ({ ...prev, gtin: "", foto_url: "" }))}
+                        onClick={() =>
+                          setPesquisaForm((prev) => ({
+                            ...prev,
+                            gtin: "",
+                            foto_url: "",
+                            dados_oficiais: false,
+                            fonte_dados: "manual",
+                          }))
+                        }
+                        title="Limpar GTIN e desbloquear para cadastro manual"
                         className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -1859,6 +1891,41 @@ export const LocalMarketAndInvoicesSection: React.FC<
                   </div>
                 )}
 
+                {pesquisaForm.dados_oficiais && (
+                  <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 p-2.5 text-[11px] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-300 font-bold">
+                      <Lock className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        Dados Oficiais RSC Sistemas / Banco de Dados (Não editáveis diretamente)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setEditRequestModalProduct({
+                          gtin: pesquisaForm.gtin,
+                          nome_atual: pesquisaForm.insumo_nome,
+                          marca_atual: pesquisaForm.marca || "Geral",
+                          quantidade_embalagem_atual: Number(pesquisaForm.quantidade_embalagem) || 1,
+                          unidade_medida_atual: pesquisaForm.unidade_medida,
+                          fonte_original:
+                            pesquisaForm.fonte_dados === "catalogo_local"
+                              ? "catalogo_local"
+                              : "rsc_sistemas",
+                        })
+                      }
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-amber-600 hover:bg-amber-700 px-2.5 py-1 text-[10px] font-bold text-white shadow-xs shrink-0 transition-colors"
+                    >
+                      <Edit2 className="h-3 w-3" />
+                      <span>
+                        {getPendingEditRequestForProduct(pesquisaForm.gtin, pesquisaForm.insumo_nome)
+                          ? "Em análise pela PereiraLabs"
+                          : "Dados divergentes? Solicitar edição"}
+                      </span>
+                    </button>
+                  </div>
+                )}
+
                 {pesquisaForm.foto_url && (
                   <div className="flex items-center gap-3 pt-1 border-t border-border/60">
                     <img
@@ -1878,22 +1945,36 @@ export const LocalMarketAndInvoicesSection: React.FC<
               </div>
 
               <div>
-                <label className="block font-semibold text-foreground">
-                  Insumo / Ingrediente *:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block font-semibold text-foreground">
+                    Insumo / Ingrediente *:
+                  </label>
+                  {pesquisaForm.dados_oficiais && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                      <Lock className="h-2.5 w-2.5" />
+                      Bloqueado (Oficial RSC)
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   required
-                  list="common-ingredients-list-modal"
+                  readOnly={pesquisaForm.dados_oficiais}
+                  list={pesquisaForm.dados_oficiais ? undefined : "common-ingredients-list-modal"}
                   value={pesquisaForm.insumo_nome}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    if (pesquisaForm.dados_oficiais) return;
                     setPesquisaForm((prev) => ({
                       ...prev,
                       insumo_nome: e.target.value,
-                    }))
-                  }
+                    }));
+                  }}
                   placeholder="Ex: Leite Condensado"
-                  className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                  className={`mt-1 w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                    pesquisaForm.dados_oficiais
+                      ? "border-amber-500/30 bg-secondary/60 font-bold text-foreground cursor-not-allowed"
+                      : "border-input bg-background focus:border-primary"
+                  }`}
                 />
                 <datalist id="common-ingredients-list-modal">
                   {commonIngredients.map((ing) => (
@@ -1904,20 +1985,27 @@ export const LocalMarketAndInvoicesSection: React.FC<
 
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1">
-                  <label className="block font-semibold text-foreground">
-                    Marca / Linha:
+                  <label className="block font-semibold text-foreground flex items-center justify-between">
+                    <span>Marca / Linha:</span>
+                    {pesquisaForm.dados_oficiais && <Lock className="h-2.5 w-2.5 text-amber-500" />}
                   </label>
                   <input
                     type="text"
+                    readOnly={pesquisaForm.dados_oficiais}
                     value={pesquisaForm.marca}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      if (pesquisaForm.dados_oficiais) return;
                       setPesquisaForm((prev) => ({
                         ...prev,
                         marca: e.target.value,
-                      }))
-                    }
+                      }));
+                    }}
                     placeholder="Ex: Piracanjuba TP"
-                    className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      pesquisaForm.dados_oficiais
+                        ? "border-amber-500/30 bg-secondary/60 font-bold text-foreground cursor-not-allowed"
+                        : "border-input bg-background focus:border-primary"
+                    }`}
                   />
                 </div>
 
@@ -1961,38 +2049,52 @@ export const LocalMarketAndInvoicesSection: React.FC<
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold text-foreground">
-                    Qtd. Embalagem:
+                  <label className="block font-semibold text-foreground flex items-center justify-between">
+                    <span>Qtd. Embalagem:</span>
+                    {pesquisaForm.dados_oficiais && <Lock className="h-2.5 w-2.5 text-amber-500" />}
                   </label>
                   <input
                     type="number"
                     step="any"
                     required
+                    readOnly={pesquisaForm.dados_oficiais}
                     value={pesquisaForm.quantidade_embalagem}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      if (pesquisaForm.dados_oficiais) return;
                       setPesquisaForm((prev) => ({
                         ...prev,
                         quantidade_embalagem: Number(e.target.value),
-                      }))
-                    }
+                      }));
+                    }}
                     placeholder="395"
-                    className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      pesquisaForm.dados_oficiais
+                        ? "border-amber-500/30 bg-secondary/60 font-bold text-foreground cursor-not-allowed"
+                        : "border-input bg-background focus:border-primary"
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-foreground">
-                    Unidade:
+                  <label className="block font-semibold text-foreground flex items-center justify-between">
+                    <span>Unidade:</span>
+                    {pesquisaForm.dados_oficiais && <Lock className="h-2.5 w-2.5 text-amber-500" />}
                   </label>
                   <select
+                    disabled={pesquisaForm.dados_oficiais}
                     value={pesquisaForm.unidade_medida}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      if (pesquisaForm.dados_oficiais) return;
                       setPesquisaForm((prev) => ({
                         ...prev,
                         unidade_medida: e.target.value as PesquisaPrecoLocal["unidade_medida"],
-                      }))
-                    }
-                    className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs focus:border-primary focus:outline-none"
+                      }));
+                    }}
+                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
+                      pesquisaForm.dados_oficiais
+                        ? "border-amber-500/30 bg-secondary/60 font-bold text-foreground cursor-not-allowed"
+                        : "border-input bg-background focus:border-primary"
+                    }`}
                   >
                     <option value="g">Gramas (g)</option>
                     <option value="kg">Quilos (kg)</option>
@@ -2279,6 +2381,33 @@ export const LocalMarketAndInvoicesSection: React.FC<
         onClose={() => setIsScannerOpen(false)}
         onScanSuccess={handleBarcodeScanned}
         title="Escanear Código GTIN / EAN do Produto"
+      />
+
+      {/* Modal de Solicitação de Correção de Produto Oficial (Aprovação Exclusiva PereiraLabs) */}
+      <ProductEditRequestModal
+        isOpen={Boolean(editRequestModalProduct)}
+        onClose={() => setEditRequestModalProduct(null)}
+        product={editRequestModalProduct}
+        onSuccess={({ action, updatedData }) => {
+          if (action === "approved" && updatedData) {
+            setPesquisaForm((prev) => ({
+              ...prev,
+              insumo_nome: updatedData.nome,
+              marca: updatedData.marca,
+              quantidade_embalagem: updatedData.quantidade_embalagem,
+              unidade_medida: updatedData.unidade_medida,
+              dados_oficiais: true,
+            }));
+            setGtinSearchFeedback(
+              `✅ Produto oficial atualizado e aprovado pela PereiraLabs: ${updatedData.nome}`
+            );
+          } else if (action === "requested") {
+            setGtinSearchFeedback(
+              `⏳ Solicitação enviada para a PereiraLabs! Os dados oficiais serão atualizados após aprovação.`
+            );
+          }
+          setPesquisas(loadPesquisasPreco());
+        }}
       />
     </section>
   );

@@ -1,8 +1,8 @@
 # 🍧 Geladinhos Gourmet da Roze — Sistema de Gestão, PDV, Cotações & Inteligência Artificial
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-3.5.6-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-3.5.7-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v50%29-38bdf8)
+![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v51%29-38bdf8)
 ![RSC Sistemas](https://img.shields.io/badge/GTIN%20%2F%20EAN--13-RSC%20Sistemas%20%2B%20Fotos-f59e0b)
 ![Atacado e Varejo](https://img.shields.io/badge/Cota%C3%A7%C3%B5es-Atacado%20%26%20Varejo-8b5cf6)
 ![Segurança de Caixa](https://img.shields.io/badge/Caixa-Abertura%20Obrigat%C3%B3ria-10b981)
@@ -16,7 +16,7 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 
 ---
 
-## 🚀 Destaques das Versões 3.5.x (Última Atualização: v3.5.6)
+## 🚀 Destaques das Versões 3.5.x (Última Atualização: v3.5.7)
 
 ### 1. 🛒 Lista de Compras & Cotações em Cards Mobile-First (Atacado & Varejo)
 - **Layout em Cards Responsivos**: Visualização otimizada para telas de celulares e PWA, eliminando rolagem horizontal e compressão de tabelas. Permite alternar com um toque entre **Cards (Recomendado)** e **Tabela**.
@@ -30,10 +30,12 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
   - Parser monetário compatível tanto com formato brasileiro (`5,78` / `1.250,50`) quanto internacional (`5.49`), sem multiplicar valores decimais.
   - Suporte a colagem direta de múltiplas tabelas concatenadas (Modelo Oficial + planilhas de cotação de atacarejos como *Mart Minas*, *Tenda* e *Atacadão*).
 
-### 2. 🔍 Scanner GTIN / EAN-13 Integrado à RSC Sistemas & Fotos Reais
+### 2. 🔍 Scanner GTIN / EAN-13 Integrado à RSC Sistemas, Fotos Reais & Governança PereiraLabs
 - **Autenticação Automática RSC Sistemas (API v3)**: Integração direta com o portal `gtin.rscsistemas.com.br` e fallback para o catálogo aberto *Open Food Facts Brasil*.
 - **Exibição de Fotos Oficiais das Embalagens**: Carregamento automático da miniatura real do produto nos Cards e na Tabela da Lista de Compras ao escanear ou buscar um código de barras.
-- **Extração Inteligente de Marca e Gramatura**: Identifica automaticamente marca, categoria, peso líquido e volume a partir da descrição oficial do GTIN.
+- **Proteção de Dados Oficiais & Aprovação Exclusiva PereiraLabs**:
+  - Quando um produto é localizado na **RSC Sistemas** ou no **Banco de Dados Oficial**, seus dados cadastrais (Nome, Marca, GTIN e Embalagem/Tamanho) ficam protegidos (`🔒 Oficial RSC Sistemas`) contra edição direta, pois não foram cadastrados manualmente pelo usuário.
+  - Caso o usuário encontre dados divergentes na embalagem física, ele pode clicar em **"Dados divergentes? Solicitar edição"**, enviando uma solicitação que **somente a PereiraLabs pode aprovar** no Painel Master (`Aprovação de Produtos RSC`).
 
 ### 3. 🎨 Estúdio Culinário IA (Fidelidade ao Produto Real na Sacolinha)
 - **Apresentação Fiel em Saquinho de Geladinho (6x24cm)**: Geração de imagens promocionais com seleção do formato real do produto (**No Saquinho Tradicional Transparente**, **Saquinho Cortado Mostrando a Cremosa Calda/Recheio** ou **Taça Gourmet**).
@@ -41,7 +43,7 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 
 ### 4. 🔔 Sistema de Atualização OTA (Over-The-Air) & APK Android
 - **Notificação Sonora, Tátil e Visual**: Aviso de nova versão com chime melódico sintetizado via *Web Audio API*, vibração háptica e botão claro para **Fechar Notificação** (persistindo o fechamento na sessão sem reabrir sozinho).
-- **Rastreabilidade Técnica no Rodapé**: Exibição exata da versão instalada em execução (`Versão: v3.5.6 • Build: 2026103006 • Ambiente: PWA Web App / Android Nativo versionCode 50`).
+- **Rastreabilidade Técnica no Rodapé**: Exibição exata da versão instalada em execução (`Versão: v3.5.7 • Build: 2026103007 • Ambiente: PWA Web App / Android Nativo versionCode 51`).
 - **Links Permanentes de Atualização Android**: Botões diretos para baixar o `.APK` atualizado disponíveis no rodapé do sistema, no alerta de atualização e na janela **Novidades ✨**.
 
 ---

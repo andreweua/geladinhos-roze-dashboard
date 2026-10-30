@@ -7,6 +7,17 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.5.7] - 2026-10-30
+
+### Adicionado & Governança de Catálogo
+- **Proteção de Dados Oficiais (RSC Sistemas & Banco de Dados PereiraLabs)**:
+  - Produtos retornados pela busca de código de barras (RSC Sistemas API v3) ou pelo banco de dados oficial (`IngredientSearchInput`) agora têm seus campos cadastrais (**Nome do Produto**, **Marca**, **GTIN/EAN** e **Embalagem / Tamanho**) bloqueados (`🔒 Oficial RSC Sistemas`) contra edição direta pelo usuário, mantendo editáveis apenas a quantidade de compra e os preços de varejo/atacado.
+- **Solicitação de Edição com Aprovação Exclusiva da PereiraLabs**:
+  - Caso o usuário encontre dados divergentes na embalagem física, ele pode clicar em **"Dados divergentes? Solicitar edição"**, enviando a correção sugerida e o motivo da divergência.
+  - A aprovação é **exclusiva da PereiraLabs** através da nova aba **"Aprovação de Produtos RSC"** no Painel Master da PereiraLabs (`PereiraLabsMasterModal`), atualizando automaticamente o catálogo oficial e as listas/cotações vinculadas assim que aprovada.
+
+---
+
 ## [3.5.6] - 2026-10-30
 
 ### Adicionado & Corrigido

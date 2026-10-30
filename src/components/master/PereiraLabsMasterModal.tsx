@@ -72,6 +72,13 @@ import {
   getEmpresasFaturamento,
   updateEmpresaFaturamento,
 } from "@/services/billingService";
+import {
+  getProductEditRequests,
+  approveProductEditRequest,
+  rejectProductEditRequest,
+  subscribeProductGovernanceChanges,
+  SolicitacaoEdicaoProdutoOficial,
+} from "@/services/gtinService";
 
 function parseInitialProducts(text: string): Array<{ nome: string; preco_venda: number }> {
   const lines = text.split("\n");
@@ -114,10 +121,26 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState<CompanyLifecycleStatus>("ativa");
-  const [masterSection, setMasterSection] = useState<"empresas" | "faturamento" | "sincronizacao">("empresas");
+  const [masterSection, setMasterSection] = useState<
+    "empresas" | "faturamento" | "sincronizacao" | "aprovacoes_gtin"
+  >("empresas");
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
   const [importJsonText, setImportJsonText] = useState("");
   const [copiedSyncLink, setCopiedSyncLink] = useState(false);
+  const [productEditRequests, setProductEditRequests] = useState<
+    SolicitacaoEdicaoProdutoOficial[]
+  >(() => getProductEditRequests());
+  const [requestStatusFilter, setRequestStatusFilter] = useState<
+    "todos" | "pendente" | "aprovado" | "rejeitado"
+  >("pendente");
+
+  useEffect(() => {
+    setProductEditRequests(getProductEditRequests());
+    const unsub = subscribeProductGovernanceChanges(() => {
+      setProductEditRequests(getProductEditRequests());
+    });
+    return unsub;
+  }, [isOpen]);
 
   // Sincroniza e recarrega a lista de empresas sempre que o painel abrir
   useEffect(() => {
@@ -555,12 +578,225 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
               QR Code / OTA
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setMasterSection("aprovacoes_gtin")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+              masterSection === "aprovacoes_gtin"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            <Package className="h-4 w-4 text-emerald-500" />
+            <span>Aprovação de Produtos RSC</span>
+            {productEditRequests.filter((r) => r.status === "pendente").length > 0 ? (
+              <span className="rounded-full bg-rose-500 text-white px-2 py-0.5 text-[10px] font-black animate-pulse">
+                {productEditRequests.filter((r) => r.status === "pendente").length} Pendente(s)
+              </span>
+            ) : (
+              <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold">
+                Catálogo Oficial
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {masterSection === "faturamento" ? (
             <BillingManagementModule />
+          ) : masterSection === "aprovacoes_gtin" ? (
+            <div className="space-y-5 animate-in fade-in">
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/80 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 shadow-sm">
+                      <ShieldCheck className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-foreground">
+                        Curadoria Oficial & Aprovação de Produtos (RSC Sistemas / Banco de Dados)
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Produtos oficiais da RSC Sistemas ou do banco de dados são bloqueados para edição direta pelo usuário. Revise e aprove abaixo as solicitações de correção enviadas quando houver divergência na embalagem.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    {(["pendente", "aprovado", "rejeitado", "todos"] as const).map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => setRequestStatusFilter(st)}
+                        className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                          requestStatusFilter === st
+                            ? "bg-primary text-primary-foreground shadow-xs"
+                            : "bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {st === "pendente"
+                          ? `Pendentes (${productEditRequests.filter((r) => r.status === "pendente").length})`
+                          : st === "aprovado"
+                          ? `Aprovadas (${productEditRequests.filter((r) => r.status === "aprovado").length})`
+                          : st === "rejeitado"
+                          ? `Recusadas (${productEditRequests.filter((r) => r.status === "rejeitado").length})`
+                          : `Todas (${productEditRequests.length})`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {productEditRequests.filter((r) =>
+                  requestStatusFilter === "todos" ? true : r.status === requestStatusFilter
+                ).length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-border p-10 text-center text-xs text-muted-foreground space-y-2">
+                    <ShieldCheck className="h-8 w-8 mx-auto text-emerald-500/60" />
+                    <p className="font-bold text-foreground">
+                      Nenhuma solicitação de revisão encontrada neste filtro.
+                    </p>
+                    <p>
+                      Quando um usuário encontrar dados divergentes em um produto oficial do RSC Sistemas e clicar em "Solicitar edição", o pedido aparecerá aqui para aprovação exclusiva da PereiraLabs.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {productEditRequests
+                      .filter((r) =>
+                        requestStatusFilter === "todos" ? true : r.status === requestStatusFilter
+                      )
+                      .map((req) => (
+                        <div
+                          key={req.id}
+                          className={`rounded-2xl border p-4 space-y-3 text-xs ${
+                            req.status === "pendente"
+                              ? "border-amber-500/40 bg-amber-500/5"
+                              : req.status === "aprovado"
+                              ? "border-emerald-500/35 bg-emerald-500/5"
+                              : "border-destructive/30 bg-destructive/5"
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  req.status === "pendente"
+                                    ? "border-amber-500/40 text-amber-600 dark:text-amber-400 font-bold"
+                                    : req.status === "aprovado"
+                                    ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400 font-bold"
+                                    : "border-destructive/40 text-destructive font-bold"
+                                }
+                              >
+                                {req.status === "pendente"
+                                  ? "⏳ Aguardando Aprovação PereiraLabs"
+                                  : req.status === "aprovado"
+                                  ? "✅ Aprovado pela PereiraLabs"
+                                  : "❌ Recusado pela PereiraLabs"}
+                              </Badge>
+                              {req.gtin && (
+                                <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                                  GTIN: {req.gtin}
+                                </span>
+                              )}
+                              <span className="text-muted-foreground">
+                                Empresa: <strong className="text-foreground">{req.empresa_nome}</strong> • Por:{" "}
+                                <strong className="text-foreground">{req.solicitado_por}</strong>
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-muted-foreground">
+                              {new Date(req.criado_em).toLocaleString("pt-BR")}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* Lado A: Dados Oficiais Atuais (RSC Sistemas) */}
+                            <div className="rounded-xl border border-border bg-background/80 p-3 space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                <Lock className="h-3 w-3 text-amber-500" />
+                                Antes (Cadastro Oficial RSC Sistemas)
+                              </span>
+                              <p className="font-extrabold text-foreground text-xs">{req.nome_atual}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                Marca: <strong className="text-foreground">{req.marca_atual}</strong> • Embalagem:{" "}
+                                <strong className="text-foreground">
+                                  {req.quantidade_embalagem_atual}
+                                  {req.unidade_medida_atual}
+                                </strong>
+                              </p>
+                            </div>
+
+                            {/* Lado B: Correção Sugerida pelo Usuário */}
+                            <div className="rounded-xl border border-primary/35 bg-primary/5 p-3 space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
+                                <Sparkles className="h-3 w-3" />
+                                Depois (Correção Sugerida p/ Aprovação)
+                              </span>
+                              <p className="font-extrabold text-foreground text-xs">{req.nome_sugerido}</p>
+                              <p className="text-[11px] text-muted-foreground">
+                                Marca: <strong className="text-primary">{req.marca_sugerida}</strong> • Embalagem:{" "}
+                                <strong className="text-primary">
+                                  {req.quantidade_embalagem_sugerida}
+                                  {req.unidade_medida_sugerida}
+                                </strong>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-xl bg-secondary/40 p-2.5 text-[11px] text-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <span className="font-bold text-muted-foreground mr-1">
+                                Motivo da divergência informado:
+                              </span>
+                              <span className="font-semibold">"{req.motivo_divergencia}"</span>
+                            </div>
+
+                            {req.status === "pendente" && (
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    rejectProductEditRequest(req.id);
+                                    setProductEditRequests(getProductEditRequests());
+                                    setFeedback(
+                                      `Solicitação para "${req.nome_atual}" recusada. Dados originais da RSC Sistemas mantidos.`
+                                    );
+                                    setTimeout(() => setFeedback(null), 4000);
+                                  }}
+                                  className="border-destructive/40 text-destructive hover:bg-destructive/10 font-bold text-xs gap-1"
+                                >
+                                  <Ban className="h-3.5 w-3.5" />
+                                  <span>Recusar</span>
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    approveProductEditRequest(req.id);
+                                    setProductEditRequests(getProductEditRequests());
+                                    setFeedback(
+                                      `✓ Aprovado pela PereiraLabs! O produto "${req.nome_sugerido}" foi atualizado oficialmente no catálogo e nas listas.`
+                                    );
+                                    setTimeout(() => setFeedback(null), 5000);
+                                  }}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-sm"
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  <span>Aprovar & Atualizar Catálogo Oficial</span>
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
           ) : masterSection === "sincronizacao" ? (
             <div className="space-y-6 animate-in fade-in">
               {/* Header Box */}

@@ -1,10 +1,10 @@
 {
-  "version": "3.5.6",
-  "build": 2026103006,
-  "releaseDate": "2026-10-30T02:50:00.000Z",
+  "version": "3.5.7",
+  "build": 2026103007,
+  "releaseDate": "2026-10-30T03:20:00.000Z",
   "features": [
-    "Fechamento Livre da Notificação OTA: Botão 'Fechar (✕)' persistente na tela inicial sem reabrir sozinho",
-    "Independência Total na Lista de Compras: Unidade de Compra (un, cx, pct, fardo, lata) separada da Embalagem/Tamanho (395g, 1L, 1,01kg)",
-    "Atualização Android & Link Direto de APK: Botão permanente 'Baixar APK Android' no rodapé e novidades"
+    "Governança de Produtos Oficiais RSC Sistemas: Dados de produtos oficiais bloqueados contra edição direta pelo usuário",
+    "Fluxo de Solicitação & Aprovação Exclusiva PereiraLabs: Caso haja divergência na embalagem, o usuário solicita edição e somente a PereiraLabs aprova",
+    "Fechamento Persistente da Notificação OTA & Independência de Unidades na Lista de Compras"
   ]
 }

@@ -2,6 +2,8 @@ import { BRAND_CONFIG } from "@/config/brand.config";
 
 const RSC_TOKEN_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_rsc_gtin_token_v1`;
 const RSC_TOKEN_EXPIRES_KEY = `${BRAND_CONFIG.storagePrefix}_rsc_gtin_expires_v1`;
+const EDIT_REQUESTS_STORAGE_KEY = `pereiralabs_product_edit_requests_v1`;
+const APPROVED_OVERRIDES_STORAGE_KEY = `pereiralabs_approved_gtin_overrides_v1`;
 
 export interface GtinProductInfo {
   gtin: string;
@@ -13,6 +15,372 @@ export interface GtinProductInfo {
   ncm?: number;
   foto_url?: string;
   fonte: "rsc_sistemas" | "catalogo_local" | "manual";
+}
+
+/**
+ * Solicitação de Edição / Correção de Produto Oficial (RSC Sistemas / Banco de Dados)
+ * Criada pelo usuário quando encontra dados divergentes, mas cuja aprovação é EXCLUSIVA da PereiraLabs.
+ */
+export interface SolicitacaoEdicaoProdutoOficial {
+  id: string;
+  gtin: string;
+  // Dados oficiais atuais no momento da solicitação
+  nome_atual: string;
+  marca_atual: string;
+  quantidade_embalagem_atual: number;
+  unidade_medida_atual: "g" | "kg" | "ml" | "l" | "un";
+  fonte_original: "rsc_sistemas" | "catalogo_local";
+  // Dados sugeridos pelo usuário para correção
+  nome_sugerido: string;
+  marca_sugerida: string;
+  quantidade_embalagem_sugerida: number;
+  unidade_medida_sugerida: "g" | "kg" | "ml" | "l" | "un";
+  motivo_divergencia: string;
+  // Metadados da empresa/usuário solicitante
+  empresa_id: string;
+  empresa_nome: string;
+  solicitado_por: string;
+  criado_em: string;
+  // Governança exclusiva PereiraLabs
+  status: "pendente" | "aprovado" | "rejeitado";
+  avaliado_em?: string;
+  avaliado_por?: string;
+  parecer_pereiralabs?: string;
+}
+
+export interface ApprovedGtinOverride {
+  gtin: string;
+  nome: string;
+  marca: string;
+  quantidade_embalagem: number;
+  unidade_medida: "g" | "kg" | "ml" | "l" | "un";
+  categoria?: string;
+  foto_url?: string;
+  aprovado_em: string;
+  aprovado_por: string;
+}
+
+type GovernanceListener = () => void;
+const governanceListeners = new Set<GovernanceListener>();
+
+export function subscribeProductGovernanceChanges(listener: GovernanceListener): () => void {
+  governanceListeners.add(listener);
+  return () => {
+    governanceListeners.delete(listener);
+  };
+}
+
+function notifyGovernanceListeners(): void {
+  governanceListeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      // ignore
+    }
+  });
+}
+
+export function getApprovedGtinOverrides(): Record<string, ApprovedGtinOverride> {
+  try {
+    const raw = localStorage.getItem(APPROVED_OVERRIDES_STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+export function saveApprovedGtinOverride(override: ApprovedGtinOverride): void {
+  try {
+    const current = getApprovedGtinOverrides();
+    const key = override.gtin.replace(/\D/g, "").trim() || override.nome.toUpperCase().trim();
+    current[key] = override;
+    localStorage.setItem(APPROVED_OVERRIDES_STORAGE_KEY, JSON.stringify(current));
+    notifyGovernanceListeners();
+  } catch {
+    // ignore
+  }
+}
+
+export function getProductEditRequests(): SolicitacaoEdicaoProdutoOficial[] {
+  try {
+    const raw = localStorage.getItem(EDIT_REQUESTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveProductEditRequests(requests: SolicitacaoEdicaoProdutoOficial[]): void {
+  try {
+    localStorage.setItem(EDIT_REQUESTS_STORAGE_KEY, JSON.stringify(requests));
+    notifyGovernanceListeners();
+  } catch {
+    // ignore
+  }
+}
+
+export function getPendingEditRequestForProduct(
+  gtin?: string,
+  nomeAtual?: string
+): SolicitacaoEdicaoProdutoOficial | undefined {
+  const requests = getProductEditRequests();
+  const cleanGtin = (gtin || "").replace(/\D/g, "").trim();
+  const cleanNome = (nomeAtual || "").toUpperCase().trim();
+
+  return requests.find(
+    (r) =>
+      r.status === "pendente" &&
+      ((cleanGtin && r.gtin === cleanGtin) ||
+        (!cleanGtin && cleanNome && r.nome_atual.toUpperCase().trim() === cleanNome))
+  );
+}
+
+export function createProductEditRequest(payload: {
+  gtin?: string;
+  nome_atual: string;
+  marca_atual: string;
+  quantidade_embalagem_atual: number;
+  unidade_medida_atual: "g" | "kg" | "ml" | "l" | "un";
+  fonte_original?: "rsc_sistemas" | "catalogo_local";
+  nome_sugerido: string;
+  marca_sugerida: string;
+  quantidade_embalagem_sugerida: number;
+  unidade_medida_sugerida: "g" | "kg" | "ml" | "l" | "un";
+  motivo_divergencia: string;
+  empresa_id: string;
+  empresa_nome: string;
+  solicitado_por: string;
+}): SolicitacaoEdicaoProdutoOficial {
+  const requests = getProductEditRequests();
+  const cleanGtin = (payload.gtin || "").replace(/\D/g, "").trim();
+
+  const newRequest: SolicitacaoEdicaoProdutoOficial = {
+    id: `req-gtin-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    gtin: cleanGtin,
+    nome_atual: payload.nome_atual.trim(),
+    marca_atual: payload.marca_atual.trim() || "Geral",
+    quantidade_embalagem_atual: Number(payload.quantidade_embalagem_atual) || 1,
+    unidade_medida_atual: payload.unidade_medida_atual || "g",
+    fonte_original: payload.fonte_original || "rsc_sistemas",
+    nome_sugerido: payload.nome_sugerido.trim().toUpperCase(),
+    marca_sugerida: payload.marca_sugerida.trim(),
+    quantidade_embalagem_sugerida: Number(payload.quantidade_embalagem_sugerida) || 1,
+    unidade_medida_sugerida: payload.unidade_medida_sugerida || "g",
+    motivo_divergencia: payload.motivo_divergencia.trim() || "Dados divergentes da embalagem física",
+    empresa_id: payload.empresa_id,
+    empresa_nome: payload.empresa_nome,
+    solicitado_por: payload.solicitado_por,
+    criado_em: new Date().toISOString(),
+    status: "pendente",
+  };
+
+  saveProductEditRequests([newRequest, ...requests]);
+  return newRequest;
+}
+
+/**
+ * Propaga os dados aprovados pela PereiraLabs para todas as Listas de Compras e Cotações salvas
+ */
+function propagateApprovedOverrideToLocalData(
+  gtin: string,
+  nomeAntigo: string,
+  override: ApprovedGtinOverride
+): void {
+  try {
+    // 1. Atualizar Listas de Compras
+    const shoppingKey = `${BRAND_CONFIG.storagePrefix}_listas_compras_v1`;
+    const rawLists = localStorage.getItem(shoppingKey);
+    if (rawLists) {
+      const lists = JSON.parse(rawLists);
+      if (Array.isArray(lists)) {
+        let changed = false;
+        const updatedLists = lists.map((list: any) => {
+          if (!Array.isArray(list.itens)) return list;
+          const updatedItens = list.itens.map((it: any) => {
+            const matchGtin = gtin && it.gtin && String(it.gtin).replace(/\D/g, "") === gtin;
+            const matchNome =
+              !gtin &&
+              it.insumo_nome &&
+              String(it.insumo_nome).toUpperCase().trim() === nomeAntigo.toUpperCase().trim();
+            if (matchGtin || matchNome) {
+              changed = true;
+              return {
+                ...it,
+                insumo_nome: override.nome,
+                marca: override.marca,
+                quantidade_embalagem: override.quantidade_embalagem,
+                unidade_embalagem: override.unidade_medida,
+                unidade_medida: override.unidade_medida,
+                dados_oficiais: true,
+                fonte_dados: "rsc_sistemas",
+              };
+            }
+            return it;
+          });
+          return { ...list, itens: updatedItens, updated_at: new Date().toISOString() };
+        });
+        if (changed) {
+          localStorage.setItem(shoppingKey, JSON.stringify(updatedLists));
+        }
+      }
+    }
+
+    // 2. Atualizar Pesquisas de Preços
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes("pesquisas")) {
+        const rawPesq = localStorage.getItem(key);
+        if (!rawPesq) continue;
+        const pesquisas = JSON.parse(rawPesq);
+        if (!Array.isArray(pesquisas)) continue;
+        let pesqChanged = false;
+        const updatedPesq = pesquisas.map((p: any) => {
+          const matchGtin = gtin && p.gtin && String(p.gtin).replace(/\D/g, "") === gtin;
+          const matchNome =
+            !gtin &&
+            p.insumo_nome &&
+            String(p.insumo_nome).toUpperCase().trim() === nomeAntigo.toUpperCase().trim();
+          if (matchGtin || matchNome) {
+            pesqChanged = true;
+            return {
+              ...p,
+              insumo_nome: override.nome,
+              marca: override.marca,
+              quantidade_embalagem: override.quantidade_embalagem,
+              unidade_medida: override.unidade_medida,
+              dados_oficiais: true,
+              fonte_dados: "rsc_sistemas",
+            };
+          }
+          return p;
+        });
+        if (pesqChanged) {
+          localStorage.setItem(key, JSON.stringify(updatedPesq));
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Aprovação EXCLUSIVA da PereiraLabs:
+ * Atualiza o status da solicitação para "aprovado", grava no catálogo oficial de overrides
+ * e atualiza automaticamente listas de compras e cotações vinculadas.
+ */
+export function approveProductEditRequest(
+  requestId: string,
+  customData?: {
+    nome?: string;
+    marca?: string;
+    quantidade_embalagem?: number;
+    unidade_medida?: "g" | "kg" | "ml" | "l" | "un";
+    parecer?: string;
+  }
+): SolicitacaoEdicaoProdutoOficial | null {
+  const requests = getProductEditRequests();
+  const idx = requests.findIndex((r) => r.id === requestId);
+  if (idx === -1) return null;
+
+  const target = requests[idx];
+  const finalNome = (customData?.nome ?? target.nome_sugerido).trim().toUpperCase();
+  const finalMarca = (customData?.marca ?? target.marca_sugerida).trim();
+  const finalQtd = Number(customData?.quantidade_embalagem ?? target.quantidade_embalagem_sugerida) || 1;
+  const finalUnidade = customData?.unidade_medida ?? target.unidade_medida_sugerida;
+
+  const updatedReq: SolicitacaoEdicaoProdutoOficial = {
+    ...target,
+    nome_sugerido: finalNome,
+    marca_sugerida: finalMarca,
+    quantidade_embalagem_sugerida: finalQtd,
+    unidade_medida_sugerida: finalUnidade,
+    status: "aprovado",
+    avaliado_em: new Date().toISOString(),
+    avaliado_por: "PereiraLabs Master",
+    parecer_pereiralabs: customData?.parecer || "Aprovado e atualizado no catálogo oficial PereiraLabs.",
+  };
+
+  requests[idx] = updatedReq;
+
+  const override: ApprovedGtinOverride = {
+    gtin: target.gtin || finalNome,
+    nome: finalNome,
+    marca: finalMarca,
+    quantidade_embalagem: finalQtd,
+    unidade_medida: finalUnidade,
+    aprovado_em: updatedReq.avaliado_em!,
+    aprovado_por: "PereiraLabs Master",
+  };
+
+  saveApprovedGtinOverride(override);
+  propagateApprovedOverrideToLocalData(target.gtin, target.nome_atual, override);
+  saveProductEditRequests(requests);
+
+  return updatedReq;
+}
+
+/**
+ * Rejeição EXCLUSIVA da PereiraLabs:
+ * Mantém os dados originais da RSC Sistemas / Banco de Dados e registra o motivo.
+ */
+export function rejectProductEditRequest(
+  requestId: string,
+  parecer?: string
+): SolicitacaoEdicaoProdutoOficial | null {
+  const requests = getProductEditRequests();
+  const idx = requests.findIndex((r) => r.id === requestId);
+  if (idx === -1) return null;
+
+  const updatedReq: SolicitacaoEdicaoProdutoOficial = {
+    ...requests[idx],
+    status: "rejeitado",
+    avaliado_em: new Date().toISOString(),
+    avaliado_por: "PereiraLabs Master",
+    parecer_pereiralabs: parecer || "Solicitação recusada pela curadoria PereiraLabs. Mantidos os dados oficiais RSC Sistemas.",
+  };
+
+  requests[idx] = updatedReq;
+  saveProductEditRequests(requests);
+  return updatedReq;
+}
+
+/**
+ * Verifica se um item (da Lista de Compras ou Cotação) possui dados oficiais da RSC Sistemas ou do Banco de Dados Oficial,
+ * devendo ter seus campos cadastrais bloqueados para edição direta pelo usuário.
+ */
+export function isOfficialProductItem(item: {
+  gtin?: string;
+  insumo_nome?: string;
+  dados_oficiais?: boolean;
+  fonte_dados?: string;
+}): boolean {
+  if (item.dados_oficiais === true) return true;
+  if (item.dados_oficiais === false) return false;
+  if (item.fonte_dados === "rsc_sistemas" || item.fonte_dados === "catalogo_local") return true;
+  if (item.fonte_dados === "manual") return false;
+
+  const cleanGtin = (item.gtin || "").replace(/\D/g, "").trim();
+  const cleanName = (item.insumo_nome || "").trim().toUpperCase();
+
+  // Se o produto tem código GTIN válido (8 a 14 dígitos) e já foi identificado (não é placeholder genérico)
+  if (
+    cleanGtin.length >= 8 &&
+    cleanName &&
+    !cleanName.startsWith("PRODUTO GTIN") &&
+    cleanName !== "NOVO INSUMO"
+  ) {
+    return true;
+  }
+
+  if (cleanGtin && (COMMON_GTIN_CATALOG[cleanGtin] || getApprovedGtinOverrides()[cleanGtin])) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -384,6 +752,22 @@ export async function consultarProdutoPorGtin(
 ): Promise<GtinProductInfo | null> {
   const cleanGtin = rawGtin.replace(/\D/g, "").trim();
   if (!cleanGtin) return null;
+
+  // 0. Verificar se existe revisão oficial já aprovada pela PereiraLabs
+  const overrides = getApprovedGtinOverrides();
+  if (overrides[cleanGtin]) {
+    const ov = overrides[cleanGtin];
+    return {
+      gtin: cleanGtin,
+      nome: ov.nome,
+      marca: ov.marca,
+      quantidade_embalagem: ov.quantidade_embalagem,
+      unidade_medida: ov.unidade_medida,
+      categoria: ov.categoria || "Catálogo Oficial PereiraLabs",
+      foto_url: ov.foto_url || COMMON_GTIN_CATALOG[cleanGtin]?.foto_url || `https://gtin.rscsistemas.com.br/api/gtin/img/${cleanGtin}`,
+      fonte: "rsc_sistemas",
+    };
+  }
 
   // 1. Tentar catálogo local pré-cadastrado
   if (COMMON_GTIN_CATALOG[cleanGtin]) {

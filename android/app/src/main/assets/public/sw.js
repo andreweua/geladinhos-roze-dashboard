@@ -1,7 +1,7 @@
 // Service Worker - PereiraLabs Foods PWA
-// Versão do Cache sincronizada com o Build OTA v3.5.6
-const APP_VERSION = "3.5.6";
-const CACHE_NAME = `pereiralabs-pwa-v${APP_VERSION.replace(/\./g, "-")}-build-2026103006`;
+// Versão do Cache sincronizada com o Build OTA v3.5.7
+const APP_VERSION = "3.5.7";
+const CACHE_NAME = `pereiralabs-pwa-v${APP_VERSION.replace(/\./g, "-")}-build-2026103007`;
 
 const PRECACHE_ASSETS = [
   "./",

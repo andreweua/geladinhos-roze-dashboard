@@ -266,6 +266,8 @@ export interface PesquisaPrecoLocal {
   em_promocao: boolean;
   gtin?: string; // Código de barras GTIN / EAN-13
   foto_url?: string; // Foto oficial do produto (API RSC Sistemas / GTIN)
+  dados_oficiais?: boolean; // Indica se os dados do produto vieram da RSC Sistemas ou banco oficial (não editáveis diretamente pelo usuário)
+  fonte_dados?: "rsc_sistemas" | "catalogo_local" | "manual";
   observacoes?: string;
 }
 
@@ -279,6 +281,8 @@ export interface ListaComprasItem {
   insumo_nome: string;
   categoria?: string;
   marca?: string;
+  dados_oficiais?: boolean; // Indica se os dados do produto são oficiais da RSC Sistemas / Banco de Dados PereiraLabs
+  fonte_dados?: "rsc_sistemas" | "catalogo_local" | "manual";
   quantidade_necessaria: number;
   unidade_compra?: string; // Unidade da Quantidade Necessária (compra): "un" | "pct" | "fardo" | "cx" | "lata" | "pote" | "kg" | "l"
   unidade_medida: string; // Unidade de medida base / embalagem ("g" | "kg" | "ml" | "l" | "un")
