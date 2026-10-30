@@ -14,11 +14,13 @@ import {
   Check,
   User,
   LogOut,
+  Bell,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
 import { UserProfile } from "@/types/auth";
 import { isPereiraLabsMaster } from "@/services/companyService";
+import { subscribeToOta, OtaUpdateInfo } from "@/services/otaService";
 
 interface HeaderProps {
   isDark: boolean;
@@ -58,7 +60,14 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenMasterPanel,
 }) => {
   const [justRefreshed, setJustRefreshed] = useState(false);
+  const [otaInfo, setOtaInfo] = useState<OtaUpdateInfo | null>(null);
   const isCashier = currentUser?.role === "operador_caixa";
+
+  useEffect(() => {
+    return subscribeToOta((info) => {
+      setOtaInfo(info);
+    });
+  }, []);
 
   useEffect(() => {
     if (isRefreshing) {
@@ -191,6 +200,20 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden sm:inline">Painel Master</span>
               <span className="sm:hidden font-extrabold text-[11px]">Master</span>
             </Button>
+          )}
+
+          {otaInfo?.hasUpdate && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              title={`Nova versão v${otaInfo.remoteVersion} disponível! Clique para atualizar.`}
+              className="relative flex h-8 items-center gap-1.5 rounded-full bg-rose-500/15 border border-rose-500/40 px-2.5 py-1 text-xs font-black text-rose-600 dark:text-rose-400 hover:bg-rose-500/25 transition-all shadow-sm animate-pulse"
+            >
+              <Bell className="h-3.5 w-3.5 animate-bounce" />
+              <span className="hidden sm:inline">v{otaInfo.remoteVersion}</span>
+              <span className="sm:hidden text-[10px]">Atualizar</span>
+              <span className="flex h-2 w-2 rounded-full bg-rose-600 animate-ping absolute -top-0.5 -right-0.5" />
+            </button>
           )}
 
           <Button

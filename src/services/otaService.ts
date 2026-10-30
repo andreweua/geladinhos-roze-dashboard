@@ -6,6 +6,7 @@ export interface OtaUpdateInfo {
   hasUpdate: boolean;
   isChecking: boolean;
   isApplying: boolean;
+  features?: string[];
   lastCheckedAt?: string;
   error?: string;
 }
@@ -149,6 +150,7 @@ export async function checkForOtaUpdate(): Promise<boolean> {
       currentOtaState = {
         ...currentOtaState,
         remoteVersion: remoteVer,
+        features: Array.isArray(data.features) ? data.features : [],
         hasUpdate: isNew,
         isChecking: false,
       };
