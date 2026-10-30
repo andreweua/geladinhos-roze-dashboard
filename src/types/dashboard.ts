@@ -280,8 +280,10 @@ export interface ListaComprasItem {
   categoria?: string;
   marca?: string;
   quantidade_necessaria: number;
-  unidade_medida: string; // "g" | "kg" | "ml" | "l" | "un" | "pct" | "fardo" | "cx"
-  quantidade_embalagem?: number; // ex: 395g
+  unidade_compra?: string; // Unidade da Quantidade Necessária (compra): "un" | "pct" | "fardo" | "cx" | "lata" | "pote" | "kg" | "l"
+  unidade_medida: string; // Unidade de medida base / embalagem ("g" | "kg" | "ml" | "l" | "un")
+  quantidade_embalagem?: number; // Tamanho/peso/volume de cada embalagem (ex: 395, 200, 1, 1.01, 1000)
+  unidade_embalagem?: string; // Unidade exclusiva da Embalagem / Tamanho: "g" | "kg" | "ml" | "l" | "un"
   preco_estimado?: number;
   preco_cotado?: number;
   preco_varejo?: number; // R$ Preço unitário no varejo

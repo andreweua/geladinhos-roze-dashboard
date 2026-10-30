@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   X,
   Sparkles,
@@ -15,9 +15,18 @@ import {
   Barcode,
   Camera,
   Layers,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/primitives";
 import { BRAND_CONFIG } from "@/config/brand.config";
+import {
+  subscribeToOta,
+  checkForOtaUpdate,
+  getOfficialApkDownloadUrl,
+  getOfficialReleasePageUrl,
+  OtaUpdateInfo,
+} from "@/services/otaService";
 
 interface ChangelogModalProps {
   isOpen: boolean;
@@ -30,7 +39,22 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
   onClose,
   onForceReload,
 }) => {
+  const [otaInfo, setOtaInfo] = useState<OtaUpdateInfo | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      checkForOtaUpdate();
+    }
+    return subscribeToOta((info) => {
+      setOtaInfo(info);
+    });
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const targetVer = otaInfo?.remoteVersion || BRAND_CONFIG.appVersion;
+  const apkUrl = getOfficialApkDownloadUrl(targetVer);
+  const releasePageUrl = getOfficialReleasePageUrl(targetVer);
 
   return (
     <div
@@ -74,7 +98,58 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
 
         {/* Body Content */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
-          {/* Active Version Highlight: v3.5.2 */}
+          {/* Central de Atualização & Download Direto do APK Android */}
+          <div className="rounded-2xl border-2 border-emerald-500/50 bg-emerald-500/10 p-4 shadow-sm space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs sm:text-sm font-black text-foreground">
+                  Atualização & Download do Aplicativo Android (APK)
+                </span>
+              </div>
+              {otaInfo?.hasUpdate ? (
+                <span className="rounded-full bg-rose-500 text-white px-2.5 py-0.5 text-[10px] font-black animate-pulse">
+                  NOVA VERSÃO DISPONÍVEL: v{targetVer}
+                </span>
+              ) : (
+                <span className="rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 px-2.5 py-0.5 text-[10px] font-bold">
+                  Versão Instalada: v{BRAND_CONFIG.appVersion}
+                </span>
+              )}
+            </div>
+
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              No Android instalado via APK, para atualizar para a versão mais recente mantendo todos os seus dados salvos, toque no botão abaixo para baixar e instalar o pacote oficial:
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={apkUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-xs font-black text-white shadow-sm hover:bg-emerald-700 transition-all cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Baixar APK Direto (v{targetVer})</span>
+              </a>
+
+              <a
+                href={releasePageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary transition-all cursor-pointer"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                <span>Abrir Página de Releases (GitHub)</span>
+              </a>
+            </div>
+
+            <div className="rounded-lg bg-background/80 border border-border/60 px-2.5 py-1.5 text-[10px] font-mono text-muted-foreground break-all">
+              Link Direto: <a href={apkUrl} target="_blank" rel="noreferrer" className="text-primary underline font-bold">{apkUrl}</a>
+            </div>
+          </div>
+
+          {/* Active Version Highlight: v3.5.5 */}
           <div className="rounded-2xl border-2 border-primary/50 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4 sm:p-5 shadow-md">
             <div className="flex items-center justify-between gap-2 border-b border-primary/25 pb-3">
               <div className="flex items-center gap-2">
@@ -91,36 +166,36 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
             <div className="mt-3.5 space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Layers className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Correção Crítica no Parser de Valores CSV/Excel:</strong>
+                  <strong className="text-foreground">Independência Total entre Qtd. Necessária e Embalagem/Tamanho:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Parser financeiro reescrito com suporte seguro a formato brasileiro (vírgula decimal como 5,78) e formato de download (ponto decimal como 5.49). Eliminação total do bug que multiplicava valores decimais por 100.
+                    Agora a unidade da Quantidade Necessária (un, cx, pct, fardo, lata, pote) é totalmente separada da unidade da Embalagem/Tamanho (395 g, 1 L, 1,01 kg, 1000 un). Alterar uma nunca mistura com a outra.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary mt-0.5">
-                  <Layers className="h-3.5 w-3.5" />
+                  <Smartphone className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Suporte a Tabelas Múltiplas e Cotação de Atacadistas:</strong>
+                  <strong className="text-foreground">Atualização Android & Link Direto de APK Sempre Visível:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Permite colar diretamente listas com cabeçalhos múltiplos (ex: Modelo Padrão + Cotação Mart Minas/Tenda). O sistema detecta automaticamente colunas de Produto, Marca, Tamanho, Preço Atacado e Preço Varejo.
+                    Correção de CORS no WebView Android para detecção imediata de novas versões e link permanente de download do APK no rodapé, no alerta e nesta janela de novidades.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
-                  <Store className="h-3.5 w-3.5" />
+                  <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Extração Automática de Apresentação e Unidade:</strong>
+                  <strong className="text-foreground">Parser Financeiro CSV/Excel & Tabelas Múltiplas:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Identificação de gramaturas e volumes como "395g", "1,01 kg" e "1L" preenchendo automaticamente unidade de medida e tamanho nos cards.
+                    Suporte a preços com ponto (5.49) ou vírgula (5,78) e importação simultânea do modelo padrão e planilhas de atacadistas (Mart Minas/Tenda).
                   </p>
                 </div>
               </div>
@@ -270,17 +345,29 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t border-border/70 bg-secondary/30 px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onForceReload}
-            className="text-xs font-bold gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
-            title="Recarregar a página com função F5"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            <span>Recarregar Aplicativo (F5)</span>
-          </Button>
+        <div className="border-t border-border/70 bg-secondary/30 px-5 py-3.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onForceReload}
+              className="text-xs font-bold gap-1.5 border-primary/40 text-primary hover:bg-primary/10"
+              title="Recarregar a página com função F5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span>Recarregar / OTA (F5)</span>
+            </Button>
+
+            <a
+              href={apkUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition-all shadow-xs"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Baixar APK (v{targetVer})</span>
+            </a>
+          </div>
 
           <Button
             variant="default"

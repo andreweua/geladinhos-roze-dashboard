@@ -4,6 +4,8 @@ import { Capacitor } from "@capacitor/core";
 import {
   subscribeToOta,
   applyOtaUpdate,
+  getOfficialApkDownloadUrl,
+  getOfficialReleasePageUrl,
   OtaUpdateInfo,
 } from "@/services/otaService";
 import { soundNotificationService } from "@/services/soundNotificationService";
@@ -131,7 +133,7 @@ export const OtaUpdateBanner: React.FC = () => {
 
             {/* Ações: Atualizar Agora e Baixar Nova Versão */}
             <div className="mt-3 flex items-center gap-2 flex-wrap">
-              {/* Opção 1: Atualização Instantânea no Web/PWA */}
+              {/* Opção 1: Atualização Instantânea no Web/PWA ou Download no Android */}
               <button
                 type="button"
                 onClick={() => applyOtaUpdate()}
@@ -146,26 +148,22 @@ export const OtaUpdateBanner: React.FC = () => {
                 ) : (
                   <>
                     <Sparkles className="h-3.5 w-3.5" />
-                    <span>Atualizar Agora</span>
+                    <span>{isNative ? "Baixar e Atualizar APK" : "Atualizar Agora"}</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </>
                 )}
               </button>
 
-              {/* Opção 2: Baixar Pacote Oficial / APK da Nova Versão */}
+              {/* Opção 2: Link Direto para o APK Oficial */}
               <a
-                href={
-                  isNative
-                    ? `https://github.com/andreweua/geladinhos-roze-dashboard/releases/download/v${otaState.remoteVersion}/PereiraLabs-PDV-Foods-v${otaState.remoteVersion}.apk`
-                    : `https://github.com/andreweua/geladinhos-roze-dashboard/releases/tag/v${otaState.remoteVersion}`
-                }
+                href={getOfficialApkDownloadUrl(otaState.remoteVersion)}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-secondary/80 px-3 py-2 text-xs font-bold text-foreground hover:bg-primary/10 hover:text-primary transition-all cursor-pointer"
-                title="Baixar arquivo da nova versão lançada no GitHub Releases"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                title="Baixar arquivo .APK oficial da nova versão direto do GitHub"
               >
-                <Download className="h-3.5 w-3.5 text-primary" />
-                <span>{isNative ? "Baixar APK Direto" : "Baixar Release"}</span>
+                <Download className="h-3.5 w-3.5" />
+                <span>Baixar APK v{otaState.remoteVersion}</span>
               </a>
 
               <button
@@ -175,6 +173,18 @@ export const OtaUpdateBanner: React.FC = () => {
               >
                 Lembrar Depois
               </button>
+            </div>
+
+            {/* Link visível para clique ou cópia rápida no celular */}
+            <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between gap-2 text-[10px]">
+              <a
+                href={getOfficialReleasePageUrl(otaState.remoteVersion)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary font-bold underline truncate hover:opacity-80"
+              >
+                🔗 Abrir página de download v{otaState.remoteVersion} no GitHub
+              </a>
             </div>
           </div>
 

@@ -11,6 +11,140 @@ import { parsePackagingFromTitle } from "@/services/gtinService";
 
 const STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_listas_compras_v1`;
 
+/**
+ * Extrai o tamanho/peso/volume e a unidade de apresentação da embalagem para a Lista de Compras,
+ * mantendo os valores naturais do rótulo (ex: "1,01 kg" -> 1.01 kg, "395g" -> 395 g, "1L" -> 1 l, "Fardo c/ 1000" -> 1000 un)
+ */
+export function parseDisplayPackaging(text: string): {
+  quantidade?: number;
+  unidade: "g" | "kg" | "ml" | "l" | "un";
+  containerHint?: "lata" | "pote" | "pct" | "fardo" | "cx";
+} {
+  if (!text) return { quantidade: undefined, unidade: "un" };
+  const norm = text.toUpperCase();
+
+  let containerHint: "lata" | "pote" | "pct" | "fardo" | "cx" | undefined;
+  if (/\bLATA\b/.test(norm)) containerHint = "lata";
+  else if (/\bPOTE\b/.test(norm)) containerHint = "pote";
+  else if (/\bFARDO\b/.test(norm)) containerHint = "fardo";
+  else if (/\b(?:PACOTE|PCT|SACH[EÊ])\b/.test(norm)) containerHint = "pct";
+  else if (/\b(?:CAIXA|CX)\b/.test(norm)) containerHint = "cx";
+
+  // 1. Pacotes/fardos com contagem explícita de unidades: ex "Fardo c/ 1000", "Pct 100un", "Pote 50un"
+  const packCountMatch = norm.match(
+    /(?:PCT|PACOTE|FARDO|POTE|CX|CAIXA)\s*(?:C\/|COM)?\s*(\d+)\s*(?:UN|UNID|UNIDADES?)?\b|(?:C\/\s*(\d+))|(\d+)\s*(?:UN|UNID|UNIDADES?)\b/
+  );
+  if (packCountMatch) {
+    const val = parseInt(packCountMatch[1] || packCountMatch[2] || packCountMatch[3], 10);
+    if (!isNaN(val) && val > 0) {
+      return {
+        quantidade: val,
+        unidade: "un",
+        containerHint,
+      };
+    }
+  }
+
+  // 2. Kg: ex "1KG", "1,01 KG", "5 KG"
+  const kgMatch = norm.match(/(\d+(?:[.,]\d+)?)\s*(?:KG|QUILOS?)\b/);
+  if (kgMatch) {
+    return {
+      quantidade: parseFloat(kgMatch[1].replace(",", ".")),
+      unidade: "kg",
+      containerHint,
+    };
+  }
+
+  // 3. Litros: ex "1L", "1 LITRO", "1,5L"
+  const lMatch = norm.match(/(\d+(?:[.,]\d+)?)\s*(?:L|LITROS?)\b/);
+  if (lMatch) {
+    return {
+      quantidade: parseFloat(lMatch[1].replace(",", ".")),
+      unidade: "l",
+      containerHint,
+    };
+  }
+
+  // 4. Gramas: ex "395G", "300G (LATA)", "350G/395G"
+  const gMatch = norm.match(/(\d+(?:[.,]\d+)?)\s*(?:G|GRAMAS?)\b/);
+  if (gMatch) {
+    return {
+      quantidade: parseFloat(gMatch[1].replace(",", ".")),
+      unidade: "g",
+      containerHint,
+    };
+  }
+
+  // 5. Mililitros: ex "200ML", "150ML"
+  const mlMatch = norm.match(/(\d+(?:[.,]\d+)?)\s*(?:ML|MILILITROS?)\b/);
+  if (mlMatch) {
+    return {
+      quantidade: parseFloat(mlMatch[1].replace(",", ".")),
+      unidade: "ml",
+      containerHint,
+    };
+  }
+
+  return { quantidade: undefined, unidade: "un", containerHint };
+}
+
+/**
+ * Garante que "Quantidade Necessária (unidade_compra)" e "Embalagem / Tamanho (unidade_embalagem)"
+ * nunca se misturem, inclusive migrando listas já salvas no navegador.
+ */
+export function normalizeShoppingListItem(item: ListaComprasItem): ListaComprasItem {
+  const parsedPkg = parseDisplayPackaging(item.insumo_nome);
+  const purchaseUnits = ["un", "pct", "fardo", "cx", "lata", "pote", "sache", "lote"];
+
+  // 1. Unidade exclusiva da Quantidade Necessária (Compra)
+  let unidadeCompra = item.unidade_compra;
+  if (!unidadeCompra) {
+    const rawMedida = (item.unidade_medida || "un").toLowerCase().trim();
+    if (purchaseUnits.includes(rawMedida)) {
+      unidadeCompra = rawMedida;
+    } else {
+      unidadeCompra = parsedPkg.containerHint || "un";
+    }
+  }
+
+  // 2. Valor e Unidade exclusivos da Embalagem / Tamanho
+  let qtdEmbalagem = item.quantidade_embalagem;
+  let unidadeEmbalagem = item.unidade_embalagem;
+
+  if (!unidadeEmbalagem) {
+    if (parsedPkg.quantidade !== undefined) {
+      unidadeEmbalagem = parsedPkg.unidade;
+      // Corrige casos onde 1kg havia virado 1000g, 1.01kg havia virado 1010g ou 1L havia virado 1000ml
+      if (
+        !qtdEmbalagem ||
+        (parsedPkg.unidade === "kg" && Math.abs(qtdEmbalagem - parsedPkg.quantidade * 1000) < 1) ||
+        (parsedPkg.unidade === "l" && Math.abs(qtdEmbalagem - parsedPkg.quantidade * 1000) < 1)
+      ) {
+        qtdEmbalagem = parsedPkg.quantidade;
+      }
+    } else {
+      const rawMedida = (item.unidade_medida || "un").toLowerCase().trim();
+      if (["g", "kg", "ml", "l", "un"].includes(rawMedida)) {
+        unidadeEmbalagem = rawMedida;
+      } else {
+        unidadeEmbalagem = "un";
+      }
+    }
+  }
+
+  if (qtdEmbalagem === undefined && parsedPkg.quantidade !== undefined) {
+    qtdEmbalagem = parsedPkg.quantidade;
+  }
+
+  return {
+    ...item,
+    unidade_compra: unidadeCompra,
+    quantidade_embalagem: qtdEmbalagem,
+    unidade_embalagem: unidadeEmbalagem,
+    unidade_medida: unidadeEmbalagem || item.unidade_medida || "un",
+  };
+}
+
 export const SHOPPING_LIST_TEMPLATES: Array<{
   id: string;
   titulo: string;
@@ -26,8 +160,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Leite Condensado (395g)",
         marca: "Piracanjuba / Itambé / Moça",
         quantidade_necessaria: 10,
-        unidade_medida: "un",
+        unidade_compra: "un",
+        unidade_medida: "g",
         quantidade_embalagem: 395,
+        unidade_embalagem: "g",
         preco_estimado: 5.29,
         gtin: "7898215150018",
       },
@@ -35,8 +171,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Creme de Leite (200g)",
         marca: "Piracanjuba / Itambé / Nestlé",
         quantidade_necessaria: 8,
-        unidade_medida: "un",
+        unidade_compra: "un",
+        unidade_medida: "g",
         quantidade_embalagem: 200,
+        unidade_embalagem: "g",
         preco_estimado: 2.79,
         gtin: "7898215150162",
       },
@@ -44,8 +182,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Leite Integral UHT (1L)",
         marca: "Itambé / Piracanjuba",
         quantidade_necessaria: 4,
+        unidade_compra: "un",
         unidade_medida: "l",
-        quantidade_embalagem: 1000,
+        quantidade_embalagem: 1,
+        unidade_embalagem: "l",
         preco_estimado: 4.89,
         gtin: "7896051110101",
       },
@@ -53,8 +193,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Liga Neutra Especial para Sorvete (100g ou 1kg)",
         marca: "Selecta",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "un",
+        unidade_medida: "g",
         quantidade_embalagem: 100,
+        unidade_embalagem: "g",
         preco_estimado: 4.5,
         gtin: "7896011100104",
       },
@@ -62,8 +204,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Creme de Avelã Nutella Pote Econômico (650g)",
         marca: "Ferrero",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "pote",
+        unidade_medida: "g",
         quantidade_embalagem: 650,
+        unidade_embalagem: "g",
         preco_estimado: 38.9,
         gtin: "7898024394139",
       },
@@ -71,8 +215,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Leite Ninho em Pó Integral (380g)",
         marca: "Nestlé",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "lata",
+        unidade_medida: "g",
         quantidade_embalagem: 380,
+        unidade_embalagem: "g",
         preco_estimado: 17.9,
         gtin: "7891000053508",
       },
@@ -80,8 +226,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Doce de Leite Tradicional Pote (400g)",
         marca: "Itambé",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "pote",
+        unidade_medida: "g",
         quantidade_embalagem: 400,
+        unidade_embalagem: "g",
         preco_estimado: 9.8,
         gtin: "7896051110019",
       },
@@ -89,24 +237,30 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Morangos Congelados / Frescos para Geleia (1kg)",
         marca: "Original Food / Fruta Natural",
         quantidade_necessaria: 1,
+        unidade_compra: "pct",
         unidade_medida: "kg",
-        quantidade_embalagem: 1000,
+        quantidade_embalagem: 1,
+        unidade_embalagem: "kg",
         preco_estimado: 24.9,
       },
       {
         insumo_nome: "Polpa Pura de Maracujá com Sementes (1kg)",
         marca: "Brasfrut / De Marchi",
         quantidade_necessaria: 1,
+        unidade_compra: "pct",
         unidade_medida: "kg",
-        quantidade_embalagem: 1000,
+        quantidade_embalagem: 1,
+        unidade_embalagem: "kg",
         preco_estimado: 23.8,
       },
       {
         insumo_nome: "Paçoca Rolha de Amendoim (Pote 50un)",
         marca: "Santa Helena",
         quantidade_necessaria: 1,
+        unidade_compra: "pote",
         unidade_medida: "un",
-        quantidade_embalagem: 1000,
+        quantidade_embalagem: 50,
+        unidade_embalagem: "un",
         preco_estimado: 19.9,
         gtin: "7896001250260",
       },
@@ -114,8 +268,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Chocolate em Pó 50% Cacau (200g)",
         marca: "Nestlé Dois Frades",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "un",
+        unidade_medida: "g",
         quantidade_embalagem: 200,
+        unidade_embalagem: "g",
         preco_estimado: 11.5,
         gtin: "7891149103003",
       },
@@ -123,8 +279,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Achocolatado em Flocos Crocantes Ovomaltine (750g)",
         marca: "Ovomaltine",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "pct",
+        unidade_medida: "g",
         quantidade_embalagem: 750,
+        unidade_embalagem: "g",
         preco_estimado: 26.9,
         gtin: "7891095000623",
       },
@@ -132,8 +290,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Bombom Ouro Branco (Pacote 1kg)",
         marca: "Lacta",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
-        quantidade_embalagem: 1000,
+        unidade_compra: "pct",
+        unidade_medida: "kg",
+        quantidade_embalagem: 1,
+        unidade_embalagem: "kg",
         preco_estimado: 42.9,
         gtin: "7891008120028",
       },
@@ -141,8 +301,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Bombom Sonho de Valsa (Pacote 1kg)",
         marca: "Lacta",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
-        quantidade_embalagem: 1000,
+        unidade_compra: "pct",
+        unidade_medida: "kg",
+        quantidade_embalagem: 1,
+        unidade_embalagem: "kg",
         preco_estimado: 42.9,
         gtin: "7891008120011",
       },
@@ -150,8 +312,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Saquinhos Plásticos para Geladinho Gourmet 150ml (Pct 100un)",
         marca: "Embalagens Confeiteiro",
         quantidade_necessaria: 1,
+        unidade_compra: "pct",
         unidade_medida: "un",
         quantidade_embalagem: 100,
+        unidade_embalagem: "un",
         preco_estimado: 5.0,
         gtin: "7898910123456",
       },
@@ -166,8 +330,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Leite Condensado (395g)",
         marca: "Piracanjuba / Itambé",
         quantidade_necessaria: 4,
-        unidade_medida: "un",
+        unidade_compra: "un",
+        unidade_medida: "g",
         quantidade_embalagem: 395,
+        unidade_embalagem: "g",
         preco_estimado: 5.29,
         gtin: "7898215150018",
       },
@@ -175,8 +341,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Creme de Leite (200g)",
         marca: "Piracanjuba / Itambé",
         quantidade_necessaria: 4,
-        unidade_medida: "un",
+        unidade_compra: "un",
+        unidade_medida: "g",
         quantidade_embalagem: 200,
+        unidade_embalagem: "g",
         preco_estimado: 2.79,
         gtin: "7898215150162",
       },
@@ -184,8 +352,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Leite Integral UHT (1L)",
         marca: "Itambé / Piracanjuba",
         quantidade_necessaria: 2,
+        unidade_compra: "un",
         unidade_medida: "l",
-        quantidade_embalagem: 1000,
+        quantidade_embalagem: 1,
+        unidade_embalagem: "l",
         preco_estimado: 4.89,
         gtin: "7896051110101",
       },
@@ -193,8 +363,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Nutella Pote (350g ou 650g)",
         marca: "Ferrero",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "pote",
+        unidade_medida: "g",
         quantidade_embalagem: 350,
+        unidade_embalagem: "g",
         preco_estimado: 24.9,
         gtin: "7898024394122",
       },
@@ -202,8 +374,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Leite Ninho em Pó (380g)",
         marca: "Nestlé",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "lata",
+        unidade_medida: "g",
         quantidade_embalagem: 380,
+        unidade_embalagem: "g",
         preco_estimado: 17.9,
         gtin: "7891000053508",
       },
@@ -211,8 +385,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Doce de Leite Itambé (400g)",
         marca: "Itambé",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "pote",
+        unidade_medida: "g",
         quantidade_embalagem: 400,
+        unidade_embalagem: "g",
         preco_estimado: 9.8,
         gtin: "7896051110019",
       },
@@ -220,24 +396,30 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Morangos Frescos / Congelados (500g)",
         marca: "Hortifrúti / Original Food",
         quantidade_necessaria: 1,
+        unidade_compra: "pct",
         unidade_medida: "g",
         quantidade_embalagem: 500,
+        unidade_embalagem: "g",
         preco_estimado: 14.5,
       },
       {
         insumo_nome: "Polpa de Maracujá com Sementes (500g)",
         marca: "Brasfrut",
         quantidade_necessaria: 1,
+        unidade_compra: "pct",
         unidade_medida: "g",
         quantidade_embalagem: 500,
+        unidade_embalagem: "g",
         preco_estimado: 12.0,
       },
       {
         insumo_nome: "Liga Neutra (100g)",
         marca: "Selecta",
         quantidade_necessaria: 1,
-        unidade_medida: "un",
+        unidade_compra: "un",
+        unidade_medida: "g",
         quantidade_embalagem: 100,
+        unidade_embalagem: "g",
         preco_estimado: 4.5,
         gtin: "7896011100104",
       },
@@ -245,8 +427,10 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
         insumo_nome: "Saquinhos Geladinho 150ml (Pct 100un)",
         marca: "Gourmet",
         quantidade_necessaria: 1,
+        unidade_compra: "pct",
         unidade_medida: "un",
         quantidade_embalagem: 100,
+        unidade_embalagem: "un",
         preco_estimado: 5.0,
         gtin: "7898910123456",
       },
@@ -259,7 +443,14 @@ export function loadShoppingLists(): ListaCompras[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.map((list: ListaCompras) => ({
+          ...list,
+          itens: Array.isArray(list.itens)
+            ? list.itens.map((it) => normalizeShoppingListItem(it))
+            : [],
+        }));
+      }
     }
   } catch (err) {
     console.warn("Erro ao ler listas de compras locais:", err);
@@ -359,18 +550,28 @@ export function parseShoppingListFromText(rawText: string): ListaComprasItem[] {
 
     // Detecta quantidade (ex: "2x", "3 caixas", "10 un")
     let qtd = 1;
-    const qtdMatch = cleanLine.match(/^(\d+(?:[.,]\d+)?)\s*(?:x|cx|caixas?|pct|pacotes?|un|latas?)?\b/i);
+    let unidadeCompra = "un";
+    const qtdMatch = cleanLine.match(/^(\d+(?:[.,]\d+)?)\s*(x|cx|caixas?|pct|pacotes?|fardos?|un|latas?|potes?)?\b/i);
     if (qtdMatch) {
       qtd = parseFloat(qtdMatch[1].replace(",", "."));
+      const rawUnit = (qtdMatch[2] || "").toLowerCase();
+      if (rawUnit.startsWith("cx") || rawUnit.startsWith("caixa")) unidadeCompra = "cx";
+      else if (rawUnit.startsWith("pct") || rawUnit.startsWith("pacote")) unidadeCompra = "pct";
+      else if (rawUnit.startsWith("fardo")) unidadeCompra = "fardo";
+      else if (rawUnit.startsWith("lata")) unidadeCompra = "lata";
+      else if (rawUnit.startsWith("pote")) unidadeCompra = "pote";
     }
 
     // Extrai embalagem e unidade (ex: 395g, 1kg, 200ml)
-    const packaging = parsePackagingFromTitle(cleanLine);
+    const packaging = parseDisplayPackaging(cleanLine);
+    if (unidadeCompra === "un" && packaging.containerHint) {
+      unidadeCompra = packaging.containerHint;
+    }
 
     // Remove termos de preço da descrição do insumo
     let nomeInsumo = cleanLine
       .replace(/R\$\s*(\d+(?:[.,]\d{2})?)/gi, "")
-      .replace(/^(\d+(?:[.,]\d+)?)\s*(?:x|cx|caixas?|pct|pacotes?|un|latas?)\s*/i, "")
+      .replace(/^(\d+(?:[.,]\d+)?)\s*(?:x|cx|caixas?|pct|pacotes?|fardos?|un|latas?|potes?)\s*/i, "")
       .replace(/[-–—:]\s*$/, "")
       .trim();
 
@@ -380,8 +581,10 @@ export function parseShoppingListFromText(rawText: string): ListaComprasItem[] {
       id: `imported-${Date.now()}-${idx}`,
       insumo_nome: nomeInsumo,
       quantidade_necessaria: qtd,
+      unidade_compra: unidadeCompra,
       unidade_medida: packaging.unidade,
       quantidade_embalagem: packaging.quantidade,
+      unidade_embalagem: packaging.unidade,
       preco_estimado: preco,
       preco_cotado: preco,
       comprado: false,
@@ -407,8 +610,8 @@ export function saveBatchQuotationsFromShoppingList(
   for (const item of list.itens) {
     const preco = item.preco_cotado || item.preco_estimado;
     if (preco && preco > 0) {
-      const qtdEmb = item.quantidade_embalagem || item.quantidade_necessaria || 1;
-      const rawUn = (item.unidade_medida || "un").toLowerCase().trim();
+      const qtdEmb = item.quantidade_embalagem || 1;
+      const rawUn = (item.unidade_embalagem || item.unidade_medida || "un").toLowerCase().trim();
       const unMed: "g" | "ml" | "un" | "kg" | "l" =
         rawUn === "kg" || rawUn === "quilo" || rawUn === "quilos" ? "kg" :
         rawUn === "l" || rawUn === "litro" || rawUn === "litros" ? "l" :
@@ -476,12 +679,20 @@ export function parseShoppingListFromJson(jsonString: string): { titulo: string;
       const status: "pendente" | "carrinho" | "comprado" =
         statusRaw === "comprado" ? "comprado" : statusRaw === "carrinho" ? "carrinho" : "pendente";
 
+      const packaging = parseDisplayPackaging(nome);
+      const unidadeCompraRaw = String(it.unidade_compra || it.unidade || it.unidade_medida || packaging.containerHint || "un").toLowerCase();
+      const qtdEmbalagem = Number(it.quantidade_embalagem || packaging.quantidade || 0);
+      const unidadeEmbalagem = String(it.unidade_embalagem || packaging.unidade || "un").toLowerCase();
+
       return {
         id: String(it.id_item || it.id || `item-json-${Date.now()}-${idx}`),
         insumo_nome: nome,
         categoria: it.categoria || "Geral",
         quantidade_necessaria: isNaN(qtd) || qtd <= 0 ? 1 : qtd,
-        unidade_medida: String(it.unidade || it.unidade_medida || "un").toLowerCase(),
+        unidade_compra: unidadeCompraRaw,
+        unidade_medida: unidadeEmbalagem,
+        quantidade_embalagem: qtdEmbalagem > 0 ? qtdEmbalagem : undefined,
+        unidade_embalagem: unidadeEmbalagem,
         preco_estimado: isNaN(precoVarejo) || precoVarejo <= 0 ? undefined : precoVarejo,
         preco_cotado: isNaN(precoVarejo) || precoVarejo <= 0 ? undefined : precoVarejo,
         preco_varejo: isNaN(precoVarejo) || precoVarejo <= 0 ? undefined : precoVarejo,
@@ -581,7 +792,7 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
       let categoria = "Geral";
       let marca = "";
       let qtd = 1;
-      let unidade = "un";
+      let unidadeExplicitamenteInformada = "";
       let tamanhoApresentacao = "";
       let precoVarejo: number | undefined = undefined;
       let precoAtacado: number | undefined = undefined;
@@ -607,7 +818,7 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
             const parsed = parseFloat(val.replace(",", "."));
             if (!isNaN(parsed) && parsed > 0) qtd = parsed;
           } else if (h.includes("unid") || h === "un") {
-            unidade = val.toLowerCase();
+            unidadeExplicitamenteInformada = val.toLowerCase();
           } else if (h.includes("atacado") && !h.includes("min")) {
             precoAtacado = parseMoney(val);
           } else if (h.includes("min") || h.includes("minimo") || h.includes("qtd_atacado")) {
@@ -637,7 +848,7 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
           const parsed = parseFloat(parts[2].replace(",", "."));
           if (!isNaN(parsed) && parsed > 0) qtd = parsed;
         }
-        if (parts[3]) unidade = parts[3].toLowerCase();
+        if (parts[3]) unidadeExplicitamenteInformada = parts[3].toLowerCase();
         if (parts[4]) precoVarejo = parseMoney(parts[4]);
         if (parts[5]) precoAtacado = parseMoney(parts[5]);
         if (parts[6]) {
@@ -656,7 +867,16 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
           nomeFinal = `${nomeFinal} ${tamanhoApresentacao}`;
         }
 
-        const packaging = parsePackagingFromTitle(tamanhoApresentacao || nomeFinal);
+        // Extrai separadamente o tamanho/embalagem (ex: 395g, 1,01 kg, 1L, 1000un)
+        const packaging = parseDisplayPackaging(tamanhoApresentacao || nomeFinal);
+
+        // Unidade da Quantidade Necessária (compra) é independente da Unidade da Embalagem!
+        const unidadeCompra =
+          unidadeExplicitamenteInformada ||
+          packaging.containerHint ||
+          "un";
+
+        const unidadeEmbalagem = packaging.unidade || "un";
 
         itens.push({
           id: `item-csv-${Date.now()}-${idx}`,
@@ -664,8 +884,10 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
           categoria,
           marca: marca || undefined,
           quantidade_necessaria: qtd,
-          unidade_medida: unidade !== "un" ? unidade : (packaging.unidade || "un"),
-          quantidade_embalagem: packaging.quantidade > 1 ? packaging.quantidade : undefined,
+          unidade_compra: unidadeCompra,
+          unidade_medida: unidadeEmbalagem,
+          quantidade_embalagem: packaging.quantidade,
+          unidade_embalagem: unidadeEmbalagem,
           preco_estimado: precoVarejo || precoAtacado,
           preco_cotado: precoVarejo || precoAtacado,
           preco_varejo: precoVarejo,

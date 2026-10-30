@@ -17,6 +17,7 @@ import {
   Banknote,
   Coins,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Header } from "@/components/Header";
@@ -38,7 +39,7 @@ import { CompanySettingsModal } from "@/components/CompanySettingsModal";
 import { ChangelogModal } from "@/components/ChangelogModal";
 import { OtaUpdateBanner } from "@/components/OtaUpdateBanner";
 import { DesktopModeNotice } from "@/components/DesktopModeNotice";
-import { forceHardOtaReload } from "@/services/otaService";
+import { forceHardOtaReload, getOfficialApkDownloadUrl } from "@/services/otaService";
 import { Capacitor } from "@capacitor/core";
 import { PereiraLabsMasterModal } from "@/components/master/PereiraLabsMasterModal";
 import { ConsultingSection } from "@/components/ConsultingSection";
@@ -1387,7 +1388,7 @@ export function App() {
                 </strong>{" "}
                 — {BRAND_CONFIG.tagline}
               </p>
-              <div className="inline-flex items-center gap-1.5">
+              <div className="inline-flex flex-wrap items-center justify-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setChangelogModalOpen(true)}
@@ -1409,6 +1410,17 @@ export function App() {
                   <RefreshCw className="h-2.5 w-2.5" />
                   <span>OTA Atualizar</span>
                 </button>
+
+                <a
+                  href={getOfficialApkDownloadUrl()}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white transition-all cursor-pointer shadow-xs"
+                  title="Baixar arquivo APK oficial atualizado para Android"
+                >
+                  <Download className="h-2.5 w-2.5" />
+                  <span>Baixar APK Android (v{BRAND_CONFIG.appVersion})</span>
+                </a>
               </div>
             </div>
 

@@ -47,6 +47,7 @@ import {
   parseShoppingListFromCsv,
   generateShoppingListFromCriticalStock,
   saveBatchQuotationsFromShoppingList,
+  parseDisplayPackaging,
 } from "@/services/shoppingListService";
 import {
   consultarProdutoPorGtin,
@@ -191,8 +192,10 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
       id: `item-${Date.now()}`,
       insumo_nome: "Novo Insumo",
       quantidade_necessaria: 1,
-      unidade_medida: "un",
-      quantidade_embalagem: 1,
+      unidade_compra: "un",
+      unidade_medida: "g",
+      quantidade_embalagem: 395,
+      unidade_embalagem: "g",
       preco_estimado: 0,
       preco_varejo: 0,
       preco_cotado: 0,
@@ -227,13 +230,19 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
             ? prodInfo.marca
             : currentItem?.marca;
 
+        const displayPkg = parseDisplayPackaging(resolvedName);
+        const resolvedEmbQtd = displayPkg.quantidade || prodInfo.quantidade_embalagem || currentItem?.quantidade_embalagem;
+        const resolvedEmbUnit = displayPkg.unidade || prodInfo.unidade_medida || currentItem?.unidade_embalagem || "g";
+
         handleUpdateItem(itemId, {
           gtin: clean,
           insumo_nome: resolvedName,
           marca: resolvedBrand,
           foto_url: prodInfo.foto_url || currentItem?.foto_url,
-          quantidade_embalagem: prodInfo.quantidade_embalagem || currentItem?.quantidade_embalagem,
-          unidade_medida: prodInfo.unidade_medida || currentItem?.unidade_medida || "un",
+          unidade_compra: currentItem?.unidade_compra || displayPkg.containerHint || "un",
+          quantidade_embalagem: resolvedEmbQtd,
+          unidade_embalagem: resolvedEmbUnit,
+          unidade_medida: resolvedEmbUnit,
         });
 
         const origem =
@@ -290,6 +299,8 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     try {
       const info = await consultarProdutoPorGtin(clean);
       const resolvedName = (info?.nome || `Produto GTIN ${clean}`).toUpperCase();
+      const displayPkg = parseDisplayPackaging(resolvedName);
+      const embUnit = displayPkg.unidade || info?.unidade_medida || "g";
       const newItem: ListaComprasItem = {
         id: `item-${Date.now()}`,
         insumo_nome: resolvedName,
@@ -297,8 +308,10 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
         gtin: clean,
         foto_url: info?.foto_url,
         quantidade_necessaria: 1,
-        unidade_medida: (info?.unidade_medida as ListaComprasItem["unidade_medida"]) || "un",
-        quantidade_embalagem: info?.quantidade_embalagem || 1,
+        unidade_compra: displayPkg.containerHint || "un",
+        unidade_medida: embUnit,
+        quantidade_embalagem: displayPkg.quantidade || info?.quantidade_embalagem || 1,
+        unidade_embalagem: embUnit,
         preco_estimado: 0,
         comprado: false,
       };
@@ -334,14 +347,19 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
       return;
     }
 
+    const displayPkg = parseDisplayPackaging(insumo.nomeFormatado);
+    const embUnit = displayPkg.unidade || insumo.unidadeMedida || "g";
+
     const newItem: ListaComprasItem = {
       id: `item-${Date.now()}`,
       insumo_nome: insumo.nomeFormatado, // STRICTLY UPPERCASE
       marca: insumo.marca,
       gtin: insumo.gtin,
       quantidade_necessaria: 1,
-      unidade_medida: (insumo.unidadeMedida as ListaComprasItem["unidade_medida"]) || "un",
-      quantidade_embalagem: insumo.quantidadeEmbalagem || 1,
+      unidade_compra: displayPkg.containerHint || "un",
+      unidade_medida: embUnit,
+      quantidade_embalagem: displayPkg.quantidade || insumo.quantidadeEmbalagem || 1,
+      unidade_embalagem: embUnit,
       preco_estimado: insumo.precoReferencia || 0,
       comprado: false,
     };
@@ -648,8 +666,10 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
         const precoStr = precoUnit > 0
           ? ` — R$ ${precoUnit.toFixed(2)}${isAtacado ? ` (Atacado a partir de ${it.qtd_minima_atacado} un)` : ""}`
           : "";
-        const embStr = it.quantidade_embalagem ? ` (${it.quantidade_embalagem}${it.unidade_medida})` : "";
-        return `${check} ${qtd}x *${it.insumo_nome}*${embStr}${precoStr}`;
+        const unCompra = it.unidade_compra || "un";
+        const unEmb = it.unidade_embalagem || it.unidade_medida || "g";
+        const embStr = it.quantidade_embalagem ? ` (Emb: ${it.quantidade_embalagem}${unEmb})` : "";
+        return `${check} ${qtd} ${unCompra} *${it.insumo_nome}*${embStr}${precoStr}`;
       })
       .join("\n");
 
@@ -1144,12 +1164,12 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
 
                     {/* Grade de Informações Operacionais: Quantidade, Embalagem e Preços */}
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      {/* Qtd. Necessária */}
+                      {/* Qtd. Necessária (Unidade de Compra: un, cx, pct, fardo...) */}
                       <div className="rounded-xl border border-border/70 bg-secondary/30 p-2">
                         <span className="text-[10px] font-semibold text-muted-foreground block mb-1">
-                          Qtd. Necessária
+                          Qtd. Necessária (Compra)
                         </span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <input
                             type="number"
                             min="1"
@@ -1162,13 +1182,29 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                             }
                             className="w-full rounded-lg border border-input bg-background px-2 py-1 text-center font-extrabold text-sm focus:border-primary focus:outline-none"
                           />
-                          <span className="text-xs font-bold text-muted-foreground">
-                            {item.unidade_medida || "un"}
-                          </span>
+                          <select
+                            value={item.unidade_compra || "un"}
+                            onChange={(e) =>
+                              handleUpdateItem(item.id, {
+                                unidade_compra: e.target.value,
+                              })
+                            }
+                            title="Unidade da quantidade que será comprada (ex: un, cx, pct, fardo)"
+                            className="rounded-lg border border-input bg-background px-1.5 py-1 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
+                          >
+                            <option value="un">un</option>
+                            <option value="cx">cx</option>
+                            <option value="pct">pct</option>
+                            <option value="fardo">fardo</option>
+                            <option value="lata">lata</option>
+                            <option value="pote">pote</option>
+                            <option value="kg">kg</option>
+                            <option value="l">L</option>
+                          </select>
                         </div>
                       </div>
 
-                      {/* Embalagem */}
+                      {/* Embalagem / Tamanho (Peso/Volume do Produto: 395g, 1L, 1.01kg...) */}
                       <div className="rounded-xl border border-border/70 bg-secondary/30 p-2">
                         <span className="text-[10px] font-semibold text-muted-foreground block mb-1">
                           Embalagem / Tamanho
@@ -1187,12 +1223,14 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                             className="w-full rounded-lg border border-input bg-background px-2 py-1 text-center font-bold text-xs focus:border-primary focus:outline-none"
                           />
                           <select
-                            value={item.unidade_medida}
+                            value={item.unidade_embalagem || item.unidade_medida || "g"}
                             onChange={(e) =>
                               handleUpdateItem(item.id, {
-                                unidade_medida: e.target.value as ListaComprasItem["unidade_medida"],
+                                unidade_embalagem: e.target.value,
+                                unidade_medida: e.target.value,
                               })
                             }
+                            title="Unidade de medida do tamanho/peso da embalagem (ex: g, kg, ml, L)"
                             className="rounded-lg border border-input bg-background px-1.5 py-1 text-xs font-bold focus:border-primary focus:outline-none"
                           >
                             <option value="g">g</option>
@@ -1439,18 +1477,39 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         </td>
 
                         <td className="py-2.5 px-3 text-center">
-                          <input
-                            type="number"
-                            min="1"
-                            step="any"
-                            value={item.quantidade_necessaria}
-                            onChange={(e) =>
-                              handleUpdateItem(item.id, {
-                                quantidade_necessaria: Math.max(1, parseFloat(e.target.value) || 1),
-                              })
-                            }
-                            className="w-16 rounded border border-input bg-background px-2 py-1 text-center font-bold text-xs focus:border-primary focus:outline-none"
-                          />
+                          <div className="inline-flex items-center gap-1">
+                            <input
+                              type="number"
+                              min="1"
+                              step="any"
+                              value={item.quantidade_necessaria}
+                              onChange={(e) =>
+                                handleUpdateItem(item.id, {
+                                  quantidade_necessaria: Math.max(1, parseFloat(e.target.value) || 1),
+                                })
+                              }
+                              className="w-14 rounded border border-input bg-background px-1.5 py-1 text-center font-bold text-xs focus:border-primary focus:outline-none"
+                            />
+                            <select
+                              value={item.unidade_compra || "un"}
+                              onChange={(e) =>
+                                handleUpdateItem(item.id, {
+                                  unidade_compra: e.target.value,
+                                })
+                              }
+                              title="Unidade de compra (un, cx, pct, fardo)"
+                              className="rounded border border-input bg-background px-1 py-1 text-xs font-semibold focus:border-primary focus:outline-none"
+                            >
+                              <option value="un">un</option>
+                              <option value="cx">cx</option>
+                              <option value="pct">pct</option>
+                              <option value="fardo">fardo</option>
+                              <option value="lata">lata</option>
+                              <option value="pote">pote</option>
+                              <option value="kg">kg</option>
+                              <option value="l">L</option>
+                            </select>
+                          </div>
                         </td>
 
                         <td className="py-2.5 px-3">
@@ -1468,12 +1527,14 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                               className="w-16 rounded border border-input bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
                             />
                             <select
-                              value={item.unidade_medida}
+                              value={item.unidade_embalagem || item.unidade_medida || "g"}
                               onChange={(e) =>
                                 handleUpdateItem(item.id, {
-                                  unidade_medida: e.target.value as ListaComprasItem["unidade_medida"],
+                                  unidade_embalagem: e.target.value,
+                                  unidade_medida: e.target.value,
                                 })
                               }
+                              title="Unidade do tamanho da embalagem (g, kg, ml, L)"
                               className="rounded border border-input bg-background px-1.5 py-1 text-xs focus:border-primary focus:outline-none"
                             >
                               <option value="g">g</option>
