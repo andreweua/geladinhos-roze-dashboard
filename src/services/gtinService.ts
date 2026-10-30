@@ -428,6 +428,24 @@ export async function consultarProdutoPorGtin(
             marcaFinal = firstWord ? firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase() : "Apti";
           }
 
+          // Se a RCSistemas tiver foto direta no link_foto utiliza, caso contrário busca imagem pública
+          let fotoUrl: string | undefined = data.link_foto && !data.link_foto.includes("/image") ? data.link_foto : undefined;
+
+          // Se não veio link de foto da RSC Sistemas, busca imagem real na Open Food Facts
+          if (!fotoUrl) {
+            try {
+              const offCheck = await fetch(`https://world.openfoodfacts.org/api/v2/product/${cleanGtin}.json`);
+              if (offCheck.ok) {
+                const offD = await offCheck.json();
+                if (offD?.product?.image_front_url || offD?.product?.image_url) {
+                  fotoUrl = offD.product.image_front_url || offD.product.image_url;
+                }
+              }
+            } catch {
+              // ignore
+            }
+          }
+
           return {
             gtin: cleanGtin,
             nome: nomeProduto,
@@ -436,7 +454,7 @@ export async function consultarProdutoPorGtin(
             unidade_medida: parsed.unidade,
             categoria: data.categoria || "Confeitaria / Insumos",
             ncm: data.ncm ? parseInt(String(data.ncm).replace(/\D/g, ""), 10) : undefined,
-            foto_url: data.link_foto || `https://gtin.rscsistemas.com.br/api/v3/gtin/${cleanGtin}/image`,
+            foto_url: fotoUrl,
             fonte: "rsc_sistemas",
           };
         }
@@ -487,7 +505,7 @@ export async function consultarProdutoPorGtin(
     marca: "A Identificar",
     quantidade_embalagem: 1,
     unidade_medida: "un",
-    foto_url: `https://gtin.rscsistemas.com.br/api/gtin/img/${cleanGtin}`,
+    foto_url: undefined,
     fonte: "manual",
   };
 }

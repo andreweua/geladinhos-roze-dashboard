@@ -1,10 +1,10 @@
 {
-  "version": "3.5.1",
-  "build": 2026103001,
-  "releaseDate": "2026-10-30T00:15:00.000Z",
+  "version": "3.5.2",
+  "build": 2026103002,
+  "releaseDate": "2026-10-30T00:30:00.000Z",
   "features": [
-    "Integração RSC Sistemas: Correção do payload OAuth e suporte completo aos dados de retorno GTIN/EAN",
-    "Notificação Sonora & Visual: Chime melódico e vibração nativa anunciando nova versão OTA",
-    "Lista de Compras Mobile-First: Visualização em Cards responsivos padrão UI/UX otimizados para telas de celular e PWA"
+    "Exibição de Fotos Reais de Produtos: Suporte a fotos de embalagens oficiais nos Cards e Tabela da Lista de Compras",
+    "Integração RSC Sistemas & Open Food Facts: Resolução de imagem de alta qualidade para produtos cadastrados",
+    "Notificação Sonora & Visual: Chime melódico e vibração nativa anunciando nova versão OTA"
   ]
 }

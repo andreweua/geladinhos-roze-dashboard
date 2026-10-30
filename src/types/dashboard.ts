@@ -275,6 +275,7 @@ export interface PesquisaPrecoLocal {
 export interface ListaComprasItem {
   id: string;
   gtin?: string;
+  foto_url?: string;
   insumo_nome: string;
   categoria?: string;
   marca?: string;

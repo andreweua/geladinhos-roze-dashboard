@@ -231,6 +231,7 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
           gtin: clean,
           insumo_nome: resolvedName,
           marca: resolvedBrand,
+          foto_url: prodInfo.foto_url || currentItem?.foto_url,
           quantidade_embalagem: prodInfo.quantidade_embalagem || currentItem?.quantidade_embalagem,
           unidade_medida: prodInfo.unidade_medida || currentItem?.unidade_medida || "un",
         });
@@ -294,6 +295,7 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
         insumo_nome: resolvedName,
         marca: info?.marca || "Genérico",
         gtin: clean,
+        foto_url: info?.foto_url,
         quantidade_necessaria: 1,
         unidade_medida: (info?.unidade_medida as ListaComprasItem["unidade_medida"]) || "un",
         quantidade_embalagem: info?.quantidade_embalagem || 1,
@@ -1012,7 +1014,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         : "border-border bg-card hover:border-primary/40 hover:shadow-md"
                     }`}
                   >
-                    {/* Topo do Card: Checkbox + Nome do Insumo + Botão de Excluir */}
+                    {/* Topo do Card: Checkbox + Foto do Insumo + Nome do Insumo + Botão de Excluir */}
                     <div className="flex items-start gap-3">
                       <button
                         type="button"
@@ -1026,6 +1028,22 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                       >
                         <Check className="h-4 w-4 stroke-[3]" />
                       </button>
+
+                      {/* Foto Real do Produto (RSC Sistemas / Catálogo Oficial) */}
+                      {item.foto_url && (
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border/80 bg-white p-0.5 shadow-xs">
+                          <img
+                            src={item.foto_url}
+                            alt={item.insumo_nome}
+                            loading="lazy"
+                            onError={(e) => {
+                              // Se a imagem falhar, esconde suavemente o container
+                              (e.target as HTMLElement).parentElement?.classList.add("hidden");
+                            }}
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      )}
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -1317,29 +1335,44 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         </td>
 
                         <td className="py-2.5 px-3">
-                          <input
-                            type="text"
-                            value={item.insumo_nome}
-                            onChange={(e) => handleUpdateItem(item.id, { insumo_nome: e.target.value })}
-                            className={`w-full bg-transparent font-bold text-xs focus:bg-background focus:border focus:border-primary rounded px-1.5 py-0.5 ${
-                              item.comprado ? "line-through text-muted-foreground" : "text-foreground"
-                            }`}
-                          />
-                          {item.marca && (
-                            <span className="block text-[10px] text-muted-foreground px-1.5">
-                              Marca: {item.marca}
-                            </span>
-                          )}
-                          {isAtacadoAplicado && (
-                            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                              🏷️ Preço Atacado Ativo ({qtd}/{item.qtd_minima_atacado}+ un)
-                            </span>
-                          )}
-                          {!isAtacadoAplicado && item.preco_atacado && item.qtd_minima_atacado && item.qtd_minima_atacado > qtd && (
-                            <span className="block text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">
-                              💡 Faltam {item.qtd_minima_atacado - qtd} un p/ atacado ({formatCurrency(item.preco_atacado)})
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {item.foto_url && (
+                              <img
+                                src={item.foto_url}
+                                alt={item.insumo_nome}
+                                loading="lazy"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).classList.add("hidden");
+                                }}
+                                className="h-8 w-8 object-contain rounded border border-border/80 bg-white p-0.5 shrink-0"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <input
+                                type="text"
+                                value={item.insumo_nome}
+                                onChange={(e) => handleUpdateItem(item.id, { insumo_nome: e.target.value })}
+                                className={`w-full bg-transparent font-bold text-xs focus:bg-background focus:border focus:border-primary rounded px-1.5 py-0.5 ${
+                                  item.comprado ? "line-through text-muted-foreground" : "text-foreground"
+                                }`}
+                              />
+                              {item.marca && (
+                                <span className="block text-[10px] text-muted-foreground px-1.5">
+                                  Marca: {item.marca}
+                                </span>
+                              )}
+                              {isAtacadoAplicado && (
+                                <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                  🏷️ Preço Atacado Ativo ({qtd}/{item.qtd_minima_atacado}+ un)
+                                </span>
+                              )}
+                              {!isAtacadoAplicado && item.preco_atacado && item.qtd_minima_atacado && item.qtd_minima_atacado > qtd && (
+                                <span className="block text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">
+                                  💡 Faltam {item.qtd_minima_atacado - qtd} un p/ atacado ({formatCurrency(item.preco_atacado)})
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
 
                         <td className="py-2.5 px-3">
