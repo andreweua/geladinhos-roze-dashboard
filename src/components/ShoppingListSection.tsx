@@ -123,8 +123,18 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     let compradosCount = 0;
 
     activeList.itens.forEach((it) => {
-      const preco = it.preco_cotado || it.preco_estimado || 0;
-      const subtotal = preco * (it.quantidade_necessaria || 1);
+      const qtd = it.quantidade_necessaria || 1;
+      const isAtacado = Boolean(
+        it.preco_atacado &&
+        it.preco_atacado > 0 &&
+        it.qtd_minima_atacado &&
+        it.qtd_minima_atacado > 0 &&
+        qtd >= it.qtd_minima_atacado
+      );
+      const precoUnit = isAtacado
+        ? it.preco_atacado!
+        : it.preco_varejo || it.preco_cotado || it.preco_estimado || 0;
+      const subtotal = precoUnit * qtd;
       previsto += subtotal;
       if (it.comprado) {
         comprado += subtotal;
@@ -181,6 +191,10 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
       unidade_medida: "un",
       quantidade_embalagem: 1,
       preco_estimado: 0,
+      preco_varejo: 0,
+      preco_cotado: 0,
+      preco_atacado: undefined,
+      qtd_minima_atacado: undefined,
       comprado: false,
     };
     const updatedList = { ...activeList, itens: [...activeList.itens, newItem] };
@@ -514,22 +528,22 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
 
   const handleDownloadCsvTemplate = () => {
     const csvContent =
-`nome;categoria;quantidade;unidade;preco_estimado_unitario;prioridade;fornecedor_sugerido;gtin
-Leite Condensado 395g;Laticínios;12;un;5.49;alta;Atacadista Central;7891000100101
-Creme de Leite 200g;Laticínios;15;un;3.19;alta;Atacadista Central;7891000200202
-Leite Integral 1L;Laticínios;10;l;4.29;media;Supermercado Dia;7891000300303
-Liga Neutra 100g;Confeitaria & Insumos;2;un;7.80;alta;Distribuidora Doce Sabor;
-Emulsificante 200g;Confeitaria & Insumos;2;un;8.90;media;Distribuidora Doce Sabor;
-Saquinho Geladinho 6x24cm (Fardo c/ 1000);Embalagens & Descartáveis;1;fardo;28.50;alta;Distribuidora Plast;
-Nutella Balde 3kg;Chocolates & Recheios;1;un;149.90;alta;Sam's Club;
-Polpa de Maracujá Congelada 1kg;Frutas & Mercearia;3;kg;18.00;media;Pomar Natural;
-Açúcar Cristal 5kg;Mercearia;2;pct;17.50;baixa;Atacadista Central;`;
+`nome;categoria;quantidade;unidade;preco_varejo;preco_atacado;qtd_minima_atacado;prioridade;fornecedor_sugerido;gtin
+Leite Condensado 395g;Laticínios;24;un;5.49;4.89;12;alta;Mart Minas Atacado e Varejo;7891000100101
+Creme de Leite 200g;Laticínios;27;un;3.49;2.99;24;alta;Tenda Atacado;7891000200202
+Leite Integral 1L;Laticínios;12;l;4.49;3.99;12;media;Jaú Serve Supermercados;7891000300303
+Nutella Pote 650g;Chocolates & Recheios;6;un;44.90;38.90;3;alta;Simão Doces Matriz;7898024394182
+Liga Neutra 100g;Confeitaria & Insumos;2;un;7.80;6.90;5;alta;Distribuidora Doce Sabor;
+Emulsificante 200g;Confeitaria & Insumos;2;un;8.90;7.90;4;media;Distribuidora Doce Sabor;
+Saquinho Geladinho 6x24cm (Fardo c/ 1000);Embalagens & Descartáveis;2;fardo;28.50;24.90;2;alta;Simão Embalagens;
+Polpa de Maracujá Congelada 1kg;Frutas & Mercearia;3;kg;18.00;15.50;5;media;Pomar Natural;
+Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Varejo;`;
 
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", "modelo_lista_compras_pereiralabs.csv");
+    link.setAttribute("download", "modelo_lista_compras_atacado_varejo_pereiralabs.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -539,57 +553,57 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;baixa;Atacadista Central;`;
   const handleDownloadJsonTemplate = () => {
     const jsonContent = JSON.stringify(
       {
-        versao_schema: "1.0",
-        lista_nome: "Modelo de Reposição Semanal PereiraLabs",
+        versao_schema: "2.0",
+        lista_nome: "Modelo de Reposição Atacado e Varejo PereiraLabs",
         cidade: "Jaú - SP",
         data_criacao: new Date().toISOString(),
         itens: [
           {
             nome: "Leite Condensado 395g",
             categoria: "Laticínios",
-            quantidade: 12,
+            quantidade: 24,
             unidade: "un",
-            preco_estimado_unitario: 5.49,
+            preco_varejo: 5.49,
+            preco_atacado: 4.89,
+            qtd_minima_atacado: 12,
             prioridade: "alta",
-            fornecedor_sugerido: "Atacadista Central",
+            fornecedor_sugerido: "Mart Minas Atacado e Varejo",
             gtin: "7891000100101"
           },
           {
             nome: "Creme de Leite 200g",
             categoria: "Laticínios",
-            quantidade: 15,
+            quantidade: 27,
             unidade: "un",
-            preco_estimado_unitario: 3.19,
+            preco_varejo: 3.49,
+            preco_atacado: 2.99,
+            qtd_minima_atacado: 24,
             prioridade: "alta",
-            fornecedor_sugerido: "Atacadista Central",
+            fornecedor_sugerido: "Tenda Atacado",
             gtin: "7891000200202"
           },
           {
-            nome: "Liga Neutra 100g",
-            categoria: "Confeitaria & Insumos",
-            quantidade: 2,
-            unidade: "un",
-            preco_estimado_unitario: 7.80,
-            prioridade: "alta",
-            fornecedor_sugerido: "Distribuidora Doce Sabor"
-          },
-          {
-            nome: "Nutella Balde 3kg",
+            nome: "Nutella Pote 650g",
             categoria: "Chocolates & Recheios",
-            quantidade: 1,
+            quantidade: 6,
             unidade: "un",
-            preco_estimado_unitario: 149.90,
+            preco_varejo: 44.90,
+            preco_atacado: 38.90,
+            qtd_minima_atacado: 3,
             prioridade: "alta",
-            fornecedor_sugerido: "Sam's Club"
+            fornecedor_sugerido: "Simão Doces Matriz",
+            gtin: "7898024394182"
           },
           {
             nome: "Saquinho Geladinho 6x24cm (Fardo c/ 1000)",
             categoria: "Embalagens & Descartáveis",
-            quantidade: 1,
+            quantidade: 2,
             unidade: "fardo",
-            preco_estimado_unitario: 28.50,
+            preco_varejo: 28.50,
+            preco_atacado: 24.90,
+            qtd_minima_atacado: 2,
             prioridade: "alta",
-            fornecedor_sugerido: "Distribuidora Plast"
+            fornecedor_sugerido: "Simão Embalagens"
           }
         ]
       },
@@ -614,9 +628,23 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;baixa;Atacadista Central;`;
     const itemsFormatted = activeList.itens
       .map((it) => {
         const check = it.comprado ? "✅" : "⬜";
-        const precoStr = it.preco_cotado ? ` — R$ ${it.preco_cotado.toFixed(2)}` : "";
+        const qtd = it.quantidade_necessaria || 1;
+        const isAtacado = Boolean(
+          it.preco_atacado &&
+          it.preco_atacado > 0 &&
+          it.qtd_minima_atacado &&
+          it.qtd_minima_atacado > 0 &&
+          qtd >= it.qtd_minima_atacado
+        );
+        const precoUnit = isAtacado
+          ? it.preco_atacado!
+          : it.preco_varejo || it.preco_cotado || it.preco_estimado || 0;
+
+        const precoStr = precoUnit > 0
+          ? ` — R$ ${precoUnit.toFixed(2)}${isAtacado ? ` (Atacado a partir de ${it.qtd_minima_atacado} un)` : ""}`
+          : "";
         const embStr = it.quantidade_embalagem ? ` (${it.quantidade_embalagem}${it.unidade_medida})` : "";
-        return `${check} ${it.quantidade_necessaria}x *${it.insumo_nome}*${embStr}${precoStr}`;
+        return `${check} ${qtd}x *${it.insumo_nome}*${embStr}${precoStr}`;
       })
       .join("\n");
 
@@ -915,15 +943,25 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;baixa;Atacadista Central;`;
                     <th className="py-3 px-3">Código GTIN/EAN</th>
                     <th className="py-3 px-3 text-center">Qtd. Necessária</th>
                     <th className="py-3 px-3">Embalagem</th>
-                    <th className="py-3 px-3 text-right">Preço Cotado</th>
+                    <th className="py-3 px-3 text-right">Preço (Varejo / Atacado)</th>
                     <th className="py-3 px-3 text-right">Subtotal</th>
                     <th className="py-3 px-3 text-center w-12">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {activeList.itens.map((item) => {
-                    const preco = item.preco_cotado || item.preco_estimado || 0;
-                    const subtotal = preco * (item.quantidade_necessaria || 1);
+                    const qtd = item.quantidade_necessaria || 1;
+                    const isAtacadoAplicado = Boolean(
+                      item.preco_atacado &&
+                      item.preco_atacado > 0 &&
+                      item.qtd_minima_atacado &&
+                      item.qtd_minima_atacado > 0 &&
+                      qtd >= item.qtd_minima_atacado
+                    );
+                    const precoUnitarioAplicado = isAtacadoAplicado
+                      ? item.preco_atacado!
+                      : item.preco_varejo || item.preco_cotado || item.preco_estimado || 0;
+                    const subtotal = precoUnitarioAplicado * qtd;
 
                     return (
                       <tr
@@ -953,6 +991,16 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;baixa;Atacadista Central;`;
                           {item.marca && (
                             <span className="block text-[10px] text-muted-foreground px-1.5">
                               Marca: {item.marca}
+                            </span>
+                          )}
+                          {isAtacadoAplicado && (
+                            <span className="inline-flex items-center gap-1 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                              🏷️ Preço Atacado Ativo ({qtd}/{item.qtd_minima_atacado}+ un)
+                            </span>
+                          )}
+                          {!isAtacadoAplicado && item.preco_atacado && item.qtd_minima_atacado && item.qtd_minima_atacado > qtd && (
+                            <span className="block text-[10px] text-amber-700 dark:text-amber-400 mt-0.5">
+                              💡 Faltam {item.qtd_minima_atacado - qtd} un p/ atacado ({formatCurrency(item.preco_atacado)})
                             </span>
                           )}
                         </td>
@@ -1068,20 +1116,57 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;baixa;Atacadista Central;`;
                         </td>
 
                         <td className="py-2.5 px-3 text-right">
-                          <div className="inline-flex items-center gap-1">
-                            <span className="text-[10px] text-muted-foreground">R$</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={item.preco_cotado !== undefined ? item.preco_cotado : item.preco_estimado || ""}
-                              onChange={(e) =>
-                                handleUpdateItem(item.id, {
-                                  preco_cotado: parseFloat(e.target.value) || 0,
-                                })
-                              }
-                              placeholder="0.00"
-                              className="w-20 rounded border border-input bg-background px-2 py-1 text-right font-mono font-bold text-xs text-primary focus:border-primary focus:outline-none"
-                            />
+                          <div className="flex flex-col items-end gap-1">
+                            {/* Preço de Varejo */}
+                            <div className="inline-flex items-center gap-1" title="Preço de Varejo / Unitário">
+                              <span className="text-[10px] text-muted-foreground font-semibold">Var:</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.preco_varejo !== undefined ? item.preco_varejo : item.preco_cotado !== undefined ? item.preco_cotado : item.preco_estimado || ""}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0;
+                                  handleUpdateItem(item.id, {
+                                    preco_varejo: val,
+                                    preco_cotado: val,
+                                  });
+                                }}
+                                placeholder="0.00"
+                                className="w-16 rounded border border-input bg-background px-1.5 py-0.5 text-right font-mono font-bold text-xs text-foreground focus:border-primary focus:outline-none"
+                              />
+                            </div>
+
+                            {/* Preço de Atacado & Qtd Mínima */}
+                            <div className="inline-flex items-center gap-1" title="Preço de Atacado e Quantidade Mínima para desconto">
+                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Atac:</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={item.preco_atacado !== undefined ? item.preco_atacado : ""}
+                                onChange={(e) =>
+                                  handleUpdateItem(item.id, {
+                                    preco_atacado: e.target.value ? parseFloat(e.target.value) : undefined,
+                                  })
+                                }
+                                placeholder="R$ atac"
+                                title="Preço unitário no atacado"
+                                className="w-16 rounded border border-emerald-500/40 bg-background px-1.5 py-0.5 text-right font-mono font-bold text-[11px] text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
+                              />
+                              <input
+                                type="number"
+                                step="1"
+                                min="1"
+                                value={item.qtd_minima_atacado !== undefined ? item.qtd_minima_atacado : ""}
+                                onChange={(e) =>
+                                  handleUpdateItem(item.id, {
+                                    qtd_minima_atacado: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                                  })
+                                }
+                                placeholder="mín"
+                                title="Quantidade mínima de unidades/caixas para liberar o preço de atacado"
+                                className="w-12 rounded border border-emerald-500/40 bg-background px-1 py-0.5 text-center font-mono font-bold text-[10px] text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
+                              />
+                            </div>
                           </div>
                         </td>
 

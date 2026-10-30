@@ -1,11 +1,11 @@
 {
-  "version": "3.4.7",
-  "build": 2026102903,
-  "releaseDate": "2026-10-29T18:30:00.000Z",
+  "version": "3.4.8",
+  "build": 2026102904,
+  "releaseDate": "2026-10-29T21:15:00.000Z",
   "features": [
-    "Estúdio Culinário: Remoção definitiva de fotos genéricas/fake no erro de cota da API Google",
-    "Estúdio Culinário: Painel de Diagnóstico transparente e atalhos rápidos com 1 clique (Gemini Web, ChatGPT e Copilot)",
-    "Estúdio Culinário: Upload direto de foto real do celular/câmera para visualização e cardápio",
-    "Prompt aperfeiçoado exclusivamente para sacolinha plástica tubular com nó e recheio de geladinho (proibição de copos e pratos)"
+    "Cotações de Insumos: Suporte nativo a Preço de Varejo, Preço de Atacado e Quantidade Mínima para desconto",
+    "Lista de Compras Inteligente: Detecção automática de preço de atacado por volume com cálculo de economia real",
+    "Gravação e Importação: Download de modelos CSV e JSON enriquecidos com colunas de atacado/varejo",
+    "Comparador de Mercados: Exibição visual de preços escalonados (Mart Minas, Tenda, Simão Doces, Jaú Serve)"
   ]
 }

@@ -129,6 +129,9 @@ export const LocalMarketAndInvoicesSection: React.FC<
     quantidade_embalagem: 395,
     unidade_medida: "g" as PesquisaPrecoLocal["unidade_medida"],
     preco_pesquisado: 4.89,
+    preco_varejo: 5.49 as number | string,
+    preco_atacado: 4.89 as number | string,
+    qtd_minima_atacado: 12 as number | string,
     data_pesquisa: new Date().toISOString().split("T")[0],
     data_validade: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
     em_promocao: true,
@@ -317,6 +320,9 @@ export const LocalMarketAndInvoicesSection: React.FC<
       quantidade_embalagem: 395,
       unidade_medida: "g",
       preco_pesquisado: 4.89,
+      preco_varejo: 5.49,
+      preco_atacado: 4.89,
+      qtd_minima_atacado: 12,
       data_pesquisa: new Date().toISOString().split("T")[0],
       data_validade: new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
       em_promocao: true,
@@ -332,6 +338,21 @@ export const LocalMarketAndInvoicesSection: React.FC<
     const estabNome = estab ? estab.nome : "Mercado Local";
     const estabCidade = estab?.cidade || pesquisaForm.cidade;
 
+    const precoVarejo =
+      pesquisaForm.preco_varejo !== "" && pesquisaForm.preco_varejo !== undefined
+        ? Number(pesquisaForm.preco_varejo)
+        : Number(pesquisaForm.preco_pesquisado) || 0;
+
+    const precoAtacado =
+      pesquisaForm.preco_atacado !== "" && pesquisaForm.preco_atacado !== undefined && Number(pesquisaForm.preco_atacado) > 0
+        ? Number(pesquisaForm.preco_atacado)
+        : undefined;
+
+    const qtdMinAtacado =
+      pesquisaForm.qtd_minima_atacado !== "" && pesquisaForm.qtd_minima_atacado !== undefined && Number(pesquisaForm.qtd_minima_atacado) > 0
+        ? Number(pesquisaForm.qtd_minima_atacado)
+        : undefined;
+
     addPesquisaPreco({
       estabelecimento_id: pesquisaForm.estabelecimento_id,
       estabelecimento_nome: estabNome,
@@ -340,7 +361,10 @@ export const LocalMarketAndInvoicesSection: React.FC<
       marca: pesquisaForm.marca.trim() || "Geral",
       quantidade_embalagem: Number(pesquisaForm.quantidade_embalagem) || 1,
       unidade_medida: pesquisaForm.unidade_medida,
-      preco_pesquisado: Number(pesquisaForm.preco_pesquisado) || 0,
+      preco_pesquisado: precoVarejo,
+      preco_varejo: precoVarejo,
+      preco_atacado: precoAtacado,
+      qtd_minima_atacado: qtdMinAtacado,
       data_pesquisa: pesquisaForm.data_pesquisa,
       data_validade: pesquisaForm.data_validade || undefined,
       em_promocao: pesquisaForm.em_promocao,
@@ -827,7 +851,19 @@ export const LocalMarketAndInvoicesSection: React.FC<
                         </td>
 
                         <td className="py-3 px-3 text-right font-bold text-foreground">
-                          {formatCurrency(pesq.preco_pesquisado)}
+                          {pesq.preco_atacado && pesq.preco_atacado > 0 ? (
+                            <div className="flex flex-col items-end">
+                              <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                                Atacado: {formatCurrency(pesq.preco_atacado)}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground mt-0.5">
+                                Varejo: {formatCurrency(pesq.preco_varejo || pesq.preco_pesquisado)}
+                                {pesq.qtd_minima_atacado ? ` (mín. ${pesq.qtd_minima_atacado} un)` : ""}
+                              </span>
+                            </div>
+                          ) : (
+                            <span>{formatCurrency(pesq.preco_pesquisado)}</span>
+                          )}
                         </td>
 
                         <td className="py-3 px-3 text-right font-mono font-bold">
@@ -838,11 +874,16 @@ export const LocalMarketAndInvoicesSection: React.FC<
                                 : "text-foreground"
                             }
                           >
-                            {formatCurrency(pesq.preco_por_kg_ou_l)}
+                            {formatCurrency(pesq.preco_atacado_por_kg_ou_l || pesq.preco_por_kg_ou_l)}
                             <span className="text-[10px] font-normal text-muted-foreground">
                               /{pesq.unidade_medida === "un" ? "un" : pesq.unidade_medida === "ml" || pesq.unidade_medida === "l" ? "L" : "kg"}
                             </span>
                           </span>
+                          {pesq.preco_atacado_por_kg_ou_l && (
+                            <span className="block text-[9px] font-normal text-muted-foreground">
+                              (Base atacado)
+                            </span>
+                          )}
                         </td>
 
                         <td className="py-3 px-3 text-center">
@@ -1963,38 +2004,117 @@ export const LocalMarketAndInvoicesSection: React.FC<
 
                 <div>
                   <label className="block font-semibold text-foreground">
-                    Preço Pesquisado *:
+                    Preço Varejo (Unitário) *:
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     required
-                    value={pesquisaForm.preco_pesquisado}
+                    value={pesquisaForm.preco_varejo !== undefined && pesquisaForm.preco_varejo !== "" ? pesquisaForm.preco_varejo : pesquisaForm.preco_pesquisado}
                     onChange={(e) =>
                       setPesquisaForm((prev) => ({
                         ...prev,
-                        preco_pesquisado: Number(e.target.value),
+                        preco_varejo: e.target.value === "" ? "" : Number(e.target.value),
+                        preco_pesquisado: e.target.value === "" ? 0 : Number(e.target.value),
                       }))
                     }
-                    placeholder="4.89"
-                    className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-primary focus:border-primary focus:outline-none"
+                    placeholder="5.49"
+                    className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
                   />
                 </div>
               </div>
 
+              {/* Bloco de Atacado & Limite Mínimo */}
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-foreground flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+                    <Store className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Preço de Atacado & Volume Mínimo (Opcional)</span>
+                  </label>
+                  <span className="text-[10px] text-muted-foreground">
+                    Ex: Tenda, Mart Minas, Assaí
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-foreground text-[11px]">
+                      Preço Unitário no Atacado (R$):
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={pesquisaForm.preco_atacado}
+                      onChange={(e) =>
+                        setPesquisaForm((prev) => ({
+                          ...prev,
+                          preco_atacado: e.target.value === "" ? "" : Number(e.target.value),
+                        }))
+                      }
+                      placeholder="Ex: 4.89"
+                      className="mt-1 w-full rounded-xl border border-emerald-500/40 bg-background px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-foreground text-[11px]">
+                      Qtd. Mínima p/ Atacado (un/cx):
+                    </label>
+                    <input
+                      type="number"
+                      step="1"
+                      min="1"
+                      value={pesquisaForm.qtd_minima_atacado}
+                      onChange={(e) =>
+                        setPesquisaForm((prev) => ({
+                          ...prev,
+                          qtd_minima_atacado: e.target.value === "" ? "" : Number(e.target.value),
+                        }))
+                      }
+                      placeholder="Ex: 12"
+                      className="mt-1 w-full rounded-xl border border-emerald-500/40 bg-background px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {pesquisaForm.preco_atacado !== "" && Number(pesquisaForm.preco_atacado) > 0 && (
+                  <div className="flex items-center justify-between text-[11px] pt-1 text-emerald-800 dark:text-emerald-300 font-semibold border-t border-emerald-500/20">
+                    <span>Desconto Atacado:</span>
+                    <span>
+                      {Number(pesquisaForm.preco_varejo || pesquisaForm.preco_pesquisado) > Number(pesquisaForm.preco_atacado)
+                        ? `-${(((Number(pesquisaForm.preco_varejo || pesquisaForm.preco_pesquisado) - Number(pesquisaForm.preco_atacado)) / Number(pesquisaForm.preco_varejo || pesquisaForm.preco_pesquisado)) * 100).toFixed(1)}% de economia a partir de ${pesquisaForm.qtd_minima_atacado || 1} un`
+                        : "Preço de atacado cadastrado"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               {/* Real-time normalized preview */}
-              <div className="rounded-xl border border-border/80 bg-secondary/30 p-2.5 text-[11px] text-muted-foreground flex items-center justify-between">
+              <div className="rounded-xl border border-border/80 bg-secondary/30 p-2.5 text-[11px] text-muted-foreground flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span>Preço Normalizado Calculado:</span>
-                <strong className="text-foreground font-mono">
-                  {formatCurrency(
-                    calculateNormalizedPrice(
-                      pesquisaForm.preco_pesquisado,
-                      pesquisaForm.quantidade_embalagem,
-                      pesquisaForm.unidade_medida
-                    )
+                <div className="flex items-center gap-2">
+                  <span className="text-foreground font-mono font-bold">
+                    Varejo: {formatCurrency(
+                      calculateNormalizedPrice(
+                        Number(pesquisaForm.preco_varejo || pesquisaForm.preco_pesquisado),
+                        pesquisaForm.quantidade_embalagem,
+                        pesquisaForm.unidade_medida
+                      )
+                    )}/{pesquisaForm.unidade_medida === "un" ? "un" : pesquisaForm.unidade_medida === "ml" || pesquisaForm.unidade_medida === "l" ? "L" : "kg"}
+                  </span>
+
+                  {pesquisaForm.preco_atacado !== "" && Number(pesquisaForm.preco_atacado) > 0 && (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-mono font-extrabold">
+                      • Atacado: {formatCurrency(
+                        calculateNormalizedPrice(
+                          Number(pesquisaForm.preco_atacado),
+                          pesquisaForm.quantidade_embalagem,
+                          pesquisaForm.unidade_medida
+                        )
+                      )}/{pesquisaForm.unidade_medida === "un" ? "un" : pesquisaForm.unidade_medida === "ml" || pesquisaForm.unidade_medida === "l" ? "L" : "kg"}
+                    </span>
                   )}
-                  /{pesquisaForm.unidade_medida === "un" ? "un" : pesquisaForm.unidade_medida === "ml" || pesquisaForm.unidade_medida === "l" ? "L" : "kg"}
-                </strong>
+                </div>
               </div>
 
               <div className="flex items-center gap-2">

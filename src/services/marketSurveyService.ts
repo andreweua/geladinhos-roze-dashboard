@@ -334,11 +334,15 @@ const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
     quantidade_embalagem: 395,
     unidade_medida: "g",
     preco_pesquisado: 4.89,
-    preco_por_kg_ou_l: 12.38,
+    preco_varejo: 5.49,
+    preco_atacado: 4.89,
+    qtd_minima_atacado: 12,
+    preco_por_kg_ou_l: 13.90,
+    preco_atacado_por_kg_ou_l: 12.38,
     data_pesquisa: "2026-10-18",
     data_validade: "2026-10-31", // Vigente!
     em_promocao: true,
-    observacoes: "Preço de Atacado e Varejo a partir de 12 caixinhas no Mart Minas Três Pontas.",
+    observacoes: "Preço de Atacado a partir de 12 caixas no Mart Minas Três Pontas (Varejo: R$ 5,49).",
   },
 
   // Cotação 2: Vigente (Tenda Atacado - Jaú)
@@ -352,11 +356,15 @@ const DEFAULT_PESQUISAS: PesquisaPrecoLocal[] = [
     quantidade_embalagem: 395,
     unidade_medida: "g",
     preco_pesquisado: 4.95,
-    preco_por_kg_ou_l: 12.53,
+    preco_varejo: 5.59,
+    preco_atacado: 4.95,
+    qtd_minima_atacado: 27,
+    preco_por_kg_ou_l: 14.15,
+    preco_atacado_por_kg_ou_l: 12.53,
     data_pesquisa: "2026-10-19",
     data_validade: "2026-10-26", // Vigente!
     em_promocao: true,
-    observacoes: "Fardo fechado com 27 caixas no Tenda Atacado e Varejo em Jaú.",
+    observacoes: "Fardo fechado com 27 caixas no Tenda Atacado em Jaú (Varejo: R$ 5,59).",
   },
 
   // Cotação 3: Histórica / Expirada de 2 meses atrás (para cálculo de inflação)
@@ -686,16 +694,30 @@ export function addPesquisaPreco(
 ): PesquisaPrecoLocal {
   const currentId = companyId || getActiveCompanyId();
   const all = loadPesquisasPreco(currentId);
+  const precoBase = item.preco_varejo || item.preco_pesquisado;
   const precoNormalizado = calculateNormalizedPrice(
-    item.preco_pesquisado,
+    precoBase,
     item.quantidade_embalagem,
     item.unidade_medida
   );
+  const precoAtacadoNormalizado =
+    item.preco_atacado && item.preco_atacado > 0
+      ? calculateNormalizedPrice(
+          item.preco_atacado,
+          item.quantidade_embalagem,
+          item.unidade_medida
+        )
+      : undefined;
 
   const newPesquisa: PesquisaPrecoLocal = {
     ...item,
+    preco_pesquisado: precoBase,
+    preco_varejo: item.preco_varejo || precoBase,
+    preco_atacado: item.preco_atacado,
+    qtd_minima_atacado: item.qtd_minima_atacado,
     id: `pesq-${Date.now()}`,
     preco_por_kg_ou_l: precoNormalizado,
+    preco_atacado_por_kg_ou_l: precoAtacadoNormalizado,
   };
   all.unshift(newPesquisa);
   savePesquisasPreco(all, currentId);

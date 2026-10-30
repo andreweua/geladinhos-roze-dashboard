@@ -415,7 +415,12 @@ export function saveBatchQuotationsFromShoppingList(
         rawUn === "g" || rawUn === "grama" || rawUn === "gramas" ? "g" :
         rawUn === "ml" || rawUn === "mililitro" || rawUn === "mililitros" ? "ml" : "un";
 
-      const precoNormalizado = calculateNormalizedPrice(preco, qtdEmb, unMed);
+      const precoVarejo = item.preco_varejo || preco;
+      const precoAtacado = item.preco_atacado && item.preco_atacado > 0 ? item.preco_atacado : undefined;
+      const precoNormalizado = calculateNormalizedPrice(precoVarejo, qtdEmb, unMed);
+      const precoAtacadoNormalizado = precoAtacado
+        ? calculateNormalizedPrice(precoAtacado, qtdEmb, unMed)
+        : undefined;
 
       const novaCotacao: PesquisaPrecoLocal = {
         id: `pesq-batch-${Date.now()}-${salvos}`,
@@ -426,8 +431,12 @@ export function saveBatchQuotationsFromShoppingList(
         marca: item.marca || "Marca Padrão",
         quantidade_embalagem: qtdEmb,
         unidade_medida: unMed,
-        preco_pesquisado: preco,
+        preco_pesquisado: precoVarejo,
+        preco_varejo: precoVarejo,
+        preco_atacado: precoAtacado,
+        qtd_minima_atacado: item.qtd_minima_atacado,
         preco_por_kg_ou_l: precoNormalizado,
+        preco_atacado_por_kg_ou_l: precoAtacadoNormalizado,
         data_pesquisa: hoje,
         data_validade: dataValidade || item.data_validade,
         em_promocao: Boolean(item.em_promocao),
@@ -459,7 +468,10 @@ export function parseShoppingListFromJson(jsonString: string): { titulo: string;
     const itens: ListaComprasItem[] = rawItens.map((it: any, idx: number) => {
       const nome = String(it.nome || it.insumo_nome || it.descricao || `Insumo ${idx + 1}`).trim();
       const qtd = Number(it.quantidade || it.quantidade_necessaria || it.qtd || 1);
-      const preco = Number(it.preco_estimado_unitario || it.preco_estimado || it.preco || 0);
+      const precoEstimado = Number(it.preco_estimado_unitario || it.preco_estimado || it.preco || 0);
+      const precoVarejo = Number(it.preco_varejo || precoEstimado || 0);
+      const precoAtacado = Number(it.preco_atacado || 0);
+      const qtdMinAtacado = Number(it.qtd_minima_atacado || it.qtd_min_atacado || it.min_atacado || 0);
       const statusRaw = String(it.status || "").toLowerCase();
       const status: "pendente" | "carrinho" | "comprado" =
         statusRaw === "comprado" ? "comprado" : statusRaw === "carrinho" ? "carrinho" : "pendente";
@@ -470,7 +482,11 @@ export function parseShoppingListFromJson(jsonString: string): { titulo: string;
         categoria: it.categoria || "Geral",
         quantidade_necessaria: isNaN(qtd) || qtd <= 0 ? 1 : qtd,
         unidade_medida: String(it.unidade || it.unidade_medida || "un").toLowerCase(),
-        preco_estimado: isNaN(preco) || preco <= 0 ? undefined : preco,
+        preco_estimado: isNaN(precoVarejo) || precoVarejo <= 0 ? undefined : precoVarejo,
+        preco_cotado: isNaN(precoVarejo) || precoVarejo <= 0 ? undefined : precoVarejo,
+        preco_varejo: isNaN(precoVarejo) || precoVarejo <= 0 ? undefined : precoVarejo,
+        preco_atacado: isNaN(precoAtacado) || precoAtacado <= 0 ? undefined : precoAtacado,
+        qtd_minima_atacado: isNaN(qtdMinAtacado) || qtdMinAtacado <= 0 ? undefined : qtdMinAtacado,
         prioridade: it.prioridade === "alta" || it.prioridade === "baixa" ? it.prioridade : "media",
         estabelecimento_nome: it.fornecedor_sugerido || it.estabelecimento_nome || undefined,
         status,
@@ -522,6 +538,9 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
       let qtd = 1;
       let unidade = "un";
       let preco: number | undefined = undefined;
+      let precoVarejo: number | undefined = undefined;
+      let precoAtacado: number | undefined = undefined;
+      let qtdMinAtacado: number | undefined = undefined;
       let prioridade: "alta" | "media" | "baixa" = "media";
       let fornecedor: string | undefined = undefined;
 
@@ -535,9 +554,24 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
             const parsed = parseFloat(val.replace(",", "."));
             if (!isNaN(parsed) && parsed > 0) qtd = parsed;
           } else if (h.includes("unid") || h === "un") unidade = val.toLowerCase();
-          else if (h.includes("prec") || h.includes("valor")) {
+          else if (h.includes("atacado") && !h.includes("min")) {
             const parsed = parseFloat(val.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
-            if (!isNaN(parsed) && parsed > 0) preco = parsed;
+            if (!isNaN(parsed) && parsed > 0) precoAtacado = parsed;
+          } else if (h.includes("min") || h.includes("minimo") || h.includes("qtd_atacado")) {
+            const parsed = parseFloat(val.replace(",", "."));
+            if (!isNaN(parsed) && parsed > 0) qtdMinAtacado = parsed;
+          } else if (h.includes("varejo")) {
+            const parsed = parseFloat(val.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
+            if (!isNaN(parsed) && parsed > 0) {
+              precoVarejo = parsed;
+              preco = parsed;
+            }
+          } else if (h.includes("prec") || h.includes("valor")) {
+            const parsed = parseFloat(val.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
+            if (!isNaN(parsed) && parsed > 0) {
+              preco = parsed;
+              if (!precoVarejo) precoVarejo = parsed;
+            }
           } else if (h.includes("prior")) {
             const low = val.toLowerCase();
             if (low === "alta" || low === "baixa") prioridade = low;
@@ -553,7 +587,10 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
         if (parts[3]) unidade = parts[3].toLowerCase();
         if (parts[4]) {
           const parsed = parseFloat(parts[4].replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
-          if (!isNaN(parsed) && parsed > 0) preco = parsed;
+          if (!isNaN(parsed) && parsed > 0) {
+            preco = parsed;
+            precoVarejo = parsed;
+          }
         }
         if (parts[5]) {
           const low = parts[5].toLowerCase();
@@ -569,7 +606,11 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
           categoria,
           quantidade_necessaria: qtd,
           unidade_medida: unidade,
-          preco_estimado: preco,
+          preco_estimado: precoVarejo || preco,
+          preco_cotado: precoVarejo || preco,
+          preco_varejo: precoVarejo || preco,
+          preco_atacado: precoAtacado,
+          qtd_minima_atacado: qtdMinAtacado,
           prioridade,
           estabelecimento_nome: fornecedor,
           status: "pendente",

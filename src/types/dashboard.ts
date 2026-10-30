@@ -255,8 +255,12 @@ export interface PesquisaPrecoLocal {
   marca: string; // ex: Moça, Italac, Piracanjuba, Ferrero
   quantidade_embalagem: number; // ex: 395, 1000, 200, 650
   unidade_medida: "g" | "kg" | "ml" | "l" | "un";
-  preco_pesquisado: number; // R$
+  preco_pesquisado: number; // R$ (Preço base / ativo de referência)
+  preco_varejo?: number; // R$ Preço unitário no varejo
+  preco_atacado?: number; // R$ Preço no atacado (com desconto)
+  qtd_minima_atacado?: number; // Quantidade mínima para atingir o preço de atacado (ex: 6, 12, 24 un)
   preco_por_kg_ou_l: number; // Preço normalizado em R$/kg ou R$/L para comparação
+  preco_atacado_por_kg_ou_l?: number; // Preço normalizado de atacado em R$/kg ou R$/L
   data_pesquisa: string; // YYYY-MM-DD (data da consulta)
   data_validade?: string; // YYYY-MM-DD (data de expiração da oferta/cotação)
   em_promocao: boolean;
@@ -279,6 +283,9 @@ export interface ListaComprasItem {
   quantidade_embalagem?: number; // ex: 395g
   preco_estimado?: number;
   preco_cotado?: number;
+  preco_varejo?: number; // R$ Preço unitário no varejo
+  preco_atacado?: number; // R$ Preço no atacado com desconto
+  qtd_minima_atacado?: number; // Quantidade mínima para liberar preço de atacado
   estabelecimento_id?: string;
   estabelecimento_nome?: string;
   data_validade?: string;
