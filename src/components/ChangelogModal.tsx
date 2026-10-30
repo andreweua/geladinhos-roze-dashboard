@@ -90,25 +90,25 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
 
             <div className="mt-3.5 space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary mt-0.5">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Exibição de Fotos Oficiais de Produtos:</strong>
+                  <strong className="text-foreground">Correção Crítica no Parser de Valores CSV/Excel:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Suporte nativo a fotos das embalagens oficiais nos Cards e Tabela da Lista de Compras, sincronizadas via API e catálogo integrado.
+                    Parser financeiro reescrito com suporte seguro a formato brasileiro (vírgula decimal como 5,78) e formato de download (ponto decimal como 5.49). Eliminação total do bug que multiplicava valores decimais por 100.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary mt-0.5">
                   <Layers className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Lista de Compras em Cards Responsivos Mobile-First:</strong>
+                  <strong className="text-foreground">Suporte a Tabelas Múltiplas e Cotação de Atacadistas:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Eliminação da compressão de colunas em celulares e PWA. Cada insumo agora possui seu card próprio espaçoso, com código de barras, botão de câmera e campos de embalagem e quantidades ampliados.
+                    Permite colar diretamente listas com cabeçalhos múltiplos (ex: Modelo Padrão + Cotação Mart Minas/Tenda). O sistema detecta automaticamente colunas de Produto, Marca, Tamanho, Preço Atacado e Preço Varejo.
                   </p>
                 </div>
               </div>
@@ -118,9 +118,9 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Store className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Notificação Sonora, Tátil e Visual de Atualização:</strong>
+                  <strong className="text-foreground">Extração Automática de Apresentação e Unidade:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Chime melódico ascendente sintetizado nativamente pelo hardware de áudio do aparelho (Web Audio API), vibração háptica no celular e aviso com sino animado no topo.
+                    Identificação de gramaturas e volumes como "395g", "1,01 kg" e "1L" preenchendo automaticamente unidade de medida e tamanho nos cards.
                   </p>
                 </div>
               </div>

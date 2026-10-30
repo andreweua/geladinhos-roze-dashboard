@@ -505,14 +505,27 @@ export function parseShoppingListFromJson(jsonString: string): { titulo: string;
 
 /**
  * Faz o parse de texto CSV (compatível com Excel / Google Sheets, separador ';' ou ',')
- * Cabeçalhos suportados: nome;categoria;quantidade;unidade;preco_estimado_unitario;prioridade;fornecedor_sugerido
+ * Suporta o modelo oficial PereiraLabs e tabelas de cotação de mercado
  */
 export function parseShoppingListFromCsv(csvText: string): { titulo: string; itens: ListaComprasItem[] } | null {
   try {
-    const lines = csvText
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
+    // 1. Limpa e desmembra linhas grudadas se houver cabeçalhos colados no mesmo texto
+    const rawLines = csvText.split(/\r?\n/);
+    const lines: string[] = [];
+
+    rawLines.forEach((l) => {
+      const trimmed = l.trim();
+      if (!trimmed) return;
+
+      // Se houver uma linha contendo um cabeçalho colado (ex: "...Mart Minas;Categoria;Produto...")
+      const gluedMatch = trimmed.match(/(.*?);(categoria;produto.*)/i);
+      if (gluedMatch) {
+        if (gluedMatch[1].trim()) lines.push(gluedMatch[1].trim());
+        if (gluedMatch[2].trim()) lines.push(gluedMatch[2].trim());
+      } else {
+        lines.push(trimmed);
+      }
+    });
 
     if (lines.length === 0) return null;
 
@@ -520,99 +533,147 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
     const firstLine = lines[0];
     const delimiter = firstLine.includes(";") ? ";" : ",";
 
-    // Split headers
-    const rawHeaders = firstLine.split(delimiter).map((h) => h.toLowerCase().trim().replace(/['"]/g, ""));
-    const hasHeader = rawHeaders.some((h) => h.includes("nome") || h.includes("item") || h.includes("insumo") || h.includes("produto"));
+    // Helper seguro para converter preços em formato brasileiro ou americano
+    const parseMoney = (val?: string): number | undefined => {
+      if (!val) return undefined;
+      let str = val.replace(/R\$/g, "").trim();
+      if (!str) return undefined;
 
-    const dataLines = hasHeader ? lines.slice(1) : lines;
-    if (dataLines.length === 0) return null;
+      if (str.includes(",") && str.includes(".")) {
+        if (str.indexOf(".") < str.indexOf(",")) {
+          str = str.replace(/\./g, "").replace(",", ".");
+        } else {
+          str = str.replace(/,/g, "");
+        }
+      } else if (str.includes(",")) {
+        str = str.replace(",", ".");
+      }
+      const parsed = parseFloat(str);
+      return !isNaN(parsed) && parsed > 0 ? parsed : undefined;
+    };
 
     const itens: ListaComprasItem[] = [];
 
-    dataLines.forEach((line, idx) => {
+    // Estado do cabeçalho ativo (permite importar blocos concatenados com cabeçalhos diferentes)
+    let currentHeaders: string[] = [];
+
+    lines.forEach((line, idx) => {
       const parts = line.split(delimiter).map((p) => p.trim().replace(/^["']|["']$/g, ""));
       if (parts.length === 0 || !parts[0]) return;
 
-      let nome = parts[0];
+      const lowerParts = parts.map((p) => p.toLowerCase());
+      const isHeaderLine = lowerParts.some(
+        (p) =>
+          p.includes("nome") ||
+          p.includes("produto") ||
+          p.includes("insumo") ||
+          p.includes("categoria") ||
+          p.includes("marca") ||
+          p.includes("preco_varejo")
+      );
+
+      if (isHeaderLine) {
+        currentHeaders = lowerParts;
+        return;
+      }
+
+      let nome = "";
       let categoria = "Geral";
+      let marca = "";
       let qtd = 1;
       let unidade = "un";
-      let preco: number | undefined = undefined;
+      let tamanhoApresentacao = "";
       let precoVarejo: number | undefined = undefined;
       let precoAtacado: number | undefined = undefined;
       let qtdMinAtacado: number | undefined = undefined;
       let prioridade: "alta" | "media" | "baixa" = "media";
       let fornecedor: string | undefined = undefined;
+      let gtin: string | undefined = undefined;
 
-      if (hasHeader) {
-        rawHeaders.forEach((h, colIdx) => {
+      if (currentHeaders.length > 0) {
+        currentHeaders.forEach((h, colIdx) => {
           const val = parts[colIdx];
           if (!val) return;
-          if (h.includes("nome") || h.includes("insumo") || h.includes("produto")) nome = val;
-          else if (h.includes("cat")) categoria = val;
-          else if (h.includes("quant") || h === "qtd") {
+
+          if (h === "nome" || h === "insumo" || h === "produto" || h.includes("item")) {
+            nome = val;
+          } else if (h.includes("cat")) {
+            categoria = val;
+          } else if (h.includes("marca")) {
+            marca = val;
+          } else if (h.includes("tamanho") || h.includes("apresentacao") || h.includes("emb")) {
+            tamanhoApresentacao = val;
+          } else if (h.includes("quant") || h === "qtd") {
             const parsed = parseFloat(val.replace(",", "."));
             if (!isNaN(parsed) && parsed > 0) qtd = parsed;
-          } else if (h.includes("unid") || h === "un") unidade = val.toLowerCase();
-          else if (h.includes("atacado") && !h.includes("min")) {
-            const parsed = parseFloat(val.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
-            if (!isNaN(parsed) && parsed > 0) precoAtacado = parsed;
+          } else if (h.includes("unid") || h === "un") {
+            unidade = val.toLowerCase();
+          } else if (h.includes("atacado") && !h.includes("min")) {
+            precoAtacado = parseMoney(val);
           } else if (h.includes("min") || h.includes("minimo") || h.includes("qtd_atacado")) {
             const parsed = parseFloat(val.replace(",", "."));
             if (!isNaN(parsed) && parsed > 0) qtdMinAtacado = parsed;
           } else if (h.includes("varejo")) {
-            const parsed = parseFloat(val.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
-            if (!isNaN(parsed) && parsed > 0) {
-              precoVarejo = parsed;
-              preco = parsed;
-            }
+            precoVarejo = parseMoney(val);
           } else if (h.includes("prec") || h.includes("valor")) {
-            const parsed = parseFloat(val.replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
-            if (!isNaN(parsed) && parsed > 0) {
-              preco = parsed;
-              if (!precoVarejo) precoVarejo = parsed;
+            const valNum = parseMoney(val);
+            if (valNum) {
+              if (!precoVarejo) precoVarejo = valNum;
             }
           } else if (h.includes("prior")) {
             const low = val.toLowerCase();
             if (low === "alta" || low === "baixa") prioridade = low;
-          } else if (h.includes("fornec") || h.includes("loja") || h.includes("estab")) fornecedor = val;
+          } else if (h.includes("fornec") || h.includes("loja") || h.includes("estab")) {
+            fornecedor = val;
+          } else if (h.includes("gtin") || h.includes("ean") || h.includes("barras") || h.includes("codigo")) {
+            gtin = val.replace(/\D/g, "");
+          }
         });
       } else {
-        // Fallback positional: nome;categoria;quantidade;unidade;preco;prioridade;fornecedor
+        // Fallback posicional se vier sem cabeçalho
+        nome = parts[0];
         if (parts[1]) categoria = parts[1];
         if (parts[2]) {
           const parsed = parseFloat(parts[2].replace(",", "."));
           if (!isNaN(parsed) && parsed > 0) qtd = parsed;
         }
         if (parts[3]) unidade = parts[3].toLowerCase();
-        if (parts[4]) {
-          const parsed = parseFloat(parts[4].replace("R$", "").replace(/\./g, "").replace(",", ".").trim());
-          if (!isNaN(parsed) && parsed > 0) {
-            preco = parsed;
-            precoVarejo = parsed;
-          }
+        if (parts[4]) precoVarejo = parseMoney(parts[4]);
+        if (parts[5]) precoAtacado = parseMoney(parts[5]);
+        if (parts[6]) {
+          const parsedMin = parseFloat(parts[6].replace(",", "."));
+          if (!isNaN(parsedMin) && parsedMin > 0) qtdMinAtacado = parsedMin;
         }
-        if (parts[5]) {
-          const low = parts[5].toLowerCase();
-          if (low === "alta" || low === "baixa") prioridade = low;
-        }
-        if (parts[6]) fornecedor = parts[6];
       }
 
       if (nome) {
+        // Se houver marca e ela não estiver no nome, compõe o nome de forma clara
+        let nomeFinal = nome;
+        if (marca && !nomeFinal.toUpperCase().includes(marca.toUpperCase()) && marca.toUpperCase() !== "DIVERSAS") {
+          nomeFinal = `${nome} (${marca})`;
+        }
+        if (tamanhoApresentacao && !nomeFinal.includes(tamanhoApresentacao)) {
+          nomeFinal = `${nomeFinal} ${tamanhoApresentacao}`;
+        }
+
+        const packaging = parsePackagingFromTitle(tamanhoApresentacao || nomeFinal);
+
         itens.push({
           id: `item-csv-${Date.now()}-${idx}`,
-          insumo_nome: nome,
+          insumo_nome: nomeFinal,
           categoria,
+          marca: marca || undefined,
           quantidade_necessaria: qtd,
-          unidade_medida: unidade,
-          preco_estimado: precoVarejo || preco,
-          preco_cotado: precoVarejo || preco,
-          preco_varejo: precoVarejo || preco,
+          unidade_medida: unidade !== "un" ? unidade : (packaging.unidade || "un"),
+          quantidade_embalagem: packaging.quantidade > 1 ? packaging.quantidade : undefined,
+          preco_estimado: precoVarejo || precoAtacado,
+          preco_cotado: precoVarejo || precoAtacado,
+          preco_varejo: precoVarejo,
           preco_atacado: precoAtacado,
           qtd_minima_atacado: qtdMinAtacado,
           prioridade,
           estabelecimento_nome: fornecedor,
+          gtin: gtin || undefined,
           status: "pendente",
           comprado: false,
         });
@@ -622,7 +683,7 @@ export function parseShoppingListFromCsv(csvText: string): { titulo: string; ite
     if (itens.length === 0) return null;
 
     return {
-      titulo: `Lista Importada Excel/CSV (${new Date().toLocaleDateString("pt-BR")})`,
+      titulo: `Lista Importada (${itens.length} itens - ${new Date().toLocaleDateString("pt-BR")})`,
       itens,
     };
   } catch (err) {
