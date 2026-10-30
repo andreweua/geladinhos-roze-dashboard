@@ -1,10 +1,11 @@
 {
-  "version": "3.5.2",
-  "build": 2026103002,
-  "releaseDate": "2026-10-30T00:30:00.000Z",
+  "version": "3.5.3",
+  "build": 2026103003,
+  "releaseDate": "2026-10-30T01:40:00.000Z",
   "features": [
+    "Identificação Precisa de Versão no Rodapé: Exibição da versão real em execução (v3.5.3, build e ambiente PWA/Android)",
+    "Notificação Aprimorada: Botões de 'Atualizar Agora' e 'Baixar Nova Versão / APK' diretos no alerta",
     "Exibição de Fotos Reais de Produtos: Suporte a fotos de embalagens oficiais nos Cards e Tabela da Lista de Compras",
-    "Integração RSC Sistemas & Open Food Facts: Resolução de imagem de alta qualidade para produtos cadastrados",
-    "Notificação Sonora & Visual: Chime melódico e vibração nativa anunciando nova versão OTA"
+    "Integração RSC Sistemas & Open Food Facts: Resolução de imagem de alta qualidade para produtos cadastrados"
   ]
 }

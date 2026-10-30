@@ -39,6 +39,7 @@ import { ChangelogModal } from "@/components/ChangelogModal";
 import { OtaUpdateBanner } from "@/components/OtaUpdateBanner";
 import { DesktopModeNotice } from "@/components/DesktopModeNotice";
 import { forceHardOtaReload } from "@/services/otaService";
+import { Capacitor } from "@capacitor/core";
 import { PereiraLabsMasterModal } from "@/components/master/PereiraLabsMasterModal";
 import { ConsultingSection } from "@/components/ConsultingSection";
 import { CulinaryImageStudioModal } from "@/components/CulinaryImageStudioModal";
@@ -1409,6 +1410,26 @@ export function App() {
                   <span>OTA Atualizar</span>
                 </button>
               </div>
+            </div>
+
+            {/* Informação Técnica e Precisa da Versão Instalada / em Execução */}
+            <div className="rounded-xl border border-border/60 bg-background/50 px-3 py-1.5 text-[10px] font-mono text-muted-foreground flex flex-wrap items-center justify-center gap-2">
+              <span>
+                Versão: <strong className="text-foreground">v{BRAND_CONFIG.appVersion}</strong>
+              </span>
+              <span className="opacity-40">•</span>
+              <span>
+                Build: <strong className="text-foreground">{BRAND_CONFIG.buildNumber}</strong>
+              </span>
+              <span className="opacity-40">•</span>
+              <span>
+                Ambiente:{" "}
+                <strong className="text-primary font-bold">
+                  {Capacitor.isNativePlatform()
+                    ? `Android Nativo (versionCode ${BRAND_CONFIG.androidVersionCode})`
+                    : "PWA Web App (Navegador/Instalado)"}
+                </strong>
+              </span>
             </div>
             <div className="flex flex-col items-center gap-0.5 text-center mt-1">
               <p className="text-[11px] font-medium text-muted-foreground">

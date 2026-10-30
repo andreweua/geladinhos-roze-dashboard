@@ -8,6 +8,8 @@
 
 export interface BrandConfig {
   appVersion: string;
+  buildNumber: number;
+  androidVersionCode: number;
   companyName: string;
   shortName: string;
   tagline: string;
@@ -110,7 +112,9 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "3.5.2",
+  appVersion: "3.5.3",
+  buildNumber: 2026103003,
+  androidVersionCode: 47,
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",

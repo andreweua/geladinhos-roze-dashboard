@@ -74,13 +74,13 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
 
         {/* Body Content */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
-          {/* Active Version Highlight: v3.5.0 */}
+          {/* Active Version Highlight: v3.5.2 */}
           <div className="rounded-2xl border-2 border-primary/50 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4 sm:p-5 shadow-md">
             <div className="flex items-center justify-between gap-2 border-b border-primary/25 pb-3">
               <div className="flex items-center gap-2">
                 <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-ping" />
                 <span className="text-sm sm:text-base font-black text-foreground">
-                  Versão 3.5.0 (Versão Oficial em Execução)
+                  Versão {BRAND_CONFIG.appVersion} (Versão Oficial em Execução)
                 </span>
               </div>
               <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-black">
@@ -94,9 +94,9 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Notificação Sonora, Tátil e Visual de Nova Versão:</strong>
+                  <strong className="text-foreground">Exibição de Fotos Oficiais de Produtos:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Chime melódico ascendente sintetizado nativamente pelo hardware de áudio do aparelho (Web Audio API), vibração háptica no celular e aviso com sino animado no topo.
+                    Suporte nativo a fotos das embalagens oficiais nos Cards e Tabela da Lista de Compras, sincronizadas via API e catálogo integrado.
                   </p>
                 </div>
               </div>
@@ -106,7 +106,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Layers className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Lista de Compras em Cards Responsivos Mobile-First (UI/UX):</strong>
+                  <strong className="text-foreground">Lista de Compras em Cards Responsivos Mobile-First:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
                     Eliminação da compressão de colunas em celulares e PWA. Cada insumo agora possui seu card próprio espaçoso, com código de barras, botão de câmera e campos de embalagem e quantidades ampliados.
                   </p>
@@ -118,9 +118,9 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Store className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Preço de Atacado & Varejo com Mínimo de Unidades:</strong>
+                  <strong className="text-foreground">Notificação Sonora, Tátil e Visual de Atualização:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Comparação automática nos atacarejos de Jaú e Três Pontas (Mart Minas, Tenda, Simão Doces). Ativação de desconto automático por lote e cálculo de unidades restantes.
+                    Chime melódico ascendente sintetizado nativamente pelo hardware de áudio do aparelho (Web Audio API), vibração háptica no celular e aviso com sino animado no topo.
                   </p>
                 </div>
               </div>

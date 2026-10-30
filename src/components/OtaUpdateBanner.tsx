@@ -129,39 +129,44 @@ export const OtaUpdateBanner: React.FC = () => {
               </div>
             )}
 
-            {/* Ações: Atualizar Agora e Depois */}
+            {/* Ações: Atualizar Agora e Baixar Nova Versão */}
             <div className="mt-3 flex items-center gap-2 flex-wrap">
-              {isNative ? (
-                <a
-                  href={`https://github.com/andreweua/geladinhos-roze-dashboard/releases/tag/v${otaState.remoteVersion}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow-sm hover:opacity-90 transition-all cursor-pointer"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Baixar Novo APK v{otaState.remoteVersion}</span>
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => applyOtaUpdate()}
-                  disabled={otaState.isApplying}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow-md hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer ring-2 ring-primary/40"
-                >
-                  {otaState.isApplying ? (
-                    <>
-                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                      <span>Atualizando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-3.5 w-3.5" />
-                      <span>Atualizar Agora</span>
-                      <ArrowRight className="h-3.5 w-3.5" />
-                    </>
-                  )}
-                </button>
-              )}
+              {/* Opção 1: Atualização Instantânea no Web/PWA */}
+              <button
+                type="button"
+                onClick={() => applyOtaUpdate()}
+                disabled={otaState.isApplying}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-black text-primary-foreground shadow-md hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer ring-2 ring-primary/40"
+              >
+                {otaState.isApplying ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Atualizando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Atualizar Agora</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </>
+                )}
+              </button>
+
+              {/* Opção 2: Baixar Pacote Oficial / APK da Nova Versão */}
+              <a
+                href={
+                  isNative
+                    ? `https://github.com/andreweua/geladinhos-roze-dashboard/releases/download/v${otaState.remoteVersion}/PereiraLabs-PDV-Foods-v${otaState.remoteVersion}.apk`
+                    : `https://github.com/andreweua/geladinhos-roze-dashboard/releases/tag/v${otaState.remoteVersion}`
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-primary/40 bg-secondary/80 px-3 py-2 text-xs font-bold text-foreground hover:bg-primary/10 hover:text-primary transition-all cursor-pointer"
+                title="Baixar arquivo da nova versão lançada no GitHub Releases"
+              >
+                <Download className="h-3.5 w-3.5 text-primary" />
+                <span>{isNative ? "Baixar APK Direto" : "Baixar Release"}</span>
+              </a>
 
               <button
                 type="button"
