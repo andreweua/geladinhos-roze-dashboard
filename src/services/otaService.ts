@@ -50,11 +50,21 @@ export function initOtaService(): void {
     return;
   }
 
-  window.addEventListener("load", async () => {
+  const registerWorker = async () => {
     try {
       const reg = await navigator.serviceWorker.register("./sw.js");
       swRegistration = reg;
       console.log("[OTA] Service Worker registrado com sucesso:", reg.scope);
+
+      // Se já houver um worker em espera aguardando ativação (atualização pronta em background)
+      if (reg.waiting) {
+        console.log("[OTA] Worker waiting detectado na inicialização! Notificando atualização...");
+        currentOtaState = {
+          ...currentOtaState,
+          hasUpdate: true,
+        };
+        notifyListeners();
+      }
 
       // 1. Escuta quando um novo Service Worker for detectado
       reg.addEventListener("updatefound", () => {
@@ -88,7 +98,13 @@ export function initOtaService(): void {
     } catch (err) {
       console.warn("[OTA] Falha ao registrar Service Worker:", err);
     }
-  });
+  };
+
+  if (document.readyState === "complete") {
+    registerWorker();
+  } else {
+    window.addEventListener("load", registerWorker);
+  }
 
   // Checa atualização sempre que o usuário voltar ao app no celular (desbloquear tela ou alternar app)
   document.addEventListener("visibilitychange", () => {
@@ -133,19 +149,20 @@ export async function checkForOtaUpdate(): Promise<boolean> {
     try {
       res = await fetch(`${remoteUrl}?_t=${Date.now()}`, {
         cache: "no-store",
-        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate", Pragma: "no-cache" },
       });
     } catch {
       res = await fetch(`./version.json?_t=${Date.now()}`, {
         cache: "no-store",
-        headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate", Pragma: "no-cache" },
       });
     }
 
     if (res.ok) {
       const data = await res.json();
       const remoteVer = data.version || BRAND_CONFIG.appVersion;
-      const isNew = remoteVer !== BRAND_CONFIG.appVersion;
+      // Garante comparação sem espaços
+      const isNew = String(remoteVer).trim() !== String(BRAND_CONFIG.appVersion).trim();
 
       currentOtaState = {
         ...currentOtaState,
@@ -157,7 +174,7 @@ export async function checkForOtaUpdate(): Promise<boolean> {
       notifyListeners();
 
       if (isNew) {
-        console.log(`[OTA] Nova versão detectada no servidor: ${remoteVer} (atual: ${BRAND_CONFIG.appVersion})`);
+        console.log(`[OTA] Nova versão detectada no servidor: ${remoteVer} (atual em memória: ${BRAND_CONFIG.appVersion})`);
       }
       return isNew;
     }

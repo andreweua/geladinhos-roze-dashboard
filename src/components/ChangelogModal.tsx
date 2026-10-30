@@ -74,69 +74,73 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
 
         {/* Body Content */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
-          {/* Active Version Highlight: v3.4.0 */}
-          <div className="rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 sm:p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-2 border-b border-primary/20 pb-3">
+          {/* Active Version Highlight: v3.5.0 */}
+          <div className="rounded-2xl border-2 border-primary/50 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4 sm:p-5 shadow-md">
+            <div className="flex items-center justify-between gap-2 border-b border-primary/25 pb-3">
               <div className="flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-black text-foreground">
-                  Versão 3.4.0 (Versão Oficial OTA Instalada)
+                <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-ping" />
+                <span className="text-sm sm:text-base font-black text-foreground">
+                  Versão 3.5.0 (Versão Oficial em Execução)
                 </span>
               </div>
-              <span className="text-[11px] font-medium text-muted-foreground">
-                25/10/2026 • Estável
+              <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-black">
+                NOVA • 30/10/2026
               </span>
             </div>
 
             <div className="mt-3.5 space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary mt-0.5">
-                  <Camera className="h-3.5 w-3.5" />
+                  <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Leitor de Código de Barras por Câmera no PDV & Lista:</strong>
+                  <strong className="text-foreground">Notificação Sonora, Tátil e Visual de Nova Versão:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Abertura direta da câmera sem passos extras. Lê códigos GTIN/EAN com alta precisão e preenche automaticamente os campos de busca e cadastro.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
-                  <Barcode className="h-3.5 w-3.5" />
-                </div>
-                <div>
-                  <strong className="text-foreground">Detecção Inteligente de Duplicados & Incremento (+1 Unidade):</strong>
-                  <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Se o produto já estiver no pedido ou na lista de compras, o app notifica imediatamente e permite adicionar +1 unidade com apenas 1 toque.
+                    Chime melódico ascendente sintetizado nativamente pelo hardware de áudio do aparelho (Web Audio API), vibração háptica no celular e aviso com sino animado no topo.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  <Smartphone className="h-3.5 w-3.5" />
+                  <Layers className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Eliminação de Rolagem Lateral & Design Mobile Nativo:</strong>
+                  <strong className="text-foreground">Lista de Compras em Cards Responsivos Mobile-First (UI/UX):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Remoção completa de transbordamento horizontal. Tabelas convertidas em cartões adaptativos modernos para telas de celulares Android e PWA.
+                    Eliminação da compressão de colunas em celulares e PWA. Cada insumo agora possui seu card próprio espaçoso, com código de barras, botão de câmera e campos de embalagem e quantidades ampliados.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-600 dark:text-blue-400 mt-0.5">
-                  <ShieldCheck className="h-3.5 w-3.5" />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
+                  <Store className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Segurança Master & APK Oficial PereiraLabs:</strong>
+                  <strong className="text-foreground">Preço de Atacado & Varejo com Mínimo de Unidades:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Remoção de botões de autofill master para proteção de credenciais e empacotamento do APK PereiraLabs PDV Foods v3.4.0.
+                    Comparação automática nos atacarejos de Jaú e Três Pontas (Mart Minas, Tenda, Simão Doces). Ativação de desconto automático por lote e cálculo de unidades restantes.
                   </p>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Past Version: v3.4.4 - v3.4.9 */}
+          <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-xs font-bold text-foreground">
+                Versão 3.4.4 a 3.4.9 — Safe Area Mobile Galaxy A26, Imagens Culinárias IA & Consultoria
+              </span>
+              <span className="text-[10px] text-muted-foreground">26 a 29/10/2026</span>
+            </div>
+            <ul className="text-[11px] text-muted-foreground space-y-1.5 list-disc list-inside">
+              <li>Proteção nativa de Safe Area contra sobreposição de barras de navegação no Samsung Galaxy A26.</li>
+              <li>Estúdio Culinário IA com seleção de embalagem real de saquinho de geladinho/chup-chup e prompt customizável.</li>
+              <li>Consultoria inteligente restrita a consultores cadastrados e homologados PereiraLabs.</li>
+              <li>Download de modelos pré-formatados em CSV e JSON com colunas de atacado e varejo.</li>
+            </ul>
           </div>
 
           {/* Past Version: v3.3.0 */}
