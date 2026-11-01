@@ -39,6 +39,7 @@ import {
   Button,
 } from "@/components/ui/primitives";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
+import { LocaleCurrencyInput, LocaleNumberInput } from "@/components/ui/LocaleInputs";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
   EstabelecimentoLocal,
@@ -1867,10 +1868,11 @@ export const LocalMarketAndInvoicesSection: React.FC<
                     variant="default"
                     size="sm"
                     onClick={() => setIsScannerOpen(true)}
+                    title="Ler código de barras com Google ML Kit"
                     className="gap-1.5 bg-primary text-primary-foreground font-bold text-xs shadow-sm"
                   >
                     <Camera className="h-3.5 w-3.5" />
-                    <span>Câmera</span>
+                    <span>Google ML Kit</span>
                   </Button>
                 </div>
 
@@ -2051,50 +2053,57 @@ export const LocalMarketAndInvoicesSection: React.FC<
                 <div>
                   <label className="block font-semibold text-foreground flex items-center justify-between">
                     <span>Qtd. Embalagem:</span>
-                    {pesquisaForm.dados_oficiais && <Lock className="h-2.5 w-2.5 text-amber-500" />}
+                    {pesquisaForm.dados_oficiais && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditRequestModalProduct({
+                            gtin: pesquisaForm.gtin,
+                            nome_atual: pesquisaForm.insumo_nome,
+                            marca_atual: pesquisaForm.marca || "Geral",
+                            quantidade_embalagem_atual: Number(pesquisaForm.quantidade_embalagem) || 1,
+                            unidade_medida_atual: pesquisaForm.unidade_medida,
+                            fonte_original:
+                              pesquisaForm.fonte_dados === "catalogo_local"
+                                ? "catalogo_local"
+                                : "rsc_sistemas",
+                          })
+                        }
+                        title="Solicitar atualização oficial na base PereiraLabs"
+                        className="text-amber-500 hover:text-amber-600"
+                      >
+                        <Edit2 className="h-2.5 w-2.5" />
+                      </button>
+                    )}
                   </label>
-                  <input
-                    type="number"
-                    step="any"
+                  <LocaleNumberInput
+                    maxDecimals={3}
                     required
-                    readOnly={pesquisaForm.dados_oficiais}
                     value={pesquisaForm.quantidade_embalagem}
-                    onChange={(e) => {
-                      if (pesquisaForm.dados_oficiais) return;
+                    onValueChange={(val) => {
                       setPesquisaForm((prev) => ({
                         ...prev,
-                        quantidade_embalagem: Number(e.target.value),
+                        quantidade_embalagem: val ?? 0,
                       }));
                     }}
                     placeholder="395"
-                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      pesquisaForm.dados_oficiais
-                        ? "border-amber-500/30 bg-secondary/60 font-bold text-foreground cursor-not-allowed"
-                        : "border-input bg-background focus:border-primary"
-                    }`}
+                    className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-foreground flex items-center justify-between">
                     <span>Unidade:</span>
-                    {pesquisaForm.dados_oficiais && <Lock className="h-2.5 w-2.5 text-amber-500" />}
                   </label>
                   <select
-                    disabled={pesquisaForm.dados_oficiais}
                     value={pesquisaForm.unidade_medida}
                     onChange={(e) => {
-                      if (pesquisaForm.dados_oficiais) return;
                       setPesquisaForm((prev) => ({
                         ...prev,
                         unidade_medida: e.target.value as PesquisaPrecoLocal["unidade_medida"],
                       }));
                     }}
-                    className={`mt-1 w-full rounded-xl border px-3 py-2 text-xs focus:outline-none ${
-                      pesquisaForm.dados_oficiais
-                        ? "border-amber-500/30 bg-secondary/60 font-bold text-foreground cursor-not-allowed"
-                        : "border-input bg-background focus:border-primary"
-                    }`}
+                    className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
                   >
                     <option value="g">Gramas (g)</option>
                     <option value="kg">Quilos (kg)</option>
@@ -2108,19 +2117,22 @@ export const LocalMarketAndInvoicesSection: React.FC<
                   <label className="block font-semibold text-foreground">
                     Preço Varejo (Unitário) *:
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
+                  <LocaleCurrencyInput
                     required
-                    value={pesquisaForm.preco_varejo !== undefined && pesquisaForm.preco_varejo !== "" ? pesquisaForm.preco_varejo : pesquisaForm.preco_pesquisado}
-                    onChange={(e) =>
+                    emptyWhenZero
+                    value={
+                      pesquisaForm.preco_varejo !== undefined && pesquisaForm.preco_varejo !== ""
+                        ? pesquisaForm.preco_varejo
+                        : pesquisaForm.preco_pesquisado
+                    }
+                    onValueChange={(val) =>
                       setPesquisaForm((prev) => ({
                         ...prev,
-                        preco_varejo: e.target.value === "" ? "" : Number(e.target.value),
-                        preco_pesquisado: e.target.value === "" ? 0 : Number(e.target.value),
+                        preco_varejo: val === undefined ? "" : val,
+                        preco_pesquisado: val ?? 0,
                       }))
                     }
-                    placeholder="5.49"
+                    placeholder="5,49"
                     className="mt-1 w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
                   />
                 </div>
@@ -2143,17 +2155,16 @@ export const LocalMarketAndInvoicesSection: React.FC<
                     <label className="block font-semibold text-foreground text-[11px]">
                       Preço Unitário no Atacado (R$):
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
+                    <LocaleCurrencyInput
+                      emptyWhenZero
                       value={pesquisaForm.preco_atacado}
-                      onChange={(e) =>
+                      onValueChange={(val) =>
                         setPesquisaForm((prev) => ({
                           ...prev,
-                          preco_atacado: e.target.value === "" ? "" : Number(e.target.value),
+                          preco_atacado: val === undefined ? "" : val,
                         }))
                       }
-                      placeholder="Ex: 4.89"
+                      placeholder="Ex: 4,89"
                       className="mt-1 w-full rounded-xl border border-emerald-500/40 bg-background px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -2162,15 +2173,14 @@ export const LocalMarketAndInvoicesSection: React.FC<
                     <label className="block font-semibold text-foreground text-[11px]">
                       Qtd. Mínima p/ Atacado (un/cx):
                     </label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="1"
+                    <LocaleNumberInput
+                      maxDecimals={0}
+                      emptyWhenZero
                       value={pesquisaForm.qtd_minima_atacado}
-                      onChange={(e) =>
+                      onValueChange={(val) =>
                         setPesquisaForm((prev) => ({
                           ...prev,
-                          qtd_minima_atacado: e.target.value === "" ? "" : Number(e.target.value),
+                          qtd_minima_atacado: val === undefined ? "" : val,
                         }))
                       }
                       placeholder="Ex: 12"

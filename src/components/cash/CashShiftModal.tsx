@@ -15,7 +15,8 @@ import {
   Printer,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/primitives";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDateTime, parseLocaleNumber } from "@/lib/utils";
+import { LocaleCurrencyInput } from "@/components/ui/LocaleInputs";
 import {
   CashShift,
   openCashShift,
@@ -47,9 +48,9 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
   const isOpening = !currentShift;
 
   // Form states - Abertura
-  const [dinheiroCedulas, setDinheiroCedulas] = useState("50.00");
-  const [moedas, setMoedas] = useState("20.00");
-  const [maquininhaInicial, setMaquininhaInicial] = useState("0.00");
+  const [dinheiroCedulas, setDinheiroCedulas] = useState("50,00");
+  const [moedas, setMoedas] = useState("20,00");
+  const [maquininhaInicial, setMaquininhaInicial] = useState("0,00");
   const [observacoesAbertura, setObservacoesAbertura] = useState("");
 
   // Form states - Fechamento
@@ -92,9 +93,9 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
     const newShift = openCashShift({
       empresaId,
       operadorNome,
-      dinheiroCedulas: parseFloat(dinheiroCedulas) || 0,
-      moedas: parseFloat(moedas) || 0,
-      maquininhaCartaoInicial: parseFloat(maquininhaInicial) || 0,
+      dinheiroCedulas: parseLocaleNumber(dinheiroCedulas) || 0,
+      moedas: parseLocaleNumber(moedas) || 0,
+      maquininhaCartaoInicial: parseLocaleNumber(maquininhaInicial) || 0,
       observacoes: observacoesAbertura,
     });
     onShiftUpdated(newShift);
@@ -109,9 +110,9 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
     const closed = closeCashShift({
       empresaId,
       shiftId: currentShift.id,
-      dinheiroCedulas: parseFloat(dinheiroCedulasFechamento) || 0,
-      moedas: parseFloat(moedasFechamento) || 0,
-      maquininhaCartao: parseFloat(maquininhaFechamento) || 0,
+      dinheiroCedulas: parseLocaleNumber(dinheiroCedulasFechamento) || 0,
+      moedas: parseLocaleNumber(moedasFechamento) || 0,
+      maquininhaCartao: parseLocaleNumber(maquininhaFechamento) || 0,
       observacoes: observacoesFechamento,
       vendasDoTurno: vendas,
     });
@@ -254,13 +255,11 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                     R$
                   </span>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min="0"
+                  <LocaleCurrencyInput
                     required
                     value={dinheiroCedulas}
-                    onChange={(e) => setDinheiroCedulas(e.target.value)}
+                    onValueChange={(_num, raw) => setDinheiroCedulas(raw)}
+                    placeholder="0,00"
                     className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
@@ -275,13 +274,11 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                     R$
                   </span>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min="0"
+                  <LocaleCurrencyInput
                     required
                     value={moedas}
-                    onChange={(e) => setMoedas(e.target.value)}
+                    onValueChange={(_num, raw) => setMoedas(raw)}
+                    placeholder="0,00"
                     className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
@@ -296,13 +293,10 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                     R$
                   </span>
-                  <input
-                    type="number"
-                    step="0.10"
-                    min="0"
+                  <LocaleCurrencyInput
                     value={maquininhaInicial}
-                    onChange={(e) => setMaquininhaInicial(e.target.value)}
-                    placeholder="0.00"
+                    onValueChange={(_num, raw) => setMaquininhaInicial(raw)}
+                    placeholder="0,00"
                     className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
                 </div>
@@ -318,7 +312,7 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
                 </span>
                 <span className="text-base font-black text-emerald-600 dark:text-emerald-400">
                   {formatCurrency(
-                    (parseFloat(dinheiroCedulas) || 0) + (parseFloat(moedas) || 0)
+                    (parseLocaleNumber(dinheiroCedulas) || 0) + (parseLocaleNumber(moedas) || 0)
                   )}
                 </span>
               </div>
@@ -404,14 +398,11 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                       R$
                     </span>
-                    <input
-                      type="number"
-                      step="0.05"
-                      min="0"
+                    <LocaleCurrencyInput
                       required
-                      placeholder="0.00"
+                      placeholder="0,00"
                       value={dinheiroCedulasFechamento}
-                      onChange={(e) => setDinheiroCedulasFechamento(e.target.value)}
+                      onValueChange={(_num, raw) => setDinheiroCedulasFechamento(raw)}
                       className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
@@ -426,14 +417,11 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                       R$
                     </span>
-                    <input
-                      type="number"
-                      step="0.05"
-                      min="0"
+                    <LocaleCurrencyInput
                       required
-                      placeholder="0.00"
+                      placeholder="0,00"
                       value={moedasFechamento}
-                      onChange={(e) => setMoedasFechamento(e.target.value)}
+                      onValueChange={(_num, raw) => setMoedasFechamento(raw)}
                       className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
@@ -448,14 +436,11 @@ export const CashShiftModal: React.FC<CashShiftModalProps> = ({
                     <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                       R$
                     </span>
-                    <input
-                      type="number"
-                      step="0.10"
-                      min="0"
+                    <LocaleCurrencyInput
                       required
-                      placeholder="0.00"
+                      placeholder="0,00"
                       value={maquininhaFechamento}
-                      onChange={(e) => setMaquininhaFechamento(e.target.value)}
+                      onValueChange={(_num, raw) => setMaquininhaFechamento(raw)}
                       className="w-full rounded-xl border border-border bg-background py-2.5 pl-10 pr-4 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>

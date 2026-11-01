@@ -1,10 +1,10 @@
 {
-  "version": "3.5.7",
-  "build": 2026103007,
-  "releaseDate": "2026-10-30T03:20:00.000Z",
+  "version": "3.5.8",
+  "build": 2026110101,
+  "releaseDate": "2026-11-01T11:40:00.000Z",
   "features": [
-    "Governança de Produtos Oficiais RSC Sistemas: Dados de produtos oficiais bloqueados contra edição direta pelo usuário",
-    "Fluxo de Solicitação & Aprovação Exclusiva PereiraLabs: Caso haja divergência na embalagem, o usuário solicita edição e somente a PereiraLabs aprova",
-    "Fechamento Persistente da Notificação OTA & Independência de Unidades na Lista de Compras"
+    "Inputs de Moeda e Valores com Separador Oficial do País (Vírgula em pt-BR/BRL)",
+    "Liberdade Total de Edição e Exclusão pelo Teclado (mesmo após QR Code, Scanner ou Preenchimento Automático, preservando Histórico e Preço Pago)",
+    "Scanner de Cotação com Google ML Kit Padrão (fallback automático apenas em restrição de hardware)"
   ]
 }

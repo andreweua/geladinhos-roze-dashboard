@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   Search,
   Sparkles,
+  Cpu,
 } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { Capacitor } from "@capacitor/core";
@@ -21,7 +22,15 @@ interface BarcodeScannerModalProps {
   onScanSuccess: (barcode: string) => void;
   title?: string;
   initialMode?: "camera" | "manual";
+  /** Se true, permite retornar URLs de QR Code (ex: NFC-e SEFAZ) além de códigos numéricos GTIN/EAN */
+  allowRawQrValue?: boolean;
 }
+
+type ScannerEngineStatus =
+  | "mlkit_native"
+  | "mlkit_web_detector"
+  | "installing_mlkit"
+  | "hardware_fallback";
 
 export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   isOpen,
@@ -29,12 +38,14 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   onScanSuccess,
   title = "Leitor de Código de Barras GTIN / EAN",
   initialMode = "camera",
+  allowRawQrValue = false,
 }) => {
   const [activeMode, setActiveMode] = useState<"camera" | "manual">(initialMode);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const isNativeScanRunningRef = useRef<boolean>(false);
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -45,13 +56,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [manualCode, setManualCode] = useState<string>("");
   const [scannedCode, setScannedCode] = useState<string | null>(null);
+  const [engineStatus, setEngineStatus] = useState<ScannerEngineStatus>(
+    Capacitor.isNativePlatform() ? "mlkit_native" : "mlkit_web_detector"
+  );
+  const [useWebFallbackInNative, setUseWebFallbackInNative] = useState<boolean>(false);
 
   const isNative = Capacitor.isNativePlatform();
 
   // Play audio beep on barcode detection
   const playBeep = useCallback(() => {
     try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         const ctx = new AudioCtx();
         const osc = ctx.createOscillator();
@@ -73,10 +90,25 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
   // Handle successful scan
   const handleDetectedCode = useCallback(
     (code: string) => {
-      const clean = code.replace(/\D/g, "").trim();
-      if (!clean || clean.length < 6) return;
+      const trimmed = code.trim();
+      if (!trimmed) return;
 
-      setScannedCode(clean);
+      let finalValue = trimmed;
+      if (!allowRawQrValue) {
+        const cleanDigits = trimmed.replace(/\D/g, "").trim();
+        if (!cleanDigits || cleanDigits.length < 6) return;
+        finalValue = cleanDigits;
+      } else {
+        // Para QR Code de NFC-e ou código de barras: aceita URL http(s) ou sequência numérica >= 6 dígitos
+        const digits = trimmed.replace(/\D/g, "");
+        if (!trimmed.startsWith("http") && digits.length >= 6) {
+          finalValue = digits;
+        } else if (trimmed.length < 6) {
+          return;
+        }
+      }
+
+      setScannedCode(finalValue);
       playBeep();
 
       if (navigator.vibrate) {
@@ -89,11 +121,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
       // Small delay to show success UI then close
       setTimeout(() => {
-        onScanSuccess(clean);
+        onScanSuccess(finalValue);
         onClose();
-      }, 400);
+      }, 350);
     },
-    [onClose, onScanSuccess, playBeep]
+    [allowRawQrValue, onClose, onScanSuccess, playBeep]
   );
 
   // Stop camera tracks cleanly
@@ -120,21 +152,22 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     setTorchOn(false);
   }, []);
 
-  // Start camera and barcode listener
+  // Start camera stream (Prioriza SEMPRE o motor Google ML Kit via BarcodeDetector API;
+  // usa fallback apenas se houver restrição de hardware/navegador)
   const startCamera = useCallback(async () => {
     stopCamera();
     setErrorMessage(null);
     setScannedCode(null);
 
     try {
-      // Check if mediaDevices is supported
       if (!navigator?.mediaDevices?.getUserMedia) {
-        setErrorMessage("Câmera indisponível neste navegador. Certifique-se de acessar via conexão segura HTTPS ou digite o código de barras abaixo.");
+        setErrorMessage(
+          "Câmera indisponível neste dispositivo. Certifique-se de acessar via conexão segura HTTPS ou digite o código de barras abaixo."
+        );
         setHasPermission(false);
         return;
       }
 
-      // 1. Request camera stream with continuous autofocus & high quality, with fallback
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -146,7 +179,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
           },
         });
       } catch {
-        // Graceful fallback for devices that fail specific constraints
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: true,
@@ -162,15 +194,15 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
       setHasPermission(true);
 
-      // Check track capabilities for Autofocus and Torch
+      // Check track capabilities for Continuous Autofocus, Torch and Zoom
       const track = stream.getVideoTracks()[0];
       if (track) {
         const capabilities = (track.getCapabilities ? track.getCapabilities() : {}) as {
           focusMode?: string[];
           torch?: boolean;
+          zoom?: { min: number; max: number };
         };
 
-        // Enable Continuous Autofocus on Android/iOS if supported
         if (capabilities?.focusMode && capabilities.focusMode.includes("continuous")) {
           try {
             await (track as unknown as { applyConstraints: (c: unknown) => Promise<void> }).applyConstraints({
@@ -181,25 +213,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
           }
         }
 
-        // Check Torch support
-        if (capabilities?.torch) {
-          setTorchAvailable(true);
-        } else {
-          setTorchAvailable(false);
-        }
-
-        // Check Zoom support
-        if ((capabilities as { zoom?: { min: number; max: number } })?.zoom) {
-          setZoomAvailable(true);
-        } else {
-          setZoomAvailable(false);
-        }
+        setTorchAvailable(Boolean(capabilities?.torch));
+        setZoomAvailable(Boolean(capabilities?.zoom));
       }
 
-      // 2. Barcode Detection Strategy:
-      // If native BarcodeDetector API is present in browser, use hardware acceleration
-      let nativeScannerActive = false;
-      const BarcodeDetectorClass = (window as unknown as { BarcodeDetector?: new (options?: { formats: string[] }) => { detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
+      // ESTRATÉGIA 1 (PADRÃO OBRIGATÓRIO): Motor Google ML Kit / Shape Detection API nativa por hardware
+      let mlKitDetectorActive = false;
+      const BarcodeDetectorClass = (
+        window as unknown as {
+          BarcodeDetector?: new (options?: { formats: string[] }) => {
+            detect: (source: ImageBitmapSource) => Promise<Array<{ rawValue: string }>>;
+          };
+        }
+      ).BarcodeDetector;
 
       if (typeof BarcodeDetectorClass === "function") {
         try {
@@ -207,7 +233,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"],
           });
 
-          nativeScannerActive = true;
+          mlKitDetectorActive = true;
+          setEngineStatus("mlkit_web_detector");
           let isDetecting = false;
 
           const scanLoop = async () => {
@@ -222,7 +249,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 const barcodes = await detector.detect(videoRef.current);
                 if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
                   handleDetectedCode(barcodes[0].rawValue);
-                  return; // Stop scan loop once detected
+                  return;
                 }
               } catch {
                 // ignore frame detect error
@@ -236,21 +263,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
           animationFrameRef.current = requestAnimationFrame(scanLoop);
         } catch {
-          nativeScannerActive = false;
+          mlKitDetectorActive = false;
         }
       }
 
-      // If native BarcodeDetector was not used or failed, use ZXing MultiFormat Reader
-      if (!nativeScannerActive && videoRef.current) {
+      // ESTRATÉGIA 2 (SOMENTE SE HOUVER RESTRIÇÃO DE HARDWARE): Fallback de software ZXing
+      if (!mlKitDetectorActive && videoRef.current) {
+        setEngineStatus("hardware_fallback");
         const reader = new BrowserMultiFormatReader();
         codeReaderRef.current = reader;
 
-        reader.decodeFromVideoElement(videoRef.current, (result, error) => {
+        reader.decodeFromVideoElement(videoRef.current, (result) => {
           if (result) {
             handleDetectedCode(result.getText());
-          }
-          if (error && !(error.name === "NotFoundException")) {
-            // normal frame without barcode
           }
         });
       }
@@ -259,12 +284,123 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
       setHasPermission(false);
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("Permission") || msg.includes("NotAllowedError")) {
-        setErrorMessage("Permissão da câmera negada. Habilite o acesso à câmera nas configurações do navegador ou digite o código manualmente.");
+        setErrorMessage(
+          "Permissão da câmera negada. Habilite o acesso à câmera nas configurações ou digite o código manualmente."
+        );
       } else {
-        setErrorMessage("Não foi possível acessar a câmera. Verifique se outro app está usando a câmera ou digite o código abaixo.");
+        setErrorMessage(
+          "Não foi possível acessar a câmera. Verifique se outro app está usando a câmera ou digite o código abaixo."
+        );
       }
     }
   }, [facingMode, handleDetectedCode, stopCamera]);
+
+  // Native Google ML Kit Scanner for Android/iOS App (Sempre usa Google ML Kit, exceto restrição de hardware)
+  const startNativeScanner = useCallback(async () => {
+    if (isNativeScanRunningRef.current) return;
+    isNativeScanRunningRef.current = true;
+    setErrorMessage(null);
+
+    try {
+      // 1. Verifica suporte de hardware ao Google ML Kit no aparelho
+      const supportedRes = await BarcodeScanner.isSupported().catch(() => ({ supported: false }));
+      if (!supportedRes.supported) {
+        // Restrição de hardware detectada -> cai automaticamente para o stream de câmera WebView
+        isNativeScanRunningRef.current = false;
+        setUseWebFallbackInNative(true);
+        setEngineStatus("hardware_fallback");
+        await startCamera();
+        return;
+      }
+
+      setEngineStatus("mlkit_native");
+
+      // 2. Verifica se o módulo Google Barcode Scanner (ML Kit) já está disponível no Google Play Services
+      try {
+        const isAvailable = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+        if (!isAvailable.available) {
+          setEngineStatus("installing_mlkit");
+          await new Promise<void>(async (resolve) => {
+            let resolved = false;
+            const timeout = setTimeout(() => {
+              if (!resolved) {
+                resolved = true;
+                resolve();
+              }
+            }, 4500);
+
+            let listenerHandle: { remove: () => Promise<void> } | null = null;
+            listenerHandle = await BarcodeScanner.addListener(
+              "googleBarcodeScannerModuleInstallProgress",
+              (event) => {
+                // state 4 = COMPLETED, state 5 = FAILED, state 3 = CANCELED
+                if (event.state === 4 || event.state === 5 || event.state === 3) {
+                  if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    listenerHandle?.remove().catch(() => {});
+                    resolve();
+                  }
+                }
+              }
+            ).catch(() => null);
+
+            await BarcodeScanner.installGoogleBarcodeScannerModule().catch(() => {
+              if (!resolved) {
+                resolved = true;
+                clearTimeout(timeout);
+                resolve();
+              }
+            });
+          });
+          setEngineStatus("mlkit_native");
+        }
+      } catch (err) {
+        console.warn("Google ML Kit module check/install:", err);
+      }
+
+      // 3. Solicita permissão da câmera
+      const { camera } = await BarcodeScanner.requestPermissions();
+      if (camera !== "granted" && camera !== "limited") {
+        setErrorMessage("Permissão da câmera necessária para escanear com Google ML Kit.");
+        isNativeScanRunningRef.current = false;
+        return;
+      }
+
+      // 4. Abre o scanner oficial Google ML Kit
+      const { barcodes } = await BarcodeScanner.scan({
+        formats: [
+          BarcodeFormat.Ean13,
+          BarcodeFormat.Ean8,
+          BarcodeFormat.UpcA,
+          BarcodeFormat.UpcE,
+          BarcodeFormat.Code128,
+          BarcodeFormat.Code39,
+          BarcodeFormat.QrCode,
+        ],
+      });
+
+      isNativeScanRunningRef.current = false;
+
+      if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+        handleDetectedCode(barcodes[0].rawValue);
+      }
+    } catch (err) {
+      isNativeScanRunningRef.current = false;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("Native Google ML Kit scan info:", msg);
+
+      // Se o usuário apenas cancelou/voltou no scanner nativo, mantém o modal aberto ou fecha suavemente
+      if (msg.toLowerCase().includes("cancel") || msg.toLowerCase().includes("user")) {
+        return;
+      }
+
+      // Se houve restrição de hardware ou falha no Google Play Services, ativa o fallback de câmera automático!
+      setUseWebFallbackInNative(true);
+      setEngineStatus("hardware_fallback");
+      await startCamera();
+    }
+  }, [handleDetectedCode, startCamera]);
 
   // Toggle Torch / Flashlight
   const handleToggleTorch = async () => {
@@ -305,78 +441,40 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
     setFacingMode((prev) => (prev === "environment" ? "user" : "environment"));
   };
 
-  // Native Google ML Kit Scanner for Android/iOS App
-  const startNativeScanner = useCallback(async () => {
-    try {
-      try {
-        const isAvailable = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-        if (!isAvailable.available) {
-          await BarcodeScanner.installGoogleBarcodeScannerModule();
-        }
-      } catch (err) {
-        console.warn("Google Barcode module check:", err);
-      }
-
-      const { camera } = await BarcodeScanner.requestPermissions();
-      if (camera !== "granted" && camera !== "limited") {
-        setErrorMessage("Permissão da câmera necessária no aplicativo.");
-        return;
-      }
-
-      const { barcodes } = await BarcodeScanner.scan({
-        formats: [
-          BarcodeFormat.Ean13,
-          BarcodeFormat.Ean8,
-          BarcodeFormat.UpcA,
-          BarcodeFormat.UpcE,
-          BarcodeFormat.Code128,
-          BarcodeFormat.QrCode,
-        ],
-      });
-
-      if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-        handleDetectedCode(barcodes[0].rawValue);
-      } else {
-        onClose();
-      }
-    } catch (err) {
-      console.warn("Native scan error or cancelled:", err);
-      onClose();
-    }
-  }, [handleDetectedCode, onClose]);
-
-  // Lifecycle
+  // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
       setActiveMode(initialMode);
       setManualCode("");
-      if (initialMode === "camera") {
-        if (isNative) {
-          startNativeScanner();
-        } else {
-          startCamera();
-        }
-      } else {
-        stopCamera();
-      }
+      setScannedCode(null);
+      setErrorMessage(null);
+      setUseWebFallbackInNative(false);
     } else {
-      if (!isNative) {
-        stopCamera();
-      }
+      isNativeScanRunningRef.current = false;
+      stopCamera();
     }
-  }, [isOpen, initialMode, isNative, startCamera, startNativeScanner, stopCamera]);
+  }, [isOpen, initialMode, stopCamera]);
 
+  // Single unified effect for camera/Google ML Kit activation (prevents duplicate concurrent calls)
   useEffect(() => {
-    if (isOpen && activeMode === "camera") {
-      if (isNative) {
+    if (!isOpen) return;
+
+    if (activeMode === "camera") {
+      if (isNative && !useWebFallbackInNative) {
         startNativeScanner();
       } else {
         startCamera();
       }
-    } else if (activeMode === "manual") {
+    } else {
       stopCamera();
     }
-  }, [activeMode, isOpen, isNative, startCamera, startNativeScanner, stopCamera]);
+
+    return () => {
+      if (!isNative || useWebFallbackInNative) {
+        stopCamera();
+      }
+    };
+  }, [isOpen, activeMode, isNative, useWebFallbackInNative, startCamera, startNativeScanner, stopCamera]);
 
   if (!isOpen) return null;
 
@@ -391,9 +489,19 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-extrabold text-foreground">{title}</h3>
-              <p className="text-[10px] text-muted-foreground">
-                Consulta Integrada RSC Sistemas & Catálogo Nacional
-              </p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                {engineStatus === "hardware_fallback" ? (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                    <Cpu className="h-2.5 w-2.5" />
+                    Modo Compatibilidade (Restrição de Hardware)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.2 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                    <Sparkles className="h-2.5 w-2.5" />
+                    Google ML Kit Ativo • RSC Sistemas
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <button
@@ -430,7 +538,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             }`}
           >
             <Camera className="h-3.5 w-3.5 text-primary" />
-            <span>Usar Câmera / Scanner</span>
+            <span>Google ML Kit (Câmera)</span>
           </button>
         </div>
 
@@ -453,8 +561,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               <input
                 type="text"
                 autoFocus
-                inputMode="numeric"
-                pattern="[0-9]*"
+                inputMode={allowRawQrValue ? "text" : "numeric"}
                 value={manualCode}
                 onChange={(e) => setManualCode(e.target.value)}
                 placeholder="Ex: 7891000100103"
@@ -544,7 +651,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                   <span className="mt-2 text-sm font-extrabold text-white">
                     Código Capturado!
                   </span>
-                  <span className="font-mono text-xs font-bold text-emerald-300">
+                  <span className="font-mono text-xs font-bold text-emerald-300 px-4 truncate max-w-full">
                     {scannedCode}
                   </span>
                 </div>
@@ -585,32 +692,48 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               </div>
 
               {/* Native Google ML Kit Mode Card */}
-              {isNative && (
+              {isNative && !useWebFallbackInNative && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/95 p-6 text-center backdrop-blur-md">
                   <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                     <Sparkles className="h-7 w-7 text-primary animate-pulse" />
                   </div>
                   <h4 className="text-sm font-black text-foreground">
-                    Leitor Nativo Google ML Kit
+                    {engineStatus === "installing_mlkit"
+                      ? "Preparando Motor Google ML Kit..."
+                      : "Leitor Oficial Google ML Kit"}
                   </h4>
                   <p className="mt-1 text-xs text-muted-foreground max-w-xs">
-                    Visão computacional por IA com autofoco físico contínuo e leitura ultrarrápida.
+                    Visão computacional Google ML Kit com autofoco contínuo e leitura instantânea de GTIN/EAN e QR Code.
                   </p>
-                  <Button
-                    type="button"
-                    onClick={startNativeScanner}
-                    className="mt-4 bg-primary text-primary-foreground font-bold text-xs shadow-lg"
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Escanear com Google ML Kit
-                  </Button>
+                  <div className="mt-4 flex flex-col sm:flex-row items-center gap-2">
+                    <Button
+                      type="button"
+                      onClick={startNativeScanner}
+                      className="bg-primary text-primary-foreground font-bold text-xs shadow-lg"
+                    >
+                      <Camera className="h-4 w-4 mr-2" />
+                      Abrir Google ML Kit
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setUseWebFallbackInNative(true);
+                      }}
+                      className="text-xs font-semibold"
+                    >
+                      Usar Câmera Integrada
+                    </Button>
+                  </div>
                 </div>
               )}
 
               {/* Target Hint Badge */}
               <div className="pointer-events-none absolute bottom-3 inset-x-0 flex justify-center px-4">
                 <span className="rounded-full bg-black/75 px-3 py-1 text-[11px] font-semibold text-white/90 backdrop-blur-md">
-                  Aponte a câmera para o código de barras da embalagem
+                  {engineStatus === "hardware_fallback"
+                    ? "Aponte a câmera para o código (Modo Compatibilidade de Hardware)"
+                    : "Google ML Kit Ativo — Aponte para o Código de Barras ou QR Code"}
                 </span>
               </div>
             </div>
@@ -628,13 +751,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         {/* Manual GTIN Input Fallback */}
         <div className="border-t border-border bg-card p-4 space-y-2">
           <label className="block text-[11px] font-bold text-foreground">
-            Ou digite o código de barras (GTIN/EAN) manualmente:
+            Ou digite/edite o código de barras (GTIN/EAN) manualmente:
           </label>
           <div className="flex items-center gap-2">
             <input
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
+              inputMode={allowRawQrValue ? "text" : "numeric"}
               value={manualCode}
               onChange={(e) => setManualCode(e.target.value)}
               placeholder="Ex: 7891000100103"

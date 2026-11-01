@@ -39,7 +39,8 @@ import {
   obterValorMensalidadeEfetiva,
   calcularResumoFaturamento,
 } from "@/services/billingService";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, parseLocaleNumber } from "@/lib/utils";
+import { LocaleCurrencyInput } from "@/components/ui/LocaleInputs";
 import {
   Card,
   CardHeader,
@@ -181,17 +182,17 @@ export const BillingManagementModule: React.FC = () => {
     e.preventDefault();
     if (!customValorEmpresa) return;
 
-    const val = parseFloat(customValorInput);
+    const val = parseLocaleNumber(customValorInput);
     const updates: Partial<EmpresaFaturamento> = {
-      valorCustomizado: isNaN(val) || val <= 0 ? undefined : val,
+      valorCustomizado: val === undefined || isNaN(val) || val <= 0 ? undefined : val,
     };
 
     const updated = updateEmpresaFaturamento(customValorEmpresa.id, updates);
     setEmpresas(updated);
     setIsCustomValorModalOpen(false);
     showFeedback(
-      val > 0
-        ? `✓ Valor customizado de R$ ${val.toFixed(2)} definido para "${customValorEmpresa.nome}".`
+      val && val > 0
+        ? `✓ Valor customizado de ${formatCurrency(val)} definido para "${customValorEmpresa.nome}".`
         : `✓ Valor customizado removido. "${customValorEmpresa.nome}" voltou a seguir a tabela do plano.`
     );
   };
@@ -201,8 +202,8 @@ export const BillingManagementModule: React.FC = () => {
     e.preventDefault();
     if (!editingPlano) return;
 
-    const novoVal = parseFloat(novoValorPlanoInput);
-    if (isNaN(novoVal) || novoVal < 0) {
+    const novoVal = parseLocaleNumber(novoValorPlanoInput);
+    if (novoVal === undefined || isNaN(novoVal) || novoVal < 0) {
       alert("Por favor informe um valor válido para a mensalidade.");
       return;
     }
@@ -211,8 +212,8 @@ export const BillingManagementModule: React.FC = () => {
     setPlanos(updatedPlanos);
     setIsEditPlanoModalOpen(false);
     showFeedback(
-      `✓ Reajuste aplicado! "${editingPlano.nome}" agora custa R$ ${novoVal.toFixed(
-        2
+      `✓ Reajuste aplicado! "${editingPlano.nome}" agora custa ${formatCurrency(
+        novoVal
       )}/mês. Todas as empresas vinculadas foram recalculadas!`
     );
   };
@@ -232,7 +233,7 @@ export const BillingManagementModule: React.FC = () => {
     e.preventDefault();
     if (!selectedTransacao) return;
 
-    const valor = parseFloat(valorEstornoInput.replace(",", "."));
+    const valor = parseLocaleNumber(valorEstornoInput) ?? NaN;
     const saldoDisponivel = Number(
       (selectedTransacao.valorPago - (selectedTransacao.valorEstornado || 0)).toFixed(2)
     );
@@ -243,7 +244,7 @@ export const BillingManagementModule: React.FC = () => {
     }
 
     if (valor > saldoDisponivel) {
-      setEstornoError(`O valor excede o saldo disponível de R$ ${saldoDisponivel.toFixed(2)}.`);
+      setEstornoError(`O valor excede o saldo disponível de ${formatCurrency(saldoDisponivel)}.`);
       return;
     }
 
@@ -262,7 +263,7 @@ export const BillingManagementModule: React.FC = () => {
     e.preventDefault();
     if (!selectedEmpresaId) return;
 
-    const valor = parseFloat(novoPagamentoValor.replace(",", "."));
+    const valor = parseLocaleNumber(novoPagamentoValor) ?? NaN;
     if (isNaN(valor) || valor <= 0) {
       alert("Informe um valor válido.");
       return;
@@ -271,7 +272,7 @@ export const BillingManagementModule: React.FC = () => {
     const updated = registrarNovoPagamento(selectedEmpresaId, valor, novoPagamentoMes.trim());
     setTransacoes(updated);
     setIsNovoPagamentoModalOpen(false);
-    showFeedback(`✓ Pagamento de R$ ${valor.toFixed(2)} registrado com sucesso!`);
+    showFeedback(`✓ Pagamento de ${formatCurrency(valor)} registrado com sucesso!`);
   };
 
   return (
@@ -805,11 +806,9 @@ export const BillingManagementModule: React.FC = () => {
                   Valor Cheio do Plano (Mensalidade):
                 </label>
                 <div className="flex gap-2">
-                  <input
-                    type="number"
-                    step="0.01"
+                  <LocaleCurrencyInput
                     value={proRataValorPlano}
-                    onChange={(e) => setProRataValorPlano(parseFloat(e.target.value) || 0)}
+                    onValueChange={(val) => setProRataValorPlano(val ?? 0)}
                     className="w-full rounded-xl border border-input bg-background px-3 py-1.5 font-mono text-xs focus:border-primary focus:outline-none"
                   />
                   <select
@@ -910,13 +909,11 @@ export const BillingManagementModule: React.FC = () => {
                     Estorno Total (100%)
                   </button>
                 </div>
-                <input
-                  type="number"
-                  step="0.01"
+                <LocaleCurrencyInput
                   required
                   value={valorEstornoInput}
-                  onChange={(e) => {
-                    setValorEstornoInput(e.target.value);
+                  onValueChange={(_num, raw) => {
+                    setValorEstornoInput(raw);
                     setEstornoError(null);
                   }}
                   className="w-full rounded-xl border border-input bg-background px-3 py-2 font-mono text-sm font-bold text-foreground focus:border-rose-500 focus:outline-none"
@@ -983,12 +980,10 @@ export const BillingManagementModule: React.FC = () => {
               <label className="block font-bold text-foreground mb-1">
                 Valor Especial da Mensalidade (R$):
               </label>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Ex: 69.90 (deixe em branco para voltar ao plano)"
+              <LocaleCurrencyInput
+                placeholder="Ex: 69,90 (deixe em branco para voltar ao plano)"
                 value={customValorInput}
-                onChange={(e) => setCustomValorInput(e.target.value)}
+                onValueChange={(_num, raw) => setCustomValorInput(raw)}
                 className="w-full rounded-xl border border-input bg-background px-3 py-2 font-mono text-sm font-bold text-foreground focus:border-primary focus:outline-none"
               />
               <span className="text-[11px] text-muted-foreground block mt-1">
@@ -1031,12 +1026,10 @@ export const BillingManagementModule: React.FC = () => {
               <label className="block font-bold text-foreground mb-1">
                 Novo Valor Mensal (R$) *:
               </label>
-              <input
-                type="number"
-                step="0.01"
+              <LocaleCurrencyInput
                 required
                 value={novoValorPlanoInput}
-                onChange={(e) => setNovoValorPlanoInput(e.target.value)}
+                onValueChange={(_num, raw) => setNovoValorPlanoInput(raw)}
                 className="w-full rounded-xl border border-input bg-background px-3 py-2 font-mono text-sm font-bold text-foreground focus:border-primary focus:outline-none"
               />
             </div>
@@ -1101,12 +1094,10 @@ export const BillingManagementModule: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block font-bold text-foreground mb-1">Valor Pago (R$) *:</label>
-                <input
-                  type="number"
-                  step="0.01"
+                <LocaleCurrencyInput
                   required
                   value={novoPagamentoValor}
-                  onChange={(e) => setNovoPagamentoValor(e.target.value)}
+                  onValueChange={(_num, raw) => setNovoPagamentoValor(raw)}
                   className="w-full rounded-xl border border-input bg-background px-3 py-2 font-mono text-xs font-bold focus:border-primary focus:outline-none"
                 />
               </div>

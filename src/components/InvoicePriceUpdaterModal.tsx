@@ -28,6 +28,8 @@ import {
   saveQuotations,
 } from "@/services/quotationService";
 import { formatCurrency } from "@/lib/utils";
+import { LocaleCurrencyInput, LocaleNumberInput } from "@/components/ui/LocaleInputs";
+import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
 import { addCompraNotaFiscal, loadEstabelecimentos } from "@/services/marketSurveyService";
 
 interface InvoicePriceUpdaterModalProps {
@@ -62,6 +64,7 @@ export const InvoicePriceUpdaterModal: React.FC<InvoicePriceUpdaterModalProps> =
   const [csvInput, setCsvInput] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isQrScannerOpen, setIsQrScannerOpen] = useState<boolean>(false);
 
   // Parsed result
   const [parsedReceipt, setParsedReceipt] =
@@ -216,6 +219,20 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
               ...item,
               unitPrice: Math.max(0, newPrice),
               totalPrice: Number((Math.max(0, newPrice) * item.quantity).toFixed(2)),
+            }
+          : item
+      )
+    );
+  };
+
+  const handleQuantityChange = (id: string, newQty: number) => {
+    setSelectedItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              quantity: Math.max(0, newQty),
+              totalPrice: Number((item.unitPrice * Math.max(0, newQty)).toFixed(2)),
             }
           : item
       )
@@ -460,6 +477,15 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
                 />
                 <button
                   type="button"
+                  onClick={() => setIsQrScannerOpen(true)}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-primary/40 bg-primary/10 px-3.5 py-2 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                  title="Ler QR Code ou Código de Barras da NFC-e com Google ML Kit"
+                >
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>Ler QR / Código (ML Kit)</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleProcessNfceKey}
                   disabled={isProcessing}
                   className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm hover:opacity-90 disabled:opacity-50"
@@ -688,21 +714,30 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
                             {item.rawDescription}
                           </td>
                           <td className="py-2.5 px-3 text-muted-foreground whitespace-nowrap">
-                            {item.quantity} {item.unit}
+                            <div className="inline-flex items-center gap-1">
+                              <LocaleNumberInput
+                                maxDecimals={3}
+                                fallbackOnBlur={1}
+                                value={item.quantity}
+                                onValueChange={(val) =>
+                                  handleQuantityChange(item.id, val ?? 0)
+                                }
+                                className="w-14 rounded-md border border-input bg-background px-1.5 py-1 text-center text-xs font-bold text-foreground focus:border-primary focus:outline-none"
+                                title="Edite ou apague a quantidade se necessário"
+                              />
+                              <span>{item.unit}</span>
+                            </div>
                           </td>
                           <td className="py-2.5 px-3">
                             <div className="flex items-center gap-1">
                               <span className="text-muted-foreground text-[11px] font-mono">R$</span>
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
+                              <LocaleCurrencyInput
                                 value={item.unitPrice}
-                                onChange={(e) =>
-                                  handlePriceChange(item.id, parseFloat(e.target.value) || 0)
+                                onValueChange={(val) =>
+                                  handlePriceChange(item.id, val ?? 0)
                                 }
                                 className="w-20 rounded-md border border-input bg-background px-1.5 py-1 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
-                                title="Edite o preço unitário se necessário"
+                                title="Edite ou apague o preço unitário com o separador da moeda"
                               />
                             </div>
                           </td>
@@ -794,6 +829,24 @@ MORANGO CONGELADO 1KG; 21.90; 2`;
           </button>
         </div>
       </div>
+
+      <BarcodeScannerModal
+        isOpen={isQrScannerOpen}
+        onClose={() => setIsQrScannerOpen(false)}
+        allowRawQrValue
+        title="Ler QR Code ou Código de Barras da NFC-e"
+        onScanSuccess={(scannedValue) => {
+          setKeyInput(scannedValue);
+          setIsQrScannerOpen(false);
+          try {
+            const res = parseNfceKeyOrQr(scannedValue, catalog);
+            setParsedReceipt(res);
+            setSelectedItems(res.items);
+          } catch {
+            // mantém preenchido no campo para revisão e edição manual pelo teclado
+          }
+        }}
+      />
     </div>
   );
 };

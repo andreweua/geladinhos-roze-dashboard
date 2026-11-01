@@ -35,7 +35,8 @@ import {
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
-import { formatCurrency, formatNumber, PAYMENT_METHOD_LABELS } from "@/lib/utils";
+import { formatCurrency, formatNumber, PAYMENT_METHOD_LABELS, parseLocaleNumber } from "@/lib/utils";
+import { LocaleCurrencyInput } from "@/components/ui/LocaleInputs";
 import { generatePixPayload } from "@/lib/pix";
 import { EstoquePorProduto, PaymentMethod, VendaDetalhada, CanalVenda } from "@/types/dashboard";
 import { NewSalePayload } from "@/services/dataService";
@@ -471,7 +472,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
     }
   };
 
-  const valorPagoNum = parseFloat(valorPagoDinheiro.replace(",", ".")) || 0;
+  const valorPagoNum = parseLocaleNumber(valorPagoDinheiro) || 0;
   const trocoDinheiro = Math.max(0, valorPagoNum - totalVenda);
 
   // Leitura de código de barras pela câmera do celular/computador
@@ -1254,10 +1255,10 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                       <label className="text-[11px] text-muted-foreground block mb-1">
                         Valor entregue pelo cliente:
                       </label>
-                      <input
-                        type="text"
+                      <LocaleCurrencyInput
+                        emptyWhenZero
                         value={valorPagoDinheiro}
-                        onChange={(e) => setValorPagoDinheiro(e.target.value)}
+                        onValueChange={(_num, raw) => setValorPagoDinheiro(raw)}
                         placeholder={`Ex: ${Math.ceil(totalVenda / 10) * 10},00`}
                         className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
                       />

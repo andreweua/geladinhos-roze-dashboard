@@ -7,6 +7,19 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.5.8] - 2026-11-01
+
+### Adicionado & Aprimorado
+- **Inputs de Moeda e Valores Numéricos com Separador do País (`LocaleCurrencyInput` & `LocaleNumberInput`)**:
+  - Todos os campos de entrada de valores monetários e numéricos agora utilizam automaticamente o separador decimal e de milhar definido na configuração de moeda/país do sistema (`BRAND_CONFIG.locale` / `BRAND_CONFIG.currency` — vírgula `,` para `pt-BR` / `BRL`).
+- **Edição e Exclusão Livre pelo Teclado (Incluindo Preenchimento por QR Code / Scanner / Auto-fill)**:
+  - Campos preenchidos pelo usuário ou automaticamente pelo aplicativo (leitor de QR Code de Nota Fiscal, leitor de código de barras ou catálogo RSC Sistemas) permitem apagar totalmente os dígitos com `Backspace`/`Delete` e digitar novos valores sem travar em `0` ou `1`.
+  - Mantida a proteção somente-leitura exclusivamente nas visualizações de **Histórico & Inflação** e **Preços Pagos (NF / Cupom)**.
+- **Leitura de Código de Barras nas Cotações com Google ML Kit Padrão**:
+  - Unificação do ciclo de vida do scanner em `BarcodeScannerModal` priorizando sempre o **Google ML Kit** (via `@capacitor-mlkit/barcode-scanning` no Android/iOS com verificação e instalação automática do módulo Google Play Services, e `BarcodeDetector` nativo na Web/PWA), recorrendo ao modo de compatibilidade por software apenas quando houver restrição real de hardware.
+
+---
+
 ## [3.5.7] - 2026-10-30
 
 ### Adicionado & Governança de Catálogo

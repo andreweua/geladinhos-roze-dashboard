@@ -13,7 +13,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/primitives";
-import { formatCurrency, PAYMENT_METHOD_LABELS } from "@/lib/utils";
+import { formatCurrency, PAYMENT_METHOD_LABELS, parseLocaleNumber } from "@/lib/utils";
+import { LocaleCurrencyInput, LocaleNumberInput } from "@/components/ui/LocaleInputs";
 import { EstoquePorProduto, FichaTecnicaProduto, PaymentMethod } from "@/types/dashboard";
 import { NewProductPayload, NewSalePayload } from "@/services/dataService";
 import { CashShift } from "@/services/cashShiftService";
@@ -58,8 +59,8 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
 
   // New flavor form state
   const [novoNome, setNovoNome] = useState("");
-  const [novoPreco, setNovoPreco] = useState("8.50");
-  const [novoCusto, setNovoCusto] = useState("3.10");
+  const [novoPreco, setNovoPreco] = useState("8,50");
+  const [novoCusto, setNovoCusto] = useState("3,10");
   const [novoEstoque, setNovoEstoque] = useState("20");
 
   React.useEffect(() => {
@@ -134,8 +135,8 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
     try {
       await onCreateProduct({
         nome: novoNome.trim(),
-        preco_venda: parseFloat(novoPreco) || 8.0,
-        custo_estimado: parseFloat(novoCusto) || 3.0,
+        preco_venda: parseLocaleNumber(novoPreco) || 8.0,
+        custo_estimado: parseLocaleNumber(novoCusto) || 3.0,
         estoque_inicial: parseInt(novoEstoque, 10) || 15,
       });
       setNovoNome("");
@@ -382,12 +383,10 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
                     <label className="text-[11px] font-medium text-muted-foreground">
                       Preço Venda (R$)
                     </label>
-                    <input
-                      type="number"
-                      step="0.10"
+                    <LocaleCurrencyInput
                       required
                       value={novoPreco}
-                      onChange={(e) => setNovoPreco(e.target.value)}
+                      onValueChange={(_num, raw) => setNovoPreco(raw)}
                       className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs"
                     />
                   </div>
@@ -395,12 +394,10 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
                     <label className="text-[11px] font-medium text-muted-foreground">
                       Custo Unit. (R$)
                     </label>
-                    <input
-                      type="number"
-                      step="0.10"
+                    <LocaleCurrencyInput
                       required
                       value={novoCusto}
-                      onChange={(e) => setNovoCusto(e.target.value)}
+                      onValueChange={(_num, raw) => setNovoCusto(raw)}
                       className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs"
                     />
                   </div>
@@ -410,11 +407,11 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
                     <label className="text-[11px] font-medium text-muted-foreground">
                       Estoque Inicial (un.)
                     </label>
-                    <input
-                      type="number"
+                    <LocaleNumberInput
+                      maxDecimals={0}
                       required
                       value={novoEstoque}
-                      onChange={(e) => setNovoEstoque(e.target.value)}
+                      onValueChange={(_num, raw) => setNovoEstoque(raw)}
                       className="mt-1 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs"
                     />
                   </div>
@@ -565,15 +562,14 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
 
                           {/* Opção 2: Valor Digitado Livre pelo Administrador */}
                           <div className="flex items-center gap-1 pl-1.5 border-l border-border/80">
-                            <input
-                              type="number"
-                              min="0"
+                            <LocaleNumberInput
+                              maxDecimals={0}
                               placeholder="Qtd..."
                               value={customVal}
-                              onChange={(e) =>
+                              onValueChange={(_num, raw) =>
                                 setCustomValues((prev) => ({
                                   ...prev,
-                                  [item.produto_id]: e.target.value,
+                                  [item.produto_id]: raw,
                                 }))
                               }
                               className="w-16 rounded-xl border border-input bg-card px-2 py-1 text-center text-xs font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"

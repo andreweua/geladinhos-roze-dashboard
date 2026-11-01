@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/primitives";
+import { LocaleNumberInput } from "@/components/ui/LocaleInputs";
 import {
   createProductEditRequest,
   getPendingEditRequestForProduct,
@@ -321,13 +322,12 @@ export const ProductEditRequestModal: React.FC<ProductEditRequestModalProps> = (
               <label className="block font-bold text-foreground mb-1">
                 Tam. Embalagem *:
               </label>
-              <input
-                type="number"
-                step="any"
-                min="0.01"
+              <LocaleNumberInput
+                maxDecimals={3}
+                fallbackOnBlur={1}
                 required
                 value={qtdSugerida}
-                onChange={(e) => setQtdSugerida(parseFloat(e.target.value) || 1)}
+                onValueChange={(val) => setQtdSugerida(val ?? 0)}
                 placeholder="395"
                 className="w-full rounded-xl border border-input bg-background px-3 py-2 text-xs font-bold text-foreground focus:border-primary focus:outline-none"
               />

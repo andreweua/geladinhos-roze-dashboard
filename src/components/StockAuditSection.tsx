@@ -29,6 +29,7 @@ import {
 } from "@/services/auditService";
 import { EstoquePorProduto } from "@/types/dashboard";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
+import { LocaleNumberInput } from "@/components/ui/LocaleInputs";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/primitives";
 
 interface StockAuditSectionProps {
@@ -529,16 +530,15 @@ export const StockAuditSection: React.FC<StockAuditSectionProps> = ({
                 <label className="block font-bold text-foreground mb-1">
                   Novo Saldo Físico no Freezer (Unidades):
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
+                <LocaleNumberInput
+                  maxDecimals={0}
+                  fallbackOnBlur={0}
                   required
                   value={flavorForm.novoEstoque}
-                  onChange={(e) =>
+                  onValueChange={(val) =>
                     setFlavorForm({
                       ...flavorForm,
-                      novoEstoque: Math.max(0, parseInt(e.target.value) || 0),
+                      novoEstoque: Math.max(0, val ?? 0),
                     })
                   }
                   className="w-full rounded-lg border border-input bg-background p-2 text-xs font-mono font-bold focus:border-primary focus:outline-none"
@@ -672,16 +672,15 @@ export const StockAuditSection: React.FC<StockAuditSectionProps> = ({
                 <label className="block font-bold text-foreground mb-1">
                   Novo Saldo na Despensa:
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
+                <LocaleNumberInput
+                  maxDecimals={3}
+                  fallbackOnBlur={0}
                   required
                   value={mpForm.novoEstoque}
-                  onChange={(e) =>
+                  onValueChange={(val) =>
                     setMpForm({
                       ...mpForm,
-                      novoEstoque: Math.max(0, parseFloat(e.target.value) || 0),
+                      novoEstoque: Math.max(0, val ?? 0),
                     })
                   }
                   className="w-full rounded-lg border border-input bg-background p-2 text-xs font-mono font-bold focus:border-primary focus:outline-none"

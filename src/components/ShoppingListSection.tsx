@@ -67,6 +67,7 @@ import { IngredientSearchInput } from "@/components/ingredients/IngredientSearch
 import { InsumoSearchResult } from "@/types/ingredients";
 import { formatCurrency } from "@/lib/utils";
 import { Button, Badge, Card, CardContent } from "@/components/ui/primitives";
+import { LocaleCurrencyInput, LocaleNumberInput } from "@/components/ui/LocaleInputs";
 
 interface ShoppingListSectionProps {
   estabelecimentos: EstabelecimentoLocal[];
@@ -1204,10 +1205,9 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         <Barcode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <input
                           type="text"
-                          readOnly={isOfficial}
+                          inputMode="numeric"
                           value={item.gtin || ""}
                           onChange={(e) => {
-                            if (isOfficial) return;
                             handleUpdateItem(item.id, {
                               gtin: e.target.value.replace(/\D/g, ""),
                             });
@@ -1219,14 +1219,8 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                             }
                           }}
                           placeholder="Código GTIN/EAN..."
-                          title={
-                            isOfficial
-                              ? "Código GTIN oficial vinculado ao RSC Sistemas"
-                              : "Digite o código e busque ou tecle Enter"
-                          }
-                          className={`w-full bg-transparent font-mono text-xs focus:outline-none ${
-                            isOfficial ? "text-muted-foreground cursor-not-allowed" : "text-foreground"
-                          }`}
+                          title="Digite ou edite o código e busque ou tecle Enter"
+                          className="w-full bg-transparent font-mono text-xs text-foreground focus:outline-none"
                         />
                       </div>
 
@@ -1246,20 +1240,18 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                           <span className="hidden sm:inline">Buscar</span>
                         </button>
 
-                        {!isOfficial && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setScanningTargetItemId(item.id);
-                              setScannerInitialMode("camera");
-                              setIsScannerOpen(true);
-                            }}
-                            className="rounded-lg bg-primary/10 p-1.5 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
-                            title="Escanear com a Câmera do Celular"
-                          >
-                            <Camera className="h-3.5 w-3.5" />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setScanningTargetItemId(item.id);
+                            setScannerInitialMode("camera");
+                            setIsScannerOpen(true);
+                          }}
+                          className="rounded-lg bg-primary/10 p-1.5 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                          title="Escanear com Google ML Kit (Câmera)"
+                        >
+                          <Camera className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
 
@@ -1271,16 +1263,16 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                           Qtd. Necessária (Compra)
                         </span>
                         <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min="1"
-                            step="any"
+                          <LocaleNumberInput
+                            maxDecimals={3}
+                            fallbackOnBlur={1}
                             value={item.quantidade_necessaria}
-                            onChange={(e) =>
+                            onValueChange={(val) =>
                               handleUpdateItem(item.id, {
-                                quantidade_necessaria: Math.max(1, parseFloat(e.target.value) || 1),
+                                quantidade_necessaria: val !== undefined && val > 0 ? val : 0,
                               })
                             }
+                            placeholder="1"
                             className="w-full rounded-lg border border-input bg-background px-2 py-1 text-center font-extrabold text-sm focus:border-primary focus:outline-none"
                           />
                           <select
@@ -1305,7 +1297,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         </div>
                       </div>
 
-                      {/* Embalagem / Tamanho (Peso/Volume do Produto: 395g, 1L, 1.01kg...) */}
+                      {/* Embalagem / Tamanho (Peso/Volume do Produto: 395g, 1L, 1,01kg...) */}
                       <div
                         className={`rounded-xl border p-2 ${
                           isOfficial
@@ -1318,56 +1310,46 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                             Embalagem / Tamanho
                           </span>
                           {isOfficial && (
-                            <span title="Tamanho da embalagem oficial RSC Sistemas (para corrigir, solicite edição à PereiraLabs)">
-                              <Lock className="h-2.5 w-2.5 text-amber-500 shrink-0" />
-                            </span>
+                            <button
+                              type="button"
+                              onClick={openEditRequestForItem}
+                              title="Solicitar atualização oficial na base PereiraLabs"
+                              className="text-amber-500 hover:text-amber-600"
+                            >
+                              <Edit2 className="h-2.5 w-2.5 shrink-0" />
+                            </button>
                           )}
                         </div>
-                        {isOfficial ? (
-                          <div
-                            onClick={openEditRequestForItem}
-                            title="Dado oficial RSC Sistemas. Clique para solicitar correção à PereiraLabs caso divergente."
-                            className="flex items-center justify-between rounded-lg border border-border/70 bg-background/70 px-2.5 py-1 text-xs font-bold text-foreground cursor-pointer hover:border-primary/40"
+                        <div className="flex items-center gap-1">
+                          <LocaleNumberInput
+                            maxDecimals={3}
+                            value={item.quantidade_embalagem}
+                            onValueChange={(val) =>
+                              handleUpdateItem(item.id, {
+                                quantidade_embalagem: val,
+                              })
+                            }
+                            placeholder="395"
+                            className="w-full rounded-lg border border-input bg-background px-2 py-1 text-center font-bold text-xs focus:border-primary focus:outline-none"
+                          />
+                          <select
+                            value={item.unidade_embalagem || item.unidade_medida || "g"}
+                            onChange={(e) =>
+                              handleUpdateItem(item.id, {
+                                unidade_embalagem: e.target.value,
+                                unidade_medida: e.target.value,
+                              })
+                            }
+                            title="Unidade de medida do tamanho/peso da embalagem (ex: g, kg, ml, L)"
+                            className="rounded-lg border border-input bg-background px-1.5 py-1 text-xs font-bold focus:border-primary focus:outline-none"
                           >
-                            <span>
-                              {item.quantidade_embalagem || 1}{" "}
-                              {item.unidade_embalagem || item.unidade_medida || "g"}
-                            </span>
-                            <Edit2 className="h-3 w-3 text-muted-foreground" />
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              step="any"
-                              value={item.quantidade_embalagem || ""}
-                              onChange={(e) =>
-                                handleUpdateItem(item.id, {
-                                  quantidade_embalagem: parseFloat(e.target.value) || undefined,
-                                })
-                              }
-                              placeholder="395"
-                              className="w-full rounded-lg border border-input bg-background px-2 py-1 text-center font-bold text-xs focus:border-primary focus:outline-none"
-                            />
-                            <select
-                              value={item.unidade_embalagem || item.unidade_medida || "g"}
-                              onChange={(e) =>
-                                handleUpdateItem(item.id, {
-                                  unidade_embalagem: e.target.value,
-                                  unidade_medida: e.target.value,
-                                })
-                              }
-                              title="Unidade de medida do tamanho/peso da embalagem (ex: g, kg, ml, L)"
-                              className="rounded-lg border border-input bg-background px-1.5 py-1 text-xs font-bold focus:border-primary focus:outline-none"
-                            >
-                              <option value="g">g</option>
-                              <option value="kg">kg</option>
-                              <option value="ml">ml</option>
-                              <option value="l">L</option>
-                              <option value="un">un</option>
-                            </select>
-                          </div>
-                        )}
+                            <option value="g">g</option>
+                            <option value="kg">kg</option>
+                            <option value="ml">ml</option>
+                            <option value="l">L</option>
+                            <option value="un">un</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
 
@@ -1377,15 +1359,19 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         <span className="text-[11px] font-medium text-muted-foreground">Preço Varejo (un):</span>
                         <div className="flex items-center gap-1">
                           <span className="text-[10px] text-muted-foreground">R$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={item.preco_varejo !== undefined ? item.preco_varejo : item.preco_cotado !== undefined ? item.preco_cotado : item.preco_estimado || ""}
-                            onChange={(e) => {
-                              const val = parseFloat(e.target.value) || 0;
+                          <LocaleCurrencyInput
+                            emptyWhenZero
+                            value={
+                              item.preco_varejo !== undefined
+                                ? item.preco_varejo
+                                : item.preco_cotado !== undefined
+                                ? item.preco_cotado
+                                : item.preco_estimado
+                            }
+                            onValueChange={(val) => {
                               handleUpdateItem(item.id, {
-                                preco_varejo: val,
-                                preco_cotado: val,
+                                preco_varejo: val ?? 0,
+                                preco_cotado: val ?? 0,
                               });
                             }}
                             placeholder="0,00"
@@ -1400,13 +1386,12 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         </span>
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] text-emerald-600 font-bold">R$</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={item.preco_atacado !== undefined ? item.preco_atacado : ""}
-                            onChange={(e) =>
+                          <LocaleCurrencyInput
+                            emptyWhenZero
+                            value={item.preco_atacado}
+                            onValueChange={(val) =>
                               handleUpdateItem(item.id, {
-                                preco_atacado: e.target.value ? parseFloat(e.target.value) : undefined,
+                                preco_atacado: val,
                               })
                             }
                             placeholder="Atacado"
@@ -1414,14 +1399,13 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                             className="w-20 rounded-lg border border-emerald-500/40 bg-background px-2 py-0.5 text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
                           />
                           <span className="text-[10px] text-muted-foreground font-semibold">mín:</span>
-                          <input
-                            type="number"
-                            step="1"
-                            min="1"
-                            value={item.qtd_minima_atacado !== undefined ? item.qtd_minima_atacado : ""}
-                            onChange={(e) =>
+                          <LocaleNumberInput
+                            maxDecimals={0}
+                            emptyWhenZero
+                            value={item.qtd_minima_atacado}
+                            onValueChange={(val) =>
                               handleUpdateItem(item.id, {
-                                qtd_minima_atacado: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                                qtd_minima_atacado: val,
                               })
                             }
                             placeholder="12"
@@ -1596,10 +1580,9 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                           <div className="flex items-center gap-1">
                             <input
                               type="text"
-                              readOnly={isOfficial}
+                              inputMode="numeric"
                               value={item.gtin || ""}
                               onChange={(e) => {
-                                if (isOfficial) return;
                                 handleUpdateItem(item.id, {
                                   gtin: e.target.value.replace(/\D/g, ""),
                                 });
@@ -1611,14 +1594,8 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                                 }
                               }}
                               placeholder="Código EAN..."
-                              title={
-                                isOfficial
-                                  ? "Código GTIN oficial RSC Sistemas"
-                                  : "Digite o código e tecle Enter ou use a lupa para buscar na RSC Sistemas"
-                              }
-                              className={`w-28 rounded-lg border border-input bg-background px-2 py-1 font-mono text-[11px] focus:border-primary focus:outline-none ${
-                                isOfficial ? "text-muted-foreground cursor-not-allowed" : "text-foreground"
-                              }`}
+                              title="Digite ou edite o código e tecle Enter ou use a lupa para buscar na RSC Sistemas"
+                              className="w-28 rounded-lg border border-input bg-background px-2 py-1 font-mono text-[11px] text-foreground focus:border-primary focus:outline-none"
                             />
                             {/* Buscar no RSC Sistemas / Catálogo */}
                             <button
@@ -1634,51 +1611,47 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                                 <Search className="h-3 w-3" />
                               )}
                             </button>
-                            {!isOfficial && (
-                              <>
-                                {/* Digitar no modal */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setScanningTargetItemId(item.id);
-                                    setScannerInitialMode("manual");
-                                    setIsScannerOpen(true);
-                                  }}
-                                  className="rounded-md bg-secondary p-1 text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
-                                  title="Digitar código com teclado ampliado"
-                                >
-                                  <Edit2 className="h-3 w-3" />
-                                </button>
-                                {/* Câmera */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setScanningTargetItemId(item.id);
-                                    setScannerInitialMode("camera");
-                                    setIsScannerOpen(true);
-                                  }}
-                                  className="rounded-md bg-secondary p-1 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
-                                  title="Escanear com a Câmera"
-                                >
-                                  <Camera className="h-3 w-3" />
-                                </button>
-                              </>
-                            )}
+                            {/* Digitar no modal */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setScanningTargetItemId(item.id);
+                                setScannerInitialMode("manual");
+                                setIsScannerOpen(true);
+                              }}
+                              className="rounded-md bg-secondary p-1 text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
+                              title="Digitar código com teclado ampliado"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </button>
+                            {/* Câmera Google ML Kit */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setScanningTargetItemId(item.id);
+                                setScannerInitialMode("camera");
+                                setIsScannerOpen(true);
+                              }}
+                              className="rounded-md bg-secondary p-1 text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                              title="Escanear com Google ML Kit (Câmera)"
+                            >
+                              <Camera className="h-3 w-3" />
+                            </button>
                           </div>
                         </td>
 
                         <td className="py-2.5 px-3 text-center">
                           <div className="inline-flex items-center gap-1">
-                            <input
-                              type="number"
-                              min="1"
-                              step="any"
+                            <LocaleNumberInput
+                              maxDecimals={3}
+                              fallbackOnBlur={1}
                               value={item.quantidade_necessaria}
-                              onChange={(e) =>
+                              onValueChange={(val) =>
                                 handleUpdateItem(item.id, {
-                                  quantidade_necessaria: Math.max(1, parseFloat(e.target.value) || 1),
+                                  quantidade_necessaria: val !== undefined && val > 0 ? val : 0,
                                 })
                               }
+                              placeholder="1"
                               className="w-14 rounded border border-input bg-background px-1.5 py-1 text-center font-bold text-xs focus:border-primary focus:outline-none"
                             />
                             <select
@@ -1704,51 +1677,36 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         </td>
 
                         <td className="py-2.5 px-3">
-                          {isOfficial ? (
-                            <div
-                              onClick={openEditRequestForItem}
-                              title="Embalagem oficial RSC Sistemas. Clique para solicitar correção à PereiraLabs."
-                              className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1 text-xs font-bold text-foreground cursor-pointer"
+                          <div className="flex items-center gap-1">
+                            <LocaleNumberInput
+                              maxDecimals={3}
+                              value={item.quantidade_embalagem}
+                              onValueChange={(val) =>
+                                handleUpdateItem(item.id, {
+                                  quantidade_embalagem: val,
+                                })
+                              }
+                              placeholder="395"
+                              className="w-16 rounded border border-input bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
+                            />
+                            <select
+                              value={item.unidade_embalagem || item.unidade_medida || "g"}
+                              onChange={(e) =>
+                                handleUpdateItem(item.id, {
+                                  unidade_embalagem: e.target.value,
+                                  unidade_medida: e.target.value,
+                                })
+                              }
+                              title="Unidade do tamanho da embalagem (g, kg, ml, L)"
+                              className="rounded border border-input bg-background px-1.5 py-1 text-xs focus:border-primary focus:outline-none"
                             >
-                              <Lock className="h-2.5 w-2.5 text-amber-500" />
-                              <span>
-                                {item.quantidade_embalagem || 1}
-                                {item.unidade_embalagem || item.unidade_medida || "g"}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                step="any"
-                                value={item.quantidade_embalagem || ""}
-                                onChange={(e) =>
-                                  handleUpdateItem(item.id, {
-                                    quantidade_embalagem: parseFloat(e.target.value) || undefined,
-                                  })
-                                }
-                                placeholder="395"
-                                className="w-16 rounded border border-input bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
-                              />
-                              <select
-                                value={item.unidade_embalagem || item.unidade_medida || "g"}
-                                onChange={(e) =>
-                                  handleUpdateItem(item.id, {
-                                    unidade_embalagem: e.target.value,
-                                    unidade_medida: e.target.value,
-                                  })
-                                }
-                                title="Unidade do tamanho da embalagem (g, kg, ml, L)"
-                                className="rounded border border-input bg-background px-1.5 py-1 text-xs focus:border-primary focus:outline-none"
-                              >
-                                <option value="g">g</option>
-                                <option value="kg">kg</option>
-                                <option value="ml">ml</option>
-                                <option value="l">L</option>
-                                <option value="un">un</option>
-                              </select>
-                            </div>
-                          )}
+                              <option value="g">g</option>
+                              <option value="kg">kg</option>
+                              <option value="ml">ml</option>
+                              <option value="l">L</option>
+                              <option value="un">un</option>
+                            </select>
+                          </div>
                         </td>
 
                         <td className="py-2.5 px-3 text-right">
@@ -1756,18 +1714,22 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                             {/* Preço de Varejo */}
                             <div className="inline-flex items-center gap-1" title="Preço de Varejo / Unitário">
                               <span className="text-[10px] text-muted-foreground font-semibold">Var:</span>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={item.preco_varejo !== undefined ? item.preco_varejo : item.preco_cotado !== undefined ? item.preco_cotado : item.preco_estimado || ""}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value) || 0;
+                              <LocaleCurrencyInput
+                                emptyWhenZero
+                                value={
+                                  item.preco_varejo !== undefined
+                                    ? item.preco_varejo
+                                    : item.preco_cotado !== undefined
+                                    ? item.preco_cotado
+                                    : item.preco_estimado
+                                }
+                                onValueChange={(val) => {
                                   handleUpdateItem(item.id, {
-                                    preco_varejo: val,
-                                    preco_cotado: val,
+                                    preco_varejo: val ?? 0,
+                                    preco_cotado: val ?? 0,
                                   });
                                 }}
-                                placeholder="0.00"
+                                placeholder="0,00"
                                 className="w-16 rounded border border-input bg-background px-1.5 py-0.5 text-right font-mono font-bold text-xs text-foreground focus:border-primary focus:outline-none"
                               />
                             </div>
@@ -1775,27 +1737,25 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                             {/* Preço de Atacado & Qtd Mínima */}
                             <div className="inline-flex items-center gap-1" title="Preço de Atacado e Quantidade Mínima para desconto">
                               <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Atac:</span>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={item.preco_atacado !== undefined ? item.preco_atacado : ""}
-                                onChange={(e) =>
+                              <LocaleCurrencyInput
+                                emptyWhenZero
+                                value={item.preco_atacado}
+                                onValueChange={(val) =>
                                   handleUpdateItem(item.id, {
-                                    preco_atacado: e.target.value ? parseFloat(e.target.value) : undefined,
+                                    preco_atacado: val,
                                   })
                                 }
                                 placeholder="R$ atac"
                                 title="Preço unitário no atacado"
                                 className="w-16 rounded border border-emerald-500/40 bg-background px-1.5 py-0.5 text-right font-mono font-bold text-[11px] text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
                               />
-                              <input
-                                type="number"
-                                step="1"
-                                min="1"
-                                value={item.qtd_minima_atacado !== undefined ? item.qtd_minima_atacado : ""}
-                                onChange={(e) =>
+                              <LocaleNumberInput
+                                maxDecimals={0}
+                                emptyWhenZero
+                                value={item.qtd_minima_atacado}
+                                onValueChange={(val) =>
                                   handleUpdateItem(item.id, {
-                                    qtd_minima_atacado: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                                    qtd_minima_atacado: val,
                                   })
                                 }
                                 placeholder="mín"

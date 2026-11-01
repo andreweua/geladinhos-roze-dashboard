@@ -30,7 +30,8 @@ import {
   Button,
 } from "@/components/ui/primitives";
 import { calculateDynamicIfoodPrice } from "@/lib/analytics";
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatCurrency, formatNumber, parseLocaleNumber } from "@/lib/utils";
+import { LocaleCurrencyInput, LocaleNumberInput } from "@/components/ui/LocaleInputs";
 import { calculateUnitCostFromFicha } from "@/services/dataService";
 import { loadCurrentQuotations } from "@/services/quotationService";
 import {
@@ -152,7 +153,7 @@ export const TechnicalSheetAndDreSection: React.FC<
 
   const calc = calculateUnitCostFromFicha(draftFicha);
   const precoVendaNum =
-    parseFloat(draftPrecoVenda) || currentProduct.preco_venda;
+    parseLocaleNumber(draftPrecoVenda) || currentProduct.preco_venda;
   const lucroLocalUn = Number((precoVendaNum - calc.custoTotalUn).toFixed(2));
 
   // Dynamic iFood calculation based on registered fee rate (ifoodFeePct)
@@ -409,16 +410,14 @@ export const TechnicalSheetAndDreSection: React.FC<
                 </label>
               </div>
               <div className="flex items-center gap-1">
-                <input
+                <LocaleNumberInput
                   id="taxa-ifood-input"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="80"
+                  maxDecimals={2}
+                  fallbackOnBlur={0}
                   value={ifoodFeePct}
-                  onChange={(e) =>
+                  onValueChange={(val) =>
                     onChangeIfoodFeePct(
-                      Math.min(80, Math.max(0, parseFloat(e.target.value) || 0))
+                      Math.min(80, Math.max(0, val ?? 0))
                     )
                   }
                   className="w-16 rounded-lg border border-input bg-background px-2 py-1 text-center text-xs font-extrabold text-primary focus:outline-none focus:ring-2 focus:ring-ring"
@@ -600,17 +599,14 @@ export const TechnicalSheetAndDreSection: React.FC<
                   Rendimento (Saquinhos)
                 </span>
                 {isEditing ? (
-                  <input
-                    type="number"
-                    min={1}
+                  <LocaleNumberInput
+                    maxDecimals={0}
+                    fallbackOnBlur={1}
                     value={draftFicha.rendimento_unidades}
-                    onChange={(e) =>
+                    onValueChange={(val) =>
                       setDraftFicha({
                         ...draftFicha,
-                        rendimento_unidades: Math.max(
-                          1,
-                          parseInt(e.target.value, 10) || 1
-                        ),
+                        rendimento_unidades: Math.max(1, val ?? 1),
                       })
                     }
                     className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1 text-sm font-bold"
@@ -629,11 +625,9 @@ export const TechnicalSheetAndDreSection: React.FC<
                   Preço Local (un.)
                 </span>
                 {isEditing ? (
-                  <input
-                    type="number"
-                    step="0.10"
+                  <LocaleCurrencyInput
                     value={draftPrecoVenda}
-                    onChange={(e) => setDraftPrecoVenda(e.target.value)}
+                    onValueChange={(_num, raw) => setDraftPrecoVenda(raw)}
                     className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1 text-sm font-bold"
                   />
                 ) : (
@@ -757,14 +751,14 @@ export const TechnicalSheetAndDreSection: React.FC<
                           <td className="whitespace-nowrap py-2.5 px-2 text-center text-muted-foreground">
                             {isEditing ? (
                               <div className="inline-flex items-center gap-1">
-                                <input
-                                  type="number"
+                                <LocaleNumberInput
+                                  maxDecimals={3}
                                   value={ing.quantidade_receita}
-                                  onChange={(e) =>
+                                  onValueChange={(val) =>
                                     handleIngredientChange(
                                       ing.id,
                                       "quantidade_receita",
-                                      parseFloat(e.target.value) || 0
+                                      val ?? 0
                                     )
                                   }
                                   className="w-16 rounded border border-input bg-background px-1.5 py-1 text-center text-xs"
@@ -777,15 +771,13 @@ export const TechnicalSheetAndDreSection: React.FC<
                           </td>
                           <td className="whitespace-nowrap py-2.5 px-2 text-right font-semibold text-foreground">
                             {isEditing ? (
-                              <input
-                                type="number"
-                                step="0.10"
+                              <LocaleCurrencyInput
                                 value={ing.custo_receita}
-                                onChange={(e) =>
+                                onValueChange={(val) =>
                                   handleIngredientChange(
                                     ing.id,
                                     "custo_receita",
-                                    parseFloat(e.target.value) || 0
+                                    val ?? 0
                                   )
                                 }
                                 className="w-20 rounded border border-input bg-background px-1.5 py-1 text-right text-xs"
@@ -837,14 +829,12 @@ export const TechnicalSheetAndDreSection: React.FC<
                   Saquinho 150ml (/un.)
                 </p>
                 {isEditing ? (
-                  <input
-                    type="number"
-                    step="0.01"
+                  <LocaleCurrencyInput
                     value={draftFicha.custo_embalagem_un}
-                    onChange={(e) =>
+                    onValueChange={(val) =>
                       setDraftFicha({
                         ...draftFicha,
-                        custo_embalagem_un: parseFloat(e.target.value) || 0,
+                        custo_embalagem_un: val ?? 0,
                       })
                     }
                     className="mt-1 w-full rounded border border-input bg-card px-2 py-1 text-xs font-bold"
@@ -861,14 +851,12 @@ export const TechnicalSheetAndDreSection: React.FC<
                   Gás / Energia / Água (15%)
                 </p>
                 {isEditing ? (
-                  <input
-                    type="number"
-                    step="0.05"
+                  <LocaleCurrencyInput
                     value={draftFicha.custo_operacional_un}
-                    onChange={(e) =>
+                    onValueChange={(val) =>
                       setDraftFicha({
                         ...draftFicha,
-                        custo_operacional_un: parseFloat(e.target.value) || 0,
+                        custo_operacional_un: val ?? 0,
                       })
                     }
                     className="mt-1 w-full rounded border border-input bg-card px-2 py-1 text-xs font-bold"
