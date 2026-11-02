@@ -1,8 +1,9 @@
 {
-  "version": "3.5.8",
-  "build": 2026110101,
-  "releaseDate": "2026-11-01T11:40:00.000Z",
+  "version": "3.5.9",
+  "build": 2026110201,
+  "releaseDate": "2026-11-02T03:10:00.000Z",
   "features": [
+    "Painel de Configurações da Empresa & Gateway Pix: navegação em 7 abas com scroll suave por setas, mouse wheel e auto-ajuste de largura",
     "Inputs de Moeda e Valores com Separador Oficial do País (Vírgula em pt-BR/BRL)",
     "Liberdade Total de Edição e Exclusão pelo Teclado (mesmo após QR Code, Scanner ou Preenchimento Automático, preservando Histórico e Preço Pago)",
     "Scanner de Cotação com Google ML Kit Padrão (fallback automático apenas em restrição de hardware)"

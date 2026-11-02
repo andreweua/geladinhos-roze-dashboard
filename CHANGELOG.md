@@ -7,6 +7,17 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.5.9] - 2026-11-02
+
+### Corrigido & Aprimorado
+- **Painel de Configurações da Empresa & Gateway Pix (Navegação em 7 Abas)**:
+  - Resolução do corte visual de abas além de "Dados da Empresa": ampliação do modal para `max-w-4xl lg:max-w-5xl`, permitindo exibição completa lado a lado em desktops.
+  - Implementação de navegação horizontal com setas responsivas (`ChevronLeft` / `ChevronRight`) em resoluções menores e celulares.
+  - Suporte a rolagem horizontal via roda do mouse (`wheel`) e auto-centralização suave (`scrollIntoView`) ao selecionar qualquer uma das 7 abas.
+  - Substituição da classe `no-scrollbar` por barra slim elegante (`scrollbar-thin`) e adição de contador visual de abas no cabeçalho.
+
+---
+
 ## [3.5.8] - 2026-11-01
 
 ### Adicionado & Aprimorado
