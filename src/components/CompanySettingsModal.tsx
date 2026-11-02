@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   X,
   Building2,
@@ -21,6 +21,8 @@ import {
   Eye,
   EyeOff,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   BRAND_CONFIG,
@@ -62,6 +64,55 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     success: boolean;
     message: string;
   } | null>(null);
+
+  // Tabs navigation & scroll helpers
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    if (tabsContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = tabsContainerRef.current;
+      setCanScrollLeft(scrollLeft > 4);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 4);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const timer = setTimeout(checkScroll, 120);
+    window.addEventListener("resize", checkScroll);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [isOpen, activeTab]);
+
+  const handleScroll = (direction: "left" | "right") => {
+    if (tabsContainerRef.current) {
+      const scrollAmount = 260;
+      tabsContainerRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+      setTimeout(checkScroll, 320);
+    }
+  };
+
+  const handleTabsWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (tabsContainerRef.current && e.deltaY !== 0) {
+      tabsContainerRef.current.scrollLeft += e.deltaY;
+      checkScroll();
+    }
+  };
+
+  const handleTabClick = (
+    tab: "empresa" | "plano" | "gemini_ia" | "pix_ton" | "stone_api" | "polos" | "supabase",
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    setActiveTab(tab);
+    e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  };
 
   // Load live config & active company
   const currentConfig = getCustomBrandConfig();
@@ -464,7 +515,7 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
       role="dialog"
       aria-modal="true"
     >
-      <div className="relative flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl text-foreground">
+      <div className="relative flex max-h-[94vh] w-full max-w-4xl lg:max-w-5xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl text-foreground">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/80 px-5 py-4 bg-secondary/30">
           <div className="flex items-center gap-3">
@@ -478,6 +529,9 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                 </h3>
                 <Badge variant="outline" className="border-primary/40 text-primary font-bold">
                   v{BRAND_CONFIG.appVersion}
+                </Badge>
+                <Badge variant="secondary" className="text-[11px] font-semibold text-muted-foreground hidden sm:inline-flex">
+                  7 abas
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -495,98 +549,130 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Sub-tabs com proteção estrita contra sobreposição (shrink-0 + scroll horizontal suave) */}
-        <div className="flex w-full min-w-0 items-center border-b border-border/80 bg-secondary/30 px-3 text-xs font-semibold overflow-x-auto no-scrollbar gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setActiveTab("plano")}
-            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
-              activeTab === "plano"
-                ? "border-primary text-primary bg-primary/10 shadow-xs"
-                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            }`}
-          >
-            <CreditCard className="h-4 w-4 shrink-0" />
-            <span>Meu Plano</span>
-          </button>
+        {/* Sub-tabs com proteção estrita, navegação por setas e suporte a scroll de mouse */}
+        <div className="relative flex items-center border-b border-border/80 bg-secondary/30 px-2 shrink-0 group">
+          {canScrollLeft && (
+            <button
+              type="button"
+              onClick={() => handleScroll("left")}
+              className="absolute left-1.5 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-card/95 border border-border shadow-md text-foreground hover:bg-secondary transition-all"
+              title="Rolar abas para a esquerda"
+              aria-label="Rolar abas para a esquerda"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("gemini_ia")}
-            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
-              activeTab === "gemini_ia"
-                ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10 shadow-xs"
-                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            }`}
+          <div
+            ref={tabsContainerRef}
+            onScroll={checkScroll}
+            onWheel={handleTabsWheel}
+            className="flex w-full min-w-0 items-center px-1 text-xs font-semibold overflow-x-auto gap-1.5 py-1 scroll-smooth"
+            style={{ scrollbarWidth: "thin" }}
           >
-            <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
-            <span>IA Gemini (SaaS)</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick("plano", e)}
+              className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
+                activeTab === "plano"
+                  ? "border-primary text-primary bg-primary/10 shadow-xs"
+                  : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              }`}
+            >
+              <CreditCard className="h-4 w-4 shrink-0" />
+              <span>Meu Plano</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("pix_ton")}
-            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
-              activeTab === "pix_ton"
-                ? "border-primary text-primary bg-primary/10 shadow-xs"
-                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            }`}
-          >
-            <QrCode className="h-4 w-4 shrink-0" />
-            <span>Chave Pix & TON</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick("gemini_ia", e)}
+              className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
+                activeTab === "gemini_ia"
+                  ? "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10 shadow-xs"
+                  : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              }`}
+            >
+              <Sparkles className="h-4 w-4 text-amber-500 shrink-0" />
+              <span>IA Gemini (SaaS)</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("stone_api")}
-            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
-              activeTab === "stone_api"
-                ? "border-primary text-primary bg-primary/10 shadow-xs"
-                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            }`}
-          >
-            <Key className="h-4 w-4 shrink-0" />
-            <span>API Stone</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick("pix_ton", e)}
+              className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
+                activeTab === "pix_ton"
+                  ? "border-primary text-primary bg-primary/10 shadow-xs"
+                  : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              }`}
+            >
+              <QrCode className="h-4 w-4 shrink-0" />
+              <span>Chave Pix & TON</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("empresa")}
-            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
-              activeTab === "empresa"
-                ? "border-primary text-primary bg-primary/10 shadow-xs"
-                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            }`}
-          >
-            <Building2 className="h-4 w-4 shrink-0" />
-            <span>Dados da Empresa</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick("stone_api", e)}
+              className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
+                activeTab === "stone_api"
+                  ? "border-primary text-primary bg-primary/10 shadow-xs"
+                  : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              }`}
+            >
+              <Key className="h-4 w-4 shrink-0" />
+              <span>API Stone</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("polos")}
-            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
-              activeTab === "polos"
-                ? "border-primary text-primary bg-primary/10 shadow-xs"
-                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            }`}
-          >
-            <MapPin className="h-4 w-4 shrink-0" />
-            <span>Polos & CEPs</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick("empresa", e)}
+              className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
+                activeTab === "empresa"
+                  ? "border-primary text-primary bg-primary/10 shadow-xs"
+                  : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              }`}
+            >
+              <Building2 className="h-4 w-4 shrink-0" />
+              <span>Dados da Empresa</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("supabase")}
-            className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
-              activeTab === "supabase"
-                ? "border-primary text-primary bg-primary/10 shadow-xs"
-                : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
-            }`}
-          >
-            <Database className="h-4 w-4 shrink-0" />
-            <span>Nuvem Supabase</span>
-          </button>
+            <button
+              type="button"
+              onClick={(e) => handleTabClick("polos", e)}
+              className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
+                activeTab === "polos"
+                  ? "border-primary text-primary bg-primary/10 shadow-xs"
+                  : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              }`}
+            >
+              <MapPin className="h-4 w-4 shrink-0" />
+              <span>Polos & CEPs</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => handleTabClick("supabase", e)}
+              className={`flex shrink-0 items-center gap-2 px-3.5 py-2.5 transition-all border-b-2 whitespace-nowrap text-xs font-bold rounded-t-lg ${
+                activeTab === "supabase"
+                  ? "border-primary text-primary bg-primary/10 shadow-xs"
+                  : "border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+              }`}
+            >
+              <Database className="h-4 w-4 shrink-0" />
+              <span>Nuvem Supabase</span>
+            </button>
+          </div>
+
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={() => handleScroll("right")}
+              className="absolute right-1.5 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-card/95 border border-border shadow-md text-foreground hover:bg-secondary transition-all"
+              title="Rolar abas para a direita"
+              aria-label="Rolar abas para a direita"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Feedback Message */}
