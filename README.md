@@ -16,9 +16,22 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 
 ---
 
-## 🚀 Destaques das Versões 3.5.x (Última Atualização: v3.5.7)
+## 🚀 Destaques das Versões 3.5.x (Última Atualização: v3.5.9)
 
-### 1. 🛒 Lista de Compras & Cotações em Cards Mobile-First (Atacado & Varejo)
+### 1. ⚙️ Painel de Configurações da Empresa & Gateway Pix (7 Abas Responsivas — v3.5.9)
+- **Visualização Completa em 7 Abas**: *Meu Plano*, *IA Gemini (SaaS)*, *Chave Pix & TON*, *API Stone*, *Dados da Empresa*, *Polos & CEPs* e *Nuvem Supabase*.
+- **Expansão de Tela Larga & Navegação por Setas**: Modal ampliado para `max-w-5xl` acomodando todas as abas no desktop; botões de navegação lateral (`ChevronLeft` / `ChevronRight`) surgem automaticamente no mobile e em telas menores.
+- **Scroll Suave com Roda do Mouse (`Wheel`) & Auto-centralização**: Rolar a roda do mouse sobre as abas desliza o menu horizontalmente, e ao tocar em qualquer aba ela se centraliza automaticamente (`scrollIntoView`).
+
+### 2. 💱 Formatação Regional de Moeda & Edição Livre no Teclado (v3.5.8)
+- **Separador Padrão do País (`pt-BR` / `BRL`)**: Campos de entrada monetária e numérica utilizam vírgula como separador decimal oficial.
+- **Liberdade de Edição e Limpeza Total**: Usuário pode apagar com `Backspace`/`Delete` e digitar novos valores sem bloqueio de dígitos, inclusive após preenchimento automático por QR Code de Nota Fiscal ou catálogo de produtos.
+
+### 3. 🔍 Scanner GTIN / EAN-13 Integrado com Google ML Kit Padrão
+- **Google ML Kit Prioritário nas Cotações**: Leitura rápida e precisa de códigos de barras com detecção nativa em hardware.
+- **Autenticação Automática RSC Sistemas (API v3) & Fotos Reais**: Identificação instantânea de rótulos comerciais com miniaturas fotográficas e bloqueio governado PereiraLabs para produtos oficiais.
+
+### 4. 🛒 Lista de Compras & Cotações em Cards Mobile-First (Atacado & Varejo)
 - **Layout em Cards Responsivos**: Visualização otimizada para telas de celulares e PWA, eliminando rolagem horizontal e compressão de tabelas. Permite alternar com um toque entre **Cards (Recomendado)** e **Tabela**.
 - **Independência Total entre Quantidade de Compra e Embalagem**:
   - **Qtd. Necessária (Compra)**: Quantidade de itens a comprar com seletor próprio de unidade comercial (`un`, `cx`, `pct`, `fardo`, `lata`, `pote`, `kg`, `L`).
@@ -26,24 +39,10 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 - **Preços de Varejo e Atacado com Gatilho Mínimo**:
   - Suporte simultâneo a **Preço de Varejo**, **Preço de Atacado** e **Quantidade Mínima de Atacado** (ex: pacote fechado a partir de 6, 12 ou 24 unidades).
   - Cálculo automático de subtotal ativando a tarifa de atacado assim que a quantidade mínima é atingida e aviso inteligente de economia (*"💡 Faltam X un p/ atacado"*).
-- **Importador Universal Inteligente (CSV, Excel, JSON e Tabelas de Mercado)**:
-  - Parser monetário compatível tanto com formato brasileiro (`5,78` / `1.250,50`) quanto internacional (`5.49`), sem multiplicar valores decimais.
-  - Suporte a colagem direta de múltiplas tabelas concatenadas (Modelo Oficial + planilhas de cotação de atacarejos como *Mart Minas*, *Tenda* e *Atacadão*).
 
-### 2. 🔍 Scanner GTIN / EAN-13 Integrado à RSC Sistemas, Fotos Reais & Governança PereiraLabs
-- **Autenticação Automática RSC Sistemas (API v3)**: Integração direta com o portal `gtin.rscsistemas.com.br` e fallback para o catálogo aberto *Open Food Facts Brasil*.
-- **Exibição de Fotos Oficiais das Embalagens**: Carregamento automático da miniatura real do produto nos Cards e na Tabela da Lista de Compras ao escanear ou buscar um código de barras.
-- **Proteção de Dados Oficiais & Aprovação Exclusiva PereiraLabs**:
-  - Quando um produto é localizado na **RSC Sistemas** ou no **Banco de Dados Oficial**, seus dados cadastrais (Nome, Marca, GTIN e Embalagem/Tamanho) ficam protegidos (`🔒 Oficial RSC Sistemas`) contra edição direta, pois não foram cadastrados manualmente pelo usuário.
-  - Caso o usuário encontre dados divergentes na embalagem física, ele pode clicar em **"Dados divergentes? Solicitar edição"**, enviando uma solicitação que **somente a PereiraLabs pode aprovar** no Painel Master (`Aprovação de Produtos RSC`).
-
-### 3. 🎨 Estúdio Culinário IA (Fidelidade ao Produto Real na Sacolinha)
-- **Apresentação Fiel em Saquinho de Geladinho (6x24cm)**: Geração de imagens promocionais com seleção do formato real do produto (**No Saquinho Tradicional Transparente**, **Saquinho Cortado Mostrando a Cremosa Calda/Recheio** ou **Taça Gourmet**).
-- **Prompt Customizável em Português**: Permite editar livremente os detalhes visuais antes de gerar cada fotografia e utiliza o motor **Google Gemini 2.5 Flash** e **Imagen 3** com fallback inteligente.
-
-### 4. 🔔 Sistema de Atualização OTA (Over-The-Air) & APK Android
-- **Notificação Sonora, Tátil e Visual**: Aviso de nova versão com chime melódico sintetizado via *Web Audio API*, vibração háptica e botão claro para **Fechar Notificação** (persistindo o fechamento na sessão sem reabrir sozinho).
-- **Rastreabilidade Técnica no Rodapé**: Exibição exata da versão instalada em execução (`Versão: v3.5.7 • Build: 2026103007 • Ambiente: PWA Web App / Android Nativo versionCode 51`).
+### 5. 🔔 Sistema de Atualização OTA (Over-The-Air) & Rastreabilidade Técnica
+- **Notificação Sonora, Tátil e Visual**: Aviso de nova versão com chime melódico sintetizado via *Web Audio API*, vibração háptica e botão claro para fechar o alerta.
+- **Rastreabilidade Técnica no Rodapé**: Exibição exata da versão instalada em execução (`Versão: v3.5.9 • Build: 2026110201 • Ambiente: PWA Web App / Android Nativo versionCode 53`).
 - **Links Permanentes de Atualização Android**: Botões diretos para baixar o `.APK` atualizado disponíveis no rodapé do sistema, no alerta de atualização e na janela **Novidades ✨**.
 
 ---
@@ -72,7 +71,7 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 ## 📱 Suporte PWA e Aplicativo Android Nativo
 
 - **Aplicativo Android Nativo (Capacitor 8 + Google ML Kit)**:
-  - Compilação automatizada via GitHub Actions (`.github/workflows/build-apk.yml`) gerando o pacote oficial `PereiraLabs-PDV-Foods-v3.5.6.apk` e `PereiraLabs-PDV-Foods-latest.apk`.
+  - Compilação automatizada via GitHub Actions (`.github/workflows/build-apk.yml`) gerando o pacote oficial `PereiraLabs-PDV-Foods-v3.5.9.apk` e `PereiraLabs-PDV-Foods-latest.apk`.
   - Safe Area nativa configurada para celulares modernos (incluindo Samsung Galaxy A26 / Android 15).
 - **PWA (Progressive Web App)**:
   - Instalação em 1 clique no Android, iOS e Desktop com funcionamento offline e atualização automática via Service Worker (`public/sw.js`).

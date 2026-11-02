@@ -149,7 +149,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
             </div>
           </div>
 
-          {/* Active Version Highlight: v3.5.5 */}
+          {/* Active Version Highlight: v3.5.9 */}
           <div className="rounded-2xl border-2 border-primary/50 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4 sm:p-5 shadow-md">
             <div className="flex items-center justify-between gap-2 border-b border-primary/25 pb-3">
               <div className="flex items-center gap-2">
@@ -159,47 +159,62 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                 </span>
               </div>
               <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-black">
-                NOVA • 30/10/2026
+                NOVA • 02/11/2026
               </span>
             </div>
 
             <div className="mt-3.5 space-y-3 text-xs">
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 mt-0.5">
-                  <Layers className="h-3.5 w-3.5" />
+                  <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Independência Total entre Qtd. Necessária e Embalagem/Tamanho:</strong>
+                  <strong className="text-foreground">Painel de Configurações da Empresa & Gateway Pix (7 Abas Responsivas):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Agora a unidade da Quantidade Necessária (un, cx, pct, fardo, lata, pote) é totalmente separada da unidade da Embalagem/Tamanho (395 g, 1 L, 1,01 kg, 1000 un). Alterar uma nunca mistura com a outra.
+                    Resolução de visibilidade de todas as 7 abas com expansão para telas amplas, setas de navegação responsivas para mobile, suporte a rolagem pela roda do mouse e auto-centralização ao clicar.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary mt-0.5">
-                  <Smartphone className="h-3.5 w-3.5" />
+                  <Layers className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Atualização Android & Link Direto de APK Sempre Visível:</strong>
+                  <strong className="text-foreground">Inputs com Separador Padrão do País & Edição Livre no Teclado:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Correção de CORS no WebView Android para detecção imediata de novas versões e link permanente de download do APK no rodapé, no alerta e nesta janela de novidades.
+                    Entradas monetárias e numéricas utilizam vírgula (pt-BR) e permitem apagar totalmente e digitar novos valores pelo teclado mesmo após preenchimento automático por QR Code de NF ou scanner.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-2.5">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 mt-0.5">
-                  <Sparkles className="h-3.5 w-3.5" />
+                  <Smartphone className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Parser Financeiro CSV/Excel & Tabelas Múltiplas:</strong>
+                  <strong className="text-foreground">Scanner de Cotações com Google ML Kit Padronizado:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Suporte a preços com ponto (5.49) ou vírgula (5,78) e importação simultânea do modelo padrão e planilhas de atacadistas (Mart Minas/Tenda).
+                    Leitura de código de barras nas cotações operando prioritariamente pelo Google ML Kit com alta velocidade e precisão de foco.
                   </p>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Past Version: v3.5.5 a v3.5.7 */}
+          <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-xs font-bold text-foreground">
+                Versão 3.5.5 a 3.5.7 — Governança RSC Sistemas, Unidades Independentes & Proteção
+              </span>
+              <span className="text-[10px] text-muted-foreground">30 a 31/10/2026</span>
+            </div>
+            <ul className="text-[11px] text-muted-foreground space-y-1.5 list-disc list-inside">
+              <li>Independência total entre unidade da Quantidade Necessária (un, cx, pct) e Embalagem/Tamanho (395 g, 1 L, 1000 un).</li>
+              <li>Proteção contra edição direta em produtos oficiais RSC Sistemas com fluxo de aprovação exclusivo PereiraLabs.</li>
+              <li>Links permanentes de download do APK Android no rodapé e correções de CORS no WebView.</li>
+            </ul>
           </div>
 
           {/* Past Version: v3.4.4 - v3.4.9 */}
