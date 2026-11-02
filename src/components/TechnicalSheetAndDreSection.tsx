@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   ClipboardList,
   FileSpreadsheet,
@@ -89,18 +89,118 @@ export const TechnicalSheetAndDreSection: React.FC<
   const currentProduct =
     activeProducts.find((p) => p.id === selectedProductId) || activeProducts[0];
 
-  const currentFicha = fichasTecnicas.find(
-    (f) => f.produto_id === currentProduct?.id
-  );
-  const currentDre =
-    drePorProduto.find((d) => d.produto_id === currentProduct?.id) ||
-    drePorProduto[0];
+  const currentFicha = useMemo(() => {
+    if (!currentProduct) return null;
+    const found = fichasTecnicas.find((f) => f.produto_id === currentProduct.id);
+    if (found) return found;
+
+    const precoVenda = currentProduct.preco_venda || 8.5;
+    const custoEst = currentProduct.custo_estimado || 3.2;
+    return {
+      produto_id: currentProduct.id,
+      subtitulo_receita: `Receita & Ficha Técnica • ${currentProduct.nome}`,
+      rendimento_unidades: 10,
+      volume_unitario_ml: 150,
+      tempo_preparo_min: 30,
+      custo_embalagem_un: 0.1,
+      custo_operacional_un: 0.35,
+      preco_ifood_sugerido: Number((precoVenda * 1.35).toFixed(2)),
+      lucro_ifood_estimado: Number(
+        (precoVenda * 1.35 * (1 - 0.262) - custoEst).toFixed(2)
+      ),
+      modo_preparo: `Preparo artesanal e dosagem padronizada de ${currentProduct.nome}. Pesar todos os insumos com precisão e homogeneizar antes de embalar e resfriar.`,
+      ingredientes: [
+        {
+          id: `ing-${currentProduct.id}-1`,
+          nome: "Ingrediente Principal / Base",
+          quantidade_receita: 1000,
+          unidade: "g",
+          custo_receita: Number(((custoEst * 0.6) * 10).toFixed(2)),
+        },
+        {
+          id: `ing-${currentProduct.id}-2`,
+          nome: "Ingrediente Recheio / Saborizante Especial",
+          quantidade_receita: 395,
+          unidade: "g",
+          custo_receita: Number(((custoEst * 0.4) * 10).toFixed(2)),
+        },
+      ],
+    } as FichaTecnicaProduto;
+  }, [currentProduct, fichasTecnicas]);
+
+  const currentDre: DreProdutoItem = useMemo(() => {
+    if (!currentProduct) {
+      return (
+        drePorProduto[0] || {
+          produto_id: "none",
+          nome: "Geral",
+          preco_venda: 0,
+          preco_ifood: 0,
+          lucro_liquido_ifood: 0,
+          rendimento_lote: 10,
+          unidades_vendidas: 0,
+          custo_insumos_un: 0,
+          custo_embalagem_un: 0,
+          custo_operacional_un: 0,
+          custo_total_un: 0,
+          lucro_bruto_un: 0,
+          markup_multiplicador: 0,
+          margem_sobre_custo_pct: 0,
+          receita_bruta: 0,
+          taxas_pagamento: 0,
+          receita_liquida: 0,
+          cmv_insumos: 0,
+          custo_embalagens_total: 0,
+          custo_operacional_total: 0,
+          cpv_total: 0,
+          lucro_liquido: 0,
+          margem_contribuicao_pct: 0,
+        }
+      );
+    }
+    const found = drePorProduto.find((d) => d.produto_id === currentProduct.id);
+    if (found) return found;
+    if (drePorProduto[0]) return drePorProduto[0];
+
+    const pVenda = currentProduct.preco_venda || 8.5;
+    const cEst = currentProduct.custo_estimado || 3.2;
+    const pIfood = currentProduct.preco_ifood || Number((pVenda * 1.35).toFixed(2));
+    const cInsumos = Math.max(0.5, Number((cEst - 0.45).toFixed(2)));
+
+    return {
+      produto_id: currentProduct.id,
+      nome: currentProduct.nome,
+      preco_venda: pVenda,
+      preco_ifood: pIfood,
+      lucro_liquido_ifood: Number((pIfood * (1 - 0.262) - cEst).toFixed(2)),
+      rendimento_lote: 10,
+      unidades_vendidas: 0,
+      custo_insumos_un: cInsumos,
+      custo_embalagem_un: 0.1,
+      custo_operacional_un: 0.35,
+      custo_total_un: cEst,
+      lucro_bruto_un: Number((pVenda - cEst).toFixed(2)),
+      markup_multiplicador: cEst > 0 ? Number((pVenda / cEst).toFixed(2)) : 1,
+      margem_sobre_custo_pct: cEst > 0 ? Number((((pVenda - cEst) / cEst) * 100).toFixed(1)) : 0,
+      receita_bruta: 0,
+      taxas_pagamento: 0,
+      receita_liquida: 0,
+      cmv_insumos: 0,
+      custo_embalagens_total: 0,
+      custo_operacional_total: 0,
+      cpv_total: 0,
+      lucro_liquido: 0,
+      margem_contribuicao_pct: 0,
+    };
+  }, [currentProduct, drePorProduto]);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [draftFicha, setDraftFicha] = useState<FichaTecnicaProduto | null>(
-    null
-  );
-  const [draftPrecoVenda, setDraftPrecoVenda] = useState<string>("");
+  const [draftFicha, setDraftFicha] = useState<FichaTecnicaProduto | null>(() => {
+    return currentFicha ? JSON.parse(JSON.stringify(currentFicha)) : null;
+  });
+  const [draftPrecoVenda, setDraftPrecoVenda] = useState<string>(() => {
+    return currentProduct ? String(currentProduct.preco_venda) : "8.50";
+  });
   const [dreViewMode, setDreViewMode] = useState<
     "periodo" | "local_un" | "ifood_un"
   >("periodo");
@@ -119,8 +219,10 @@ export const TechnicalSheetAndDreSection: React.FC<
     }
   }, [currentFicha, currentProduct]);
 
+  const effectiveFicha = draftFicha || currentFicha;
+
   // Se a empresa ainda não tiver produtos cadastrados, exibe o Estado Vazio acolhedor
-  if (activeProducts.length === 0 || !currentProduct || !draftFicha || !currentDre) {
+  if (activeProducts.length === 0 || !currentProduct || !effectiveFicha) {
     return (
       <section
         id="secao-ficha-dre"
@@ -149,6 +251,10 @@ export const TechnicalSheetAndDreSection: React.FC<
         </Card>
       </section>
     );
+  }
+
+  if (!draftFicha) {
+    return null;
   }
 
   const calc = calculateUnitCostFromFicha(draftFicha);

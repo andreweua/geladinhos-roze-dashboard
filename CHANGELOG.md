@@ -9,12 +9,20 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ## [3.5.9] - 2026-11-02
 
-### Corrigido & Aprimorado
+### Adicionado & Aprimorado
+- **Cadastro Completo de Produtos, Portfólio & PDV (`CreateProductModal`)**:
+  - Criação do modal dedicado `CreateProductModal` com suporte a nome do produto, preço de venda, custo estimado, estoque inicial, código GTIN/EAN com leitor Google ML Kit, categoria e unidade de venda (`un`, `fatia`, `pote`, `kg`).
+  - Botão de acesso direto `+ Novo Produto` disponível tanto na Ficha Técnica quanto na Frente de Caixa (PDV), permitindo cadastrar e vender imediatamente no caixa sem sair da tela.
+  - Correção na persistência híbrida de dados: produtos cadastrados localmente agora são mesclados com a nuvem Supabase em `fetchDashboardData()`, impedindo que produtos novos sejam sobrescritos ou apagados em ciclos de sincronização.
+- **Geração Automática de Ficha Técnica e Ingredientes**:
+  - Ao salvar um novo produto, a receita é inicializada automaticamente com insumos editáveis, rendimento e modo de preparo padronizado, selecionando o novo produto e navegando diretamente para a aba de Ficha Técnica.
+- **Personalização de Unidades e Filiais Operacionais (SaaS Nacional)**:
+  - Adicionados campos editáveis para **Nome / Título da Unidade** (ex: "Matriz", "Filial 1", "Loja 2", "Centro de Distribuição"), **Cidade & UF**, **Tipo de Operação** e **CEP** em `CompanySettingsModal`.
+  - Visualização dinâmica das filiais em `LocalMarketAndInvoicesSection`, permitindo alterar a identidade de cada filial sem textos fixos de cidades ou nomes específicos da Roze.
 - **Painel de Configurações da Empresa & Gateway Pix (Navegação em 7 Abas)**:
   - Resolução do corte visual de abas além de "Dados da Empresa": ampliação do modal para `max-w-4xl lg:max-w-5xl`, permitindo exibição completa lado a lado em desktops.
   - Implementação de navegação horizontal com setas responsivas (`ChevronLeft` / `ChevronRight`) em resoluções menores e celulares.
   - Suporte a rolagem horizontal via roda do mouse (`wheel`) e auto-centralização suave (`scrollIntoView`) ao selecionar qualquer uma das 7 abas.
-  - Substituição da classe `no-scrollbar` por barra slim elegante (`scrollbar-thin`) e adição de contador visual de abas no cabeçalho.
 
 ---
 

@@ -138,8 +138,10 @@ export const QuickOperationsModal: React.FC<QuickOperationsModalProps> = ({
         preco_venda: parseLocaleNumber(novoPreco) || 8.0,
         custo_estimado: parseLocaleNumber(novoCusto) || 3.0,
         estoque_inicial: parseInt(novoEstoque, 10) || 15,
+        goToRecipe: true,
       });
       setNovoNome("");
+      onClose();
     } finally {
       setIsSubmitting(false);
     }

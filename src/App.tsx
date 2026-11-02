@@ -34,6 +34,7 @@ import { StockAuditSection } from "@/components/StockAuditSection";
 import { InvoicePriceUpdaterModal } from "@/components/InvoicePriceUpdaterModal";
 import { PointOfSaleModal } from "@/components/PointOfSaleModal";
 import { QuickOperationsModal } from "@/components/QuickOperationsModal";
+import { CreateProductModal } from "@/components/CreateProductModal";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 import { CompanySettingsModal } from "@/components/CompanySettingsModal";
 import { ChangelogModal } from "@/components/ChangelogModal";
@@ -368,6 +369,7 @@ export function App() {
   }, [loadData]);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const [modalTab, setModalTab] = useState<"venda" | "estoque">("venda");
+  const [createProductModalOpen, setCreateProductModalOpen] = useState<boolean>(false);
   const [posModalOpen, setPosModalOpen] = useState<boolean>(false);
   const [installModalOpen, setInstallModalOpen] = useState<boolean>(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState<boolean>(false);
@@ -615,9 +617,13 @@ export function App() {
     setSnapshot(updated);
   };
 
-  const handleCreateProduct = async (payload: NewProductPayload) => {
-    const updated = await createNewProduct(payload);
+  const handleCreateProduct = async (payload: NewProductPayload): Promise<void> => {
+    const { snapshot: updated, newProduct } = await createNewProduct(payload);
     setSnapshot(updated);
+    setSelectedProductId(newProduct.id);
+    if (payload.goToRecipe) {
+      setActiveSection("fichas");
+    }
   };
 
   const handleDeleteProduct = async (produtoId: string) => {
@@ -1283,8 +1289,7 @@ export function App() {
                     onChangeIfoodFeePct={handleChangeIfoodFeePct}
                     onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
                     onOpenCreateProduct={() => {
-                      setModalTab("estoque");
-                      setModalOpen(true);
+                      setCreateProductModalOpen(true);
                     }}
                     onDeleteProduct={handleDeleteProduct}
                     onOpenCulinaryStudio={(flavor) => {
@@ -1493,8 +1498,16 @@ export function App() {
           onOpenCashShift={() => setCashShiftModalOpen(true)}
           empresaId={activeCompany.id}
           permitirEstoqueNegativo={activeCompany.permitirEstoqueNegativo}
+          onOpenCreateProduct={() => setCreateProductModalOpen(true)}
         />
       )}
+
+      <CreateProductModal
+        isOpen={createProductModalOpen}
+        onClose={() => setCreateProductModalOpen(false)}
+        onCreateProduct={handleCreateProduct}
+        productLabel={activeCompany?.nicho ? "Item / Produto" : BRAND_CONFIG.labels.productSingular}
+      />
 
       {analytics && (
         <QuickOperationsModal

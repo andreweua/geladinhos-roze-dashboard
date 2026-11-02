@@ -72,6 +72,7 @@ interface PointOfSaleModalProps {
   onOpenCashShift?: () => void;
   empresaId?: string;
   permitirEstoqueNegativo?: boolean;
+  onOpenCreateProduct?: () => void;
 }
 
 export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
@@ -83,6 +84,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   onOpenCashShift,
   empresaId,
   permitirEstoqueNegativo,
+  onOpenCreateProduct,
 }) => {
   // Contexto multi-tenant estrito da empresa ativa
   const activeCompany = useMemo(() => getActiveCompany(), [isOpen, empresaId]);
@@ -907,6 +909,20 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                       <Camera className="h-3.5 w-3.5" />
                       <span>Câmera</span>
                     </Button>
+
+                    {onOpenCreateProduct && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onOpenCreateProduct}
+                        title="Cadastrar Novo Produto no Catálogo"
+                        className="gap-1 text-xs font-bold border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white shrink-0 shadow-xs"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        <span>+ Novo Produto</span>
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -923,89 +939,108 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-2">
-                  {filteredFlavors.map((prod) => {
-                    const selectedQty = quantities[prod.produto_id] || 0;
-                    const isOutOfStock = prod.quantidade_disponivel <= 0;
-                    const isLow = prod.abaixo_do_minimo && !isOutOfStock;
-                    const isMaxReached = selectedQty >= prod.quantidade_disponivel;
-
-                    return (
-                      <div
-                        key={prod.produto_id}
-                        className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
-                          isOutOfStock
-                            ? "border-border/50 bg-muted/20 opacity-60"
-                            : selectedQty > 0
-                            ? "border-primary/60 bg-primary/5 shadow-sm"
-                            : "border-border/70 bg-card hover:border-border"
-                        }`}
+                {filteredFlavors.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border/80 bg-secondary/20 p-8 text-center space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Nenhum produto cadastrado ou encontrado{searchTerm ? ` para "${searchTerm}"` : ""}.
+                    </p>
+                    {onOpenCreateProduct && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={onOpenCreateProduct}
+                        className="gap-1.5 text-xs font-bold bg-primary text-primary-foreground shadow-sm"
                       >
-                        <div className="flex-1 pr-2">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-foreground">
-                              {prod.nome}
-                            </span>
-                            {isOutOfStock && (
-                              <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-extrabold text-rose-600 dark:text-rose-400">
-                                Esgotado
+                        <Plus className="h-4 w-4" />
+                        <span>Cadastrar Novo Produto no Catálogo</span>
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-2">
+                    {filteredFlavors.map((prod) => {
+                      const selectedQty = quantities[prod.produto_id] || 0;
+                      const isOutOfStock = prod.quantidade_disponivel <= 0;
+                      const isLow = prod.abaixo_do_minimo && !isOutOfStock;
+                      const isMaxReached = selectedQty >= prod.quantidade_disponivel;
+
+                      return (
+                        <div
+                          key={prod.produto_id}
+                          className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
+                            isOutOfStock
+                              ? "border-border/50 bg-muted/20 opacity-60"
+                              : selectedQty > 0
+                              ? "border-primary/60 bg-primary/5 shadow-sm"
+                              : "border-border/70 bg-card hover:border-border"
+                          }`}
+                        >
+                          <div className="flex-1 pr-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-foreground">
+                                {prod.nome}
                               </span>
-                            )}
+                              {isOutOfStock && (
+                                <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-[9px] font-extrabold text-rose-600 dark:text-rose-400">
+                                  Esgotado
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                              <span className="font-bold text-primary">
+                                {formatCurrency(prod.preco_venda)}
+                              </span>
+                              <span>•</span>
+                              <span
+                                className={
+                                  isOutOfStock
+                                    ? "text-rose-600 dark:text-rose-400 font-bold"
+                                    : isLow
+                                    ? "text-amber-600 dark:text-amber-400 font-semibold"
+                                    : "text-muted-foreground"
+                                }
+                              >
+                                Estoque: {prod.quantidade_disponivel} un.
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
-                            <span className="font-bold text-primary">
-                              {formatCurrency(prod.preco_venda)}
-                            </span>
-                            <span>•</span>
-                            <span
-                              className={
-                                isOutOfStock
-                                  ? "text-rose-600 dark:text-rose-400 font-bold"
-                                  : isLow
-                                  ? "text-amber-600 dark:text-amber-400 font-semibold"
-                                  : "text-muted-foreground"
-                              }
+
+                          {/* Stepper controls */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleQtyChange(prod.produto_id, -1)}
+                              disabled={selectedQty === 0}
+                              className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-secondary disabled:opacity-40"
                             >
-                              Estoque: {prod.quantidade_disponivel} un.
+                              <Minus className="h-3 w-3" />
+                            </button>
+
+                            <span className="w-8 text-center text-xs font-extrabold text-foreground">
+                              {selectedQty}
                             </span>
+
+                            <button
+                              type="button"
+                              onClick={() => handleQtyChange(prod.produto_id, 1)}
+                              disabled={!allowNegativeStock && (isOutOfStock || isMaxReached)}
+                              title={
+                                !allowNegativeStock && isOutOfStock
+                                  ? "Produto esgotado (estoque zerado)"
+                                  : !allowNegativeStock && isMaxReached
+                                  ? `Limite de estoque atingido (${prod.quantidade_disponivel} un.)`
+                                  : "Adicionar 1 unidade"
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90 shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
                           </div>
                         </div>
-
-                        {/* Stepper controls */}
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleQtyChange(prod.produto_id, -1)}
-                            disabled={selectedQty === 0}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-background text-foreground transition-colors hover:bg-secondary disabled:opacity-40"
-                          >
-                            <Minus className="h-3 w-3" />
-                          </button>
-
-                          <span className="w-8 text-center text-xs font-extrabold text-foreground">
-                            {selectedQty}
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() => handleQtyChange(prod.produto_id, 1)}
-                            disabled={!allowNegativeStock && (isOutOfStock || isMaxReached)}
-                            title={
-                              !allowNegativeStock && isOutOfStock
-                                ? "Produto esgotado (estoque zerado)"
-                                : !allowNegativeStock && isMaxReached
-                                ? `Limite de estoque atingido (${prod.quantidade_disponivel} un.)`
-                                : "Adicionar 1 unidade"
-                            }
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90 shadow-sm disabled:opacity-30 disabled:cursor-not-allowed"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           ) : (

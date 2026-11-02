@@ -970,6 +970,28 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
         const localSnap = getLocalSnapshot(activeCompId);
         const channelMap = getLocalSaleChannels(activeCompId);
 
+        // Preserva produtos cadastrados localmente que ainda não foram sincronizados com a nuvem
+        const remoteIds = new Set(prods.map((p) => String(p.id)));
+        const remoteNames = new Set(prods.map((p) => p.nome.toLowerCase().trim()));
+        const customLocalProds = (localSnap.produtos || []).filter(
+          (lp) => !remoteIds.has(String(lp.id)) && !remoteNames.has(lp.nome.toLowerCase().trim())
+        );
+        const combinedProds = [...prods, ...customLocalProds];
+
+        // Preserva lotes de estoque dos produtos locais
+        const remoteStockProdIds = new Set((estoqueRes.data || []).map((e) => String(e.produto_id)));
+        const customLocalLotes = (localSnap.estoqueLotes || []).filter(
+          (lote) => !remoteStockProdIds.has(String(lote.produto_id))
+        );
+        const combinedLotes = [
+          ...(estoqueRes.data || []).map((e) => ({
+            ...e,
+            empresaId: e.empresa_id || e.empresaId || activeCompId,
+            quantidade_disponivel: Number(e.quantidade_disponivel),
+          })),
+          ...customLocalLotes,
+        ];
+
         const allVendas: Venda[] = (vendasRes.data || []).map((v) => ({
           ...v,
           empresaId: v.empresa_id || v.empresaId || activeCompId,
@@ -984,16 +1006,12 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
         }));
 
         const freshSnapshot: DashboardDataSnapshot = {
-          produtos: prods,
+          produtos: combinedProds,
           vendas: allVendas,
           itensVenda: allItens,
-          estoqueLotes: (estoqueRes.data || []).map((e) => ({
-            ...e,
-            empresaId: e.empresa_id || e.empresaId || activeCompId,
-            quantidade_disponivel: Number(e.quantidade_disponivel),
-          })),
+          estoqueLotes: combinedLotes,
           fichasTecnicas: ensureFichasForProducts(
-            prods,
+            combinedProds,
             localSnap.fichasTecnicas,
             activeCompId
           ),
@@ -1497,46 +1515,95 @@ export async function updateProductStock(
 export interface NewProductPayload {
   nome: string;
   preco_venda: number;
-  custo_estimado: number;
-  estoque_inicial: number;
+  custo_estimado?: number;
+  estoque_inicial?: number;
+  gtin?: string;
+  unidade?: string;
+  categoria?: string;
+  rendimento_unidades?: number;
+  volume_unitario_ml?: number;
+  goToRecipe?: boolean;
 }
 
 export async function createNewProduct(
-  payload: NewProductPayload
-): Promise<DashboardDataSnapshot> {
-  const current = await fetchDashboardData();
+  payload: NewProductPayload,
+  companyId?: string
+): Promise<{ snapshot: DashboardDataSnapshot; newProduct: Produto }> {
+  const currentCompId = companyId || getActiveCompanyId();
+  const current = await fetchDashboardData(currentCompId);
   const nowIso = new Date().toISOString();
 
-  if (current.source === "supabase" && supabase) {
-    const { data: prodInserido, error } = await supabase
-      .from("produtos")
-      .insert({
-        nome: payload.nome.trim(),
-        preco_venda: payload.preco_venda,
-        custo_estimado: payload.custo_estimado,
-        ativo: true,
-      })
-      .select()
-      .single();
+  let novoProdId = `prod-${Date.now()}`;
+  const precoVenda = Number(payload.preco_venda) || 8.5;
+  const custoEstimado = Number(payload.custo_estimado ?? 3.2);
+  const estoqueInicial = Math.max(0, Math.round(payload.estoque_inicial ?? 10));
 
-    if (!error && prodInserido) {
-      await supabase.from("estoque_lotes").insert({
-        produto_id: prodInserido.id,
-        quantidade_disponivel: Math.max(0, Math.round(payload.estoque_inicial)),
-      });
-      return fetchDashboardData();
+  if (checkIsSupabaseConfigured() && supabase) {
+    try {
+      const prodInsertData: any = {
+        nome: payload.nome.trim(),
+        preco_venda: precoVenda,
+        custo_estimado: custoEstimado,
+        ativo: true,
+        empresa_id: currentCompId,
+      };
+
+      let { data: prodInserido, error: insertError } = await supabase
+        .from("produtos")
+        .insert(prodInsertData)
+        .select()
+        .single();
+
+      if (
+        insertError &&
+        (insertError.code === "PGRST204" || insertError.message?.includes("empresa_id"))
+      ) {
+        delete prodInsertData.empresa_id;
+        const retry = await supabase
+          .from("produtos")
+          .insert(prodInsertData)
+          .select()
+          .single();
+        prodInserido = retry.data;
+        insertError = retry.error;
+      }
+
+      if (!insertError && prodInserido) {
+        novoProdId = String(prodInserido.id);
+
+        const loteInsertData: any = {
+          produto_id: prodInserido.id,
+          quantidade_disponivel: estoqueInicial,
+          empresa_id: currentCompId,
+        };
+        const loteRes = await supabase.from("estoque_lotes").insert(loteInsertData);
+        if (
+          loteRes.error &&
+          (loteRes.error.code === "PGRST204" || loteRes.error.message?.includes("empresa_id"))
+        ) {
+          delete loteInsertData.empresa_id;
+          try {
+            await supabase.from("estoque_lotes").insert(loteInsertData);
+          } catch {
+            // ignore
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Aviso ao tentar salvar produto no Supabase (salvando localmente):", err);
     }
   }
 
-  const currentCompId = getActiveCompanyId();
-  const novoProdId = `prod-${Date.now()}`;
   const novoProduto: Produto = {
     id: novoProdId,
     empresaId: currentCompId,
     nome: payload.nome.trim(),
-    preco_venda: Number(payload.preco_venda),
-    preco_ifood: Number((payload.preco_venda * 1.35).toFixed(2)),
-    custo_estimado: Number(payload.custo_estimado),
+    preco_venda: precoVenda,
+    preco_ifood: Number((precoVenda * 1.35).toFixed(2)),
+    custo_estimado: custoEstimado,
+    gtin: payload.gtin?.trim() || undefined,
+    categoria: payload.categoria?.trim() || "Confeitaria & Sobremesas",
+    unidade: payload.unidade?.trim() || "un",
     ativo: true,
     created_at: nowIso,
   };
@@ -1545,25 +1612,60 @@ export async function createNewProduct(
     id: `est-${Date.now()}`,
     empresaId: currentCompId,
     produto_id: novoProdId,
-    quantidade_disponivel: Math.max(0, Math.round(payload.estoque_inicial)),
+    quantidade_disponivel: estoqueInicial,
     updated_at: nowIso,
   };
 
-  const novasFichas = ensureFichasForProducts(
-    [...current.produtos, novoProduto],
-    current.fichasTecnicas
-  );
+  const rendimento = payload.rendimento_unidades || 10;
+  const volume = payload.volume_unitario_ml || 150;
+
+  // Gera ficha técnica estruturada com insumos base configuráveis para edição imediata
+  const novaFicha: FichaTecnicaProduto = {
+    produto_id: novoProdId,
+    subtitulo_receita: `Receita & Ficha Técnica - ${novoProduto.nome}`,
+    rendimento_unidades: rendimento,
+    volume_unitario_ml: volume,
+    tempo_preparo_min: 30,
+    custo_embalagem_un: 0.1,
+    custo_operacional_un: 0.35,
+    preco_ifood_sugerido: Number((precoVenda * 1.35).toFixed(2)),
+    lucro_ifood_estimado: Number(
+      (precoVenda * 1.35 * (1 - 0.262) - custoEstimado).toFixed(2)
+    ),
+    modo_preparo: `Preparo artesanal e padronizado de ${novoProduto.nome}. Pesar todos os ingredientes com precisão e homogeneizar antes de embalar e resfriar.`,
+    ingredientes: [
+      {
+        id: `ing-${Date.now()}-1`,
+        nome: "Ingrediente Base Principal (ex: Leite / Farinha / Base)",
+        quantidade_receita: 1000,
+        unidade: "g",
+        custo_receita: Number(((custoEstimado * 0.6) * rendimento).toFixed(2)),
+      },
+      {
+        id: `ing-${Date.now()}-2`,
+        nome: "Ingrediente Recheio / Saborizante Especial",
+        quantidade_receita: 395,
+        unidade: "g",
+        custo_receita: Number(((custoEstimado * 0.4) * rendimento).toFixed(2)),
+      },
+    ],
+  };
+
+  const updatedFichas = [
+    ...(current.fichasTecnicas || []).filter((f) => f.produto_id !== novoProdId),
+    novaFicha,
+  ];
 
   const updatedSnapshot: DashboardDataSnapshot = {
     ...current,
-    produtos: [...current.produtos, novoProduto],
-    estoqueLotes: [...current.estoqueLotes, novoLote],
-    fichasTecnicas: novasFichas,
+    produtos: [...current.produtos.filter((p) => p.id !== novoProdId), novoProduto],
+    estoqueLotes: [...current.estoqueLotes.filter((e) => e.produto_id !== novoProdId), novoLote],
+    fichasTecnicas: updatedFichas,
     lastSyncedAt: nowIso,
   };
 
-  saveLocalSnapshot(updatedSnapshot);
-  return updatedSnapshot;
+  saveLocalSnapshot(updatedSnapshot, currentCompId);
+  return { snapshot: updatedSnapshot, newProduct: novoProduto };
 }
 
 export async function saveProductFichaTecnica(

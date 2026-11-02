@@ -78,6 +78,8 @@ export interface Produto {
   rendimento_receita?: number;
   ativo: boolean;
   gtin?: string; // Código de barras GTIN / EAN
+  categoria?: string;
+  unidade?: string;
   created_at: string;
 }
 

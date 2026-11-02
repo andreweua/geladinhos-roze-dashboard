@@ -71,6 +71,7 @@ export interface BrandConfig {
   };
   basesOperacionais: {
     jau: {
+      nome?: string; // Título da Unidade / Filial 1 (ex: "Filial 1", "Loja 1", "Matriz", "Polo Jaú - SP")
       responsavel: string;
       cidade: string;
       cep: string;
@@ -80,6 +81,7 @@ export interface BrandConfig {
       telefone: string;
     };
     tresPontas: {
+      nome?: string; // Título da Unidade / Filial 2 (ex: "Filial 2", "Loja 2", "Polo Três Pontas - MG")
       responsavel: string;
       cidade: string;
       cep: string;
@@ -172,6 +174,7 @@ export const BRAND_CONFIG: BrandConfig = {
   },
   basesOperacionais: {
     jau: {
+      nome: "Polo Jaú - SP (Matriz de Produção Artesanal)",
       responsavel: "Rozana Helena Miguel",
       cidade: "Jaú - SP",
       cep: "17205-210",
@@ -181,6 +184,7 @@ export const BRAND_CONFIG: BrandConfig = {
       telefone: "(14) 98818-3327",
     },
     tresPontas: {
+      nome: "Polo Três Pontas - MG (Inteligência & Suporte)",
       responsavel: "Andrew Pereira",
       cidade: "Três Pontas - MG",
       cep: "37187-016",

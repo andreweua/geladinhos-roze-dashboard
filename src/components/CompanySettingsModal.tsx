@@ -146,10 +146,17 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     stoneAccountId: currentConfig.stoneConfig?.accountId || "",
     stoneWebhookSecret: currentConfig.stoneConfig?.webhookSecret || "",
 
-    // Polos Operacionais
+    // Polos Operacionais / Unidades / Filiais
+    jauNome: currentConfig.basesOperacionais?.jau?.nome || BRAND_CONFIG.basesOperacionais.jau.nome || "Polo Jaú - SP (Matriz de Produção Artesanal)",
+    jauCidade: currentConfig.basesOperacionais?.jau?.cidade || BRAND_CONFIG.basesOperacionais.jau.cidade,
+    jauTipoPolo: currentConfig.basesOperacionais?.jau?.tipoPolo || BRAND_CONFIG.basesOperacionais.jau.tipoPolo,
     jauResponsavel: currentConfig.basesOperacionais?.jau?.responsavel || BRAND_CONFIG.basesOperacionais.jau.responsavel,
     jauCep: currentConfig.basesOperacionais?.jau?.cep || BRAND_CONFIG.basesOperacionais.jau.cep,
     jauLogradouro: currentConfig.basesOperacionais?.jau?.logradouro || BRAND_CONFIG.basesOperacionais.jau.logradouro,
+
+    tresPontasNome: currentConfig.basesOperacionais?.tresPontas?.nome || BRAND_CONFIG.basesOperacionais.tresPontas.nome || "Polo Três Pontas - MG (Inteligência & Suporte)",
+    tresPontasCidade: currentConfig.basesOperacionais?.tresPontas?.cidade || BRAND_CONFIG.basesOperacionais.tresPontas.cidade,
+    tresPontasTipoPolo: currentConfig.basesOperacionais?.tresPontas?.tipoPolo || BRAND_CONFIG.basesOperacionais.tresPontas.tipoPolo,
     tresPontasResponsavel: currentConfig.basesOperacionais?.tresPontas?.responsavel || BRAND_CONFIG.basesOperacionais.tresPontas.responsavel,
     tresPontasCep: currentConfig.basesOperacionais?.tresPontas?.cep || BRAND_CONFIG.basesOperacionais.tresPontas.cep,
     tresPontasLogradouro: currentConfig.basesOperacionais?.tresPontas?.logradouro || BRAND_CONFIG.basesOperacionais.tresPontas.logradouro,
@@ -184,9 +191,15 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         stoneClientSecret: live.stoneConfig?.clientSecret || "",
         stoneAccountId: live.stoneConfig?.accountId || "",
         stoneWebhookSecret: live.stoneConfig?.webhookSecret || "",
+        jauNome: live.basesOperacionais?.jau?.nome || BRAND_CONFIG.basesOperacionais.jau.nome || "Polo Jaú - SP (Matriz de Produção Artesanal)",
+        jauCidade: live.basesOperacionais?.jau?.cidade || BRAND_CONFIG.basesOperacionais.jau.cidade,
+        jauTipoPolo: live.basesOperacionais?.jau?.tipoPolo || BRAND_CONFIG.basesOperacionais.jau.tipoPolo,
         jauResponsavel: live.basesOperacionais?.jau?.responsavel || BRAND_CONFIG.basesOperacionais.jau.responsavel,
         jauCep: live.basesOperacionais?.jau?.cep || BRAND_CONFIG.basesOperacionais.jau.cep,
         jauLogradouro: live.basesOperacionais?.jau?.logradouro || BRAND_CONFIG.basesOperacionais.jau.logradouro,
+        tresPontasNome: live.basesOperacionais?.tresPontas?.nome || BRAND_CONFIG.basesOperacionais.tresPontas.nome || "Polo Três Pontas - MG (Inteligência & Suporte)",
+        tresPontasCidade: live.basesOperacionais?.tresPontas?.cidade || BRAND_CONFIG.basesOperacionais.tresPontas.cidade,
+        tresPontasTipoPolo: live.basesOperacionais?.tresPontas?.tipoPolo || BRAND_CONFIG.basesOperacionais.tresPontas.tipoPolo,
         tresPontasResponsavel: live.basesOperacionais?.tresPontas?.responsavel || BRAND_CONFIG.basesOperacionais.tresPontas.responsavel,
         tresPontasCep: live.basesOperacionais?.tresPontas?.cep || BRAND_CONFIG.basesOperacionais.tresPontas.cep,
         tresPontasLogradouro: live.basesOperacionais?.tresPontas?.logradouro || BRAND_CONFIG.basesOperacionais.tresPontas.logradouro,
@@ -302,12 +315,18 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
       basesOperacionais: {
         jau: {
           ...currentConfig.basesOperacionais.jau,
+          nome: formData.jauNome.trim() || BRAND_CONFIG.basesOperacionais.jau.nome,
+          cidade: formData.jauCidade.trim() || BRAND_CONFIG.basesOperacionais.jau.cidade,
+          tipoPolo: formData.jauTipoPolo.trim() || BRAND_CONFIG.basesOperacionais.jau.tipoPolo,
           responsavel: formData.jauResponsavel.trim(),
           cep: formData.jauCep.trim(),
           logradouro: formData.jauLogradouro.trim(),
         },
         tresPontas: {
           ...currentConfig.basesOperacionais.tresPontas,
+          nome: formData.tresPontasNome.trim() || BRAND_CONFIG.basesOperacionais.tresPontas.nome,
+          cidade: formData.tresPontasCidade.trim() || BRAND_CONFIG.basesOperacionais.tresPontas.cidade,
+          tipoPolo: formData.tresPontasTipoPolo.trim() || BRAND_CONFIG.basesOperacionais.tresPontas.tipoPolo,
           responsavel: formData.tresPontasResponsavel.trim(),
           cep: formData.tresPontasCep.trim(),
           logradouro: formData.tresPontasLogradouro.trim(),
@@ -366,9 +385,15 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         stoneClientSecret: "",
         stoneAccountId: "",
         stoneWebhookSecret: "",
+        jauNome: BRAND_CONFIG.basesOperacionais.jau.nome || "Polo Jaú - SP (Matriz de Produção Artesanal)",
+        jauCidade: BRAND_CONFIG.basesOperacionais.jau.cidade,
+        jauTipoPolo: BRAND_CONFIG.basesOperacionais.jau.tipoPolo,
         jauResponsavel: BRAND_CONFIG.basesOperacionais.jau.responsavel,
         jauCep: BRAND_CONFIG.basesOperacionais.jau.cep,
         jauLogradouro: BRAND_CONFIG.basesOperacionais.jau.logradouro,
+        tresPontasNome: BRAND_CONFIG.basesOperacionais.tresPontas.nome || "Polo Três Pontas - MG (Inteligência & Suporte)",
+        tresPontasCidade: BRAND_CONFIG.basesOperacionais.tresPontas.cidade,
+        tresPontasTipoPolo: BRAND_CONFIG.basesOperacionais.tresPontas.tipoPolo,
         tresPontasResponsavel: BRAND_CONFIG.basesOperacionais.tresPontas.responsavel,
         tresPontasCep: BRAND_CONFIG.basesOperacionais.tresPontas.cep,
         tresPontasLogradouro: BRAND_CONFIG.basesOperacionais.tresPontas.logradouro,
@@ -1134,24 +1159,71 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
             </div>
           )}
 
-          {/* TAB 4: POLOS OPERACIONAIS */}
+          {/* TAB 4: POLOS OPERACIONAIS / UNIDADES & FILIAIS */}
           {activeTab === "polos" && (
             <div className="space-y-4">
-              {/* Polo Jaú */}
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 text-xs text-muted-foreground">
+                <p className="font-semibold text-foreground flex items-center gap-1.5 mb-1">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span>Configuração de Unidades, Filiais e Polos Regionais</span>
+                </p>
+                Configure os nomes e endereços operacionais do seu negócio. Você pode personalizar os títulos para o formato que desejar (ex: <strong>Matriz</strong>, <strong>Filial 1</strong>, <strong>Loja Centro</strong>, <strong>Centro de Distribuição</strong>).
+              </div>
+
+              {/* Unidade / Filial 1 */}
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-primary" />
                     <span className="font-bold text-xs text-foreground">
-                      Polo Jaú - SP (Matriz de Produção Artesanal)
+                      {formData.jauNome || "Unidade / Filial 1"}
                     </span>
                   </div>
                   <Badge variant="outline" className="border-primary/40 text-primary font-bold text-[10px]">
-                    CEP {formData.jauCep}
+                    {formData.jauCidade} • CEP {formData.jauCep}
                   </Badge>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] font-semibold text-foreground block mb-1">
+                      Nome / Título da Unidade (ex: Matriz, Filial 1, Loja Centro):
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.jauNome}
+                      onChange={(e) => setFormData({ ...formData, jauNome: e.target.value })}
+                      placeholder="Ex: Matriz de Produção Artesanal ou Filial 1"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs font-semibold text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-muted-foreground block mb-1">
+                      Cidade & UF:
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.jauCidade}
+                      onChange={(e) => setFormData({ ...formData, jauCidade: e.target.value })}
+                      placeholder="Ex: Jaú - SP"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-muted-foreground block mb-1">
+                      Tipo de Operação / Finalidade:
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.jauTipoPolo}
+                      onChange={(e) => setFormData({ ...formData, jauTipoPolo: e.target.value })}
+                      placeholder="Ex: Matriz de Produção Artesanal ou Loja de Venda"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+
                   <div>
                     <label className="text-[11px] text-muted-foreground block mb-1">
                       Responsável Local:
@@ -1190,21 +1262,60 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Polo Três Pontas */}
+              {/* Unidade / Filial 2 */}
               <div className="rounded-xl border border-border/80 bg-secondary/15 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-primary" />
                     <span className="font-bold text-xs text-foreground">
-                      Polo Três Pontas - MG (Inteligência & Suporte)
+                      {formData.tresPontasNome || "Unidade / Filial 2"}
                     </span>
                   </div>
                   <Badge variant="outline" className="border-border text-muted-foreground font-bold text-[10px]">
-                    CEP {formData.tresPontasCep}
+                    {formData.tresPontasCidade} • CEP {formData.tresPontasCep}
                   </Badge>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] font-semibold text-foreground block mb-1">
+                      Nome / Título da Unidade (ex: Filial 2, Loja 2, Centro de Apoio):
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tresPontasNome}
+                      onChange={(e) => setFormData({ ...formData, tresPontasNome: e.target.value })}
+                      placeholder="Ex: Filial 2 ou Loja 2 ou Polo Tecnológico"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs font-semibold text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-muted-foreground block mb-1">
+                      Cidade & UF:
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tresPontasCidade}
+                      onChange={(e) => setFormData({ ...formData, tresPontasCidade: e.target.value })}
+                      placeholder="Ex: Três Pontas - MG"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-muted-foreground block mb-1">
+                      Tipo de Operação / Finalidade:
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tresPontasTipoPolo}
+                      onChange={(e) => setFormData({ ...formData, tresPontasTipoPolo: e.target.value })}
+                      placeholder="Ex: Inteligência, Suporte & Distribuição"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+
                   <div>
                     <label className="text-[11px] text-muted-foreground block mb-1">
                       Responsável Local:

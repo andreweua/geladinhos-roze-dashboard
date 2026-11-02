@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/primitives";
 import { formatCurrency, formatShortDate } from "@/lib/utils";
 import { LocaleCurrencyInput, LocaleNumberInput } from "@/components/ui/LocaleInputs";
-import { BRAND_CONFIG } from "@/config/brand.config";
+import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
 import {
   EstabelecimentoLocal,
   PesquisaPrecoLocal,
@@ -92,6 +92,7 @@ export const LocalMarketAndInvoicesSection: React.FC<
   >("pesquisas");
 
   // Live state
+  const customBrand = useMemo(() => getCustomBrandConfig(), []);
   const [estabelecimentos, setEstabelecimentos] = useState<EstabelecimentoLocal[]>(
     () => loadEstabelecimentos()
   );
@@ -608,17 +609,17 @@ export const LocalMarketAndInvoicesSection: React.FC<
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-foreground">
-                    {BRAND_CONFIG.basesOperacionais.jau.cidade}
+                    {customBrand.basesOperacionais.jau.nome || customBrand.basesOperacionais.jau.cidade}
                   </span>
                   <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary font-semibold">
-                    CEP {BRAND_CONFIG.basesOperacionais.jau.cep}
+                    {customBrand.basesOperacionais.jau.cidade} • CEP {customBrand.basesOperacionais.jau.cep}
                   </Badge>
                 </div>
                 <p className="truncate text-muted-foreground text-[11px] mt-0.5">
-                  <strong className="text-foreground">{BRAND_CONFIG.basesOperacionais.jau.responsavel}</strong> • {BRAND_CONFIG.basesOperacionais.jau.logradouro}
+                  <strong className="text-foreground">{customBrand.basesOperacionais.jau.responsavel}</strong> • {customBrand.basesOperacionais.jau.logradouro}
                 </p>
                 <p className="text-[10px] text-primary/80 font-medium">
-                  {BRAND_CONFIG.basesOperacionais.jau.tipoPolo}
+                  {customBrand.basesOperacionais.jau.tipoPolo}
                 </p>
               </div>
             </div>
@@ -630,17 +631,17 @@ export const LocalMarketAndInvoicesSection: React.FC<
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-foreground">
-                    {BRAND_CONFIG.basesOperacionais.tresPontas.cidade}
+                    {customBrand.basesOperacionais.tresPontas.nome || customBrand.basesOperacionais.tresPontas.cidade}
                   </span>
                   <Badge variant="outline" className="text-[10px] py-0 px-1.5 border-primary/30 text-primary font-semibold">
-                    CEP {BRAND_CONFIG.basesOperacionais.tresPontas.cep}
+                    {customBrand.basesOperacionais.tresPontas.cidade} • CEP {customBrand.basesOperacionais.tresPontas.cep}
                   </Badge>
                 </div>
                 <p className="truncate text-muted-foreground text-[11px] mt-0.5">
-                  <strong className="text-foreground">{BRAND_CONFIG.basesOperacionais.tresPontas.responsavel}</strong> • {BRAND_CONFIG.basesOperacionais.tresPontas.logradouro}
+                  <strong className="text-foreground">{customBrand.basesOperacionais.tresPontas.responsavel}</strong> • {customBrand.basesOperacionais.tresPontas.logradouro}
                 </p>
                 <p className="text-[10px] text-primary/80 font-medium">
-                  {BRAND_CONFIG.basesOperacionais.tresPontas.tipoPolo}
+                  {customBrand.basesOperacionais.tresPontas.tipoPolo}
                 </p>
               </div>
             </div>
