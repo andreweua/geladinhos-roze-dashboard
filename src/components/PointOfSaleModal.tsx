@@ -739,15 +739,15 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
           {step === "cart" ? (
             <div className="space-y-4">
-              {/* Modalidade de Entrega: Na Estação vs Delivery */}
+              {/* Modalidade de Atendimento & Canal Unificado */}
               <div className="rounded-xl border border-border/80 bg-background/60 p-3 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <Store className="h-3.5 w-3.5 text-primary" />
-                    Forma de Entrega / Retirada:
+                    Atendimento & Canal de Venda:
                   </span>
                   <span className="text-[10px] font-medium text-muted-foreground">
-                    Define a Próxima Parada no Bilhete
+                    Define a Próxima Parada e relatórios
                   </span>
                 </div>
 
@@ -756,6 +756,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                     type="button"
                     onClick={() => {
                       setTipoEntrega("NA_ESTACAO");
+                      setCanalVenda("Balcao");
                     }}
                     className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 px-3 text-center transition-all ${
                       tipoEntrega === "NA_ESTACAO"
@@ -766,7 +767,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                     <Train className="h-4 w-4 shrink-0" />
                     <div className="text-left">
                       <p className="text-xs font-bold leading-tight">🚉 NA ESTAÇÃO</p>
-                      <p className="text-[10px] opacity-75 font-normal">Retirada Presencial</p>
+                      <p className="text-[10px] opacity-75 font-normal">Retirada no Balcão</p>
                     </div>
                   </button>
 
@@ -790,7 +791,37 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                   </button>
                 </div>
 
-                {/* Se for Delivery: Escolha da Plataforma e Endereço */}
+                {/* Se for NA ESTAÇÃO: opcionalmente indicar se o pedido veio de Encomenda */}
+                {tipoEntrega === "NA_ESTACAO" && (
+                  <div className="pt-2 border-t border-border/50 flex flex-wrap items-center gap-1.5 text-xs animate-in fade-in">
+                    <span className="text-[10px] font-medium text-muted-foreground mr-1">
+                      Origem:
+                    </span>
+                    {(
+                      [
+                        { id: "Balcao", label: "🏪 Balcão (Presencial)" },
+                        { id: "WhatsApp", label: "📱 WhatsApp Encomenda" },
+                        { id: "Instagram", label: "📸 Instagram Direct" },
+                        { id: "Outro", label: "📦 Evento / Outro" },
+                      ] as const
+                    ).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setCanalVenda(c.id)}
+                        className={`rounded-lg border px-2.5 py-1 text-[11px] transition-all ${
+                          canalVenda === c.id
+                            ? "border-primary bg-primary/15 text-primary font-bold ring-1 ring-primary/40"
+                            : "border-border/60 bg-card/50 text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Se for DELIVERY: Escolha da Plataforma Cadastrada e Endereço */}
                 {tipoEntrega === "DELIVERY" && (
                   <div className="pt-2 border-t border-border/50 space-y-2.5 animate-in fade-in duration-150">
                     <div>
@@ -806,6 +837,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                               setPlataformaDelivery(plat);
                               if (plat.toLowerCase().includes("ifood")) setCanalVenda("iFood");
                               else if (plat.toLowerCase().includes("whats")) setCanalVenda("WhatsApp");
+                              else if (plat.toLowerCase().includes("insta")) setCanalVenda("Instagram");
+                              else setCanalVenda("Outro");
                             }}
                             className={`rounded-lg border px-2.5 py-1 text-xs transition-all ${
                               plataformaDelivery === plat
@@ -834,44 +867,6 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                     </div>
                   </div>
                 )}
-              </div>
-
-              {/* Channel / Origem da Venda */}
-              <div className="rounded-xl border border-border/80 bg-background/60 p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <ShoppingBag className="h-3.5 w-3.5 text-primary" />
-                    Canal / Origem da Venda:
-                  </span>
-                  <span className="text-[10px] font-medium text-muted-foreground">
-                    Para métricas e relatórios da administração
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
-                  {(
-                    [
-                      { id: "Balcao", label: "🏪 Balcão", sub: "Presencial" },
-                      { id: "iFood", label: "🛵 iFood", sub: "Delivery" },
-                      { id: "WhatsApp", label: "📱 WhatsApp", sub: "Encomenda" },
-                      { id: "Instagram", label: "📸 Instagram", sub: "Direct" },
-                      { id: "Outro", label: "📦 Outros", sub: "Eventos" },
-                    ] as const
-                  ).map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setCanalVenda(c.id)}
-                      className={`flex flex-col items-center justify-center rounded-lg border py-2 px-1 text-center transition-all ${
-                        canalVenda === c.id
-                          ? "border-primary bg-primary/10 text-primary font-bold shadow-xs ring-1 ring-primary/40"
-                          : "border-border/70 bg-card/60 text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
-                      }`}
-                    >
-                      <span className="text-xs">{c.label}</span>
-                      <span className="text-[9px] opacity-75">{c.sub}</span>
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Customer Contact Strip & Automatic CRM Link & LGPD Option */}
