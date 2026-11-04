@@ -984,6 +984,36 @@ export const TechnicalSheetAndDreSection: React.FC<
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   Validade: 30 dias congelado
                 </p>
+
+                <span className="mt-2 flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                  <Clock className="h-3 w-3 text-amber-500" />
+                  Tempo de preparo
+                </span>
+                {isEditing ? (
+                  <div className="inline-flex items-center gap-1 mt-1">
+                    <LocaleNumberInput
+                      maxDecimals={0}
+                      fallbackOnBlur={30}
+                      value={draftFicha?.tempo_preparo_min ?? effectiveFicha.tempo_preparo_min}
+                      onValueChange={(val) =>
+                        setDraftFicha((prev) => {
+                          const base = prev || currentFicha;
+                          if (!base) return prev;
+                          return {
+                            ...base,
+                            tempo_preparo_min: typeof val === "number" ? Math.max(0, Math.round(val)) : 0,
+                          };
+                        })
+                      }
+                      className="h-8 w-20 rounded border border-input bg-background px-2 text-sm font-bold text-foreground"
+                    />
+                    <span className="text-xs font-semibold text-muted-foreground">min</span>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-base font-extrabold text-foreground">
+                    {effectiveFicha.tempo_preparo_min} min
+                  </p>
+                )}
               </div>
             </div>
 

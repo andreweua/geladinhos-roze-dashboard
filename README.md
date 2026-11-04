@@ -1,8 +1,8 @@
 # 🍧 Geladinhos Gourmet da Roze — Sistema de Gestão, PDV, Cotações & Inteligência Artificial
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-3.6.1-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-3.6.2-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v55%29-38bdf8)
+![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v56%29-38bdf8)
 ![RSC Sistemas](https://img.shields.io/badge/GTIN%20%2F%20EAN--13-RSC%20Sistemas%20%2B%20Fotos-f59e0b)
 ![Atacado e Varejo](https://img.shields.io/badge/Cota%C3%A7%C3%B5es-Atacado%20%26%20Varejo-8b5cf6)
 ![Segurança de Caixa](https://img.shields.io/badge/Caixa-Abertura%20Obrigat%C3%B3ria-10b981)
@@ -13,6 +13,13 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 - 🌐 **Aplicação Web / PWA (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
 - 📲 **Download Direto do Aplicativo Android (APK Oficial)**: [Baixar APK Mais Recente (GitHub Releases)](https://github.com/andreweua/geladinhos-roze-dashboard/releases/latest)
 - 📋 **Histórico Completo de Alterações**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
+
+---
+
+## 🚀 Destaques da Versão 3.6.2 (Build 2026110402 • Android versionCode 56)
+
+- **Tempo de Preparo na Ficha Técnica**: campo visível e editável (ex.: 30 min), sincronizado com a coluna `tempo_preparo_min` do Supabase.
+- **Fidelidade aos Dados do Banco**: custos de embalagem, operacional e demais campos preservam o valor exato do Supabase, inclusive `0`, sem substituição por valores padrão.
 
 ---
 
@@ -63,7 +70,7 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 
 ### 5. 🔔 Sistema de Atualização OTA (Over-The-Air) & Rastreabilidade Técnica
 - **Notificação Sonora, Tátil e Visual**: Aviso de nova versão com chime melódico sintetizado via *Web Audio API*, vibração háptica e botão claro para fechar o alerta.
-- **Rastreabilidade Técnica no Rodapé**: Exibição exata da versão instalada em execução (`Versão: v3.6.1 • Build: 2026110401 • Ambiente: PWA Web App / Android Nativo versionCode 55`).
+- **Rastreabilidade Técnica no Rodapé**: Exibição exata da versão instalada em execução (`Versão: v3.6.2 • Build: 2026110402 • Ambiente: PWA Web App / Android Nativo versionCode 56`).
 - **Links Permanentes de Atualização Android**: Botões diretos para baixar o `.APK` atualizado disponíveis no rodapé do sistema, no alerta de atualização e na janela **Novidades ✨**.
 
 ---
@@ -92,7 +99,7 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 ## 📱 Suporte PWA e Aplicativo Android Nativo
 
 - **Aplicativo Android Nativo (Capacitor 8 + Google ML Kit)**:
-  - Compilação automatizada via GitHub Actions (`.github/workflows/build-apk.yml`) gerando o pacote oficial `PereiraLabs-PDV-Foods-v3.6.1.apk` e `PereiraLabs-PDV-Foods-latest.apk`.
+  - Compilação automatizada via GitHub Actions (`.github/workflows/build-apk.yml`) gerando o pacote oficial `PereiraLabs-PDV-Foods-v3.6.2.apk` e `PereiraLabs-PDV-Foods-latest.apk`.
   - Safe Area nativa configurada para celulares modernos (incluindo Samsung Galaxy A26 / Android 15).
 - **PWA (Progressive Web App)**:
   - Instalação em 1 clique no Android, iOS e Desktop com funcionamento offline e atualização automática via Service Worker (`public/sw.js`).

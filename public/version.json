@@ -1,11 +1,10 @@
 {
-  "version": "3.6.1",
-  "build": 2026110401,
-  "releaseDate": "2026-11-04T03:50:00.000Z",
+  "version": "3.6.2",
+  "build": 2026110402,
+  "releaseDate": "2026-11-04T05:15:00.000Z",
   "features": [
-    "Blindagem Absoluta na Edição da Ficha Técnica: bloqueio de ghost-clicks móveis, proteção de toque e digitação contínua",
-    "Persistência Garantida de Receitas e DRE: sincronização segura com Supabase e fallback local imediato",
-    "Detecção Inteligente de Teclado Móvel: ocultação suave da barra inferior durante preenchimento de receitas e custos",
-    "Padronização de IDs Multi-Tenant: compatibilidade robusta com identificadores numéricos e textuais de produtos"
+    "Tempo de preparo agora visível e editável na Ficha Técnica (sincronizado com o Supabase)",
+    "Custos da ficha preservam exatamente os valores do banco, inclusive R$ 0,00",
+    "Correção da divergência entre os dados da ficha no Supabase e no aplicativo"
   ]
 }

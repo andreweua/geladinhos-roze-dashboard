@@ -14,6 +14,13 @@ import {
 } from "@/types/dashboard";
 import { saveOrUpdateCustomer } from "@/services/customerService";
 
+// Converte valor do banco para número preservando 0 legítimo; usa fallback só se ausente/inválido
+function numOr(value: unknown, fallback: number): number {
+  if (value === null || value === undefined || value === "") return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 // Chaves dinâmicas isoladas por empresa (Multi-Tenant)
 // A Matriz Roze Gourmet preserva a chave histórica oficial com os 8 sabores
 export function getCompanyStorageKey(companyId?: string): string {
@@ -1029,13 +1036,14 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
               return {
                 produto_id: String(f.produto_id),
                 subtitulo_receita: f.subtitulo_receita,
-                rendimento_unidades: Number(f.rendimento_unidades) || 10,
-                volume_unitario_ml: Number(f.volume_unitario_ml) || 150,
-                tempo_preparo_min: Number(f.tempo_preparo_min) || 30,
-                custo_embalagem_un: Number(f.custo_embalagem_un) || 0.1,
-                custo_operacional_un: Number(f.custo_operacional_un) || 0.35,
-                preco_ifood_sugerido: Number(f.preco_ifood_sugerido) || 0,
-                lucro_ifood_estimado: Number(f.lucro_ifood_estimado) || 0,
+                // Preserva exatamente os valores do banco (inclusive 0) e só usa padrão se ausente/inválido
+                rendimento_unidades: numOr(f.rendimento_unidades, 10),
+                volume_unitario_ml: numOr(f.volume_unitario_ml, 150),
+                tempo_preparo_min: numOr(f.tempo_preparo_min, 30),
+                custo_embalagem_un: numOr(f.custo_embalagem_un, 0.1),
+                custo_operacional_un: numOr(f.custo_operacional_un, 0.35),
+                preco_ifood_sugerido: numOr(f.preco_ifood_sugerido, 0),
+                lucro_ifood_estimado: numOr(f.lucro_ifood_estimado, 0),
                 modo_preparo: f.modo_preparo || "",
                 ingredientes: Array.isArray(parsedIngredientes) ? parsedIngredientes : [],
               };

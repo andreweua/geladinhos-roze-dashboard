@@ -7,6 +7,15 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.6.2] - 2026-11-04
+
+### Corrigido & Aprimorado
+- **Tempo de Preparo na Ficha Técnica**: o campo `tempo_preparo_min` do Supabase agora é exibido e editável (minutos) no card Padronização e salvo junto com a ficha.
+- **Fidelidade dos Custos ao Banco de Dados**: a leitura de `fichas_tecnicas` (`dataService`) usa o novo helper `numOr`, preservando valores `0` legítimos (embalagem, operacional, rendimento, preço iFood) em vez de aplicar valores padrão.
+- Versão `v3.6.2` (Build `2026110402`, Android `versionCode 56`).
+
+---
+
 ## [3.6.1] - 2026-11-04
 
 ### Corrigido & Aprimorado
