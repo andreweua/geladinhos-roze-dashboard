@@ -7,6 +7,26 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.6.7] - 2026-11-04
+
+### Adicionado & Aprimorado
+- **Novo Módulo de CRM & Fidelidade Multi-Tenant (`CustomersCrmView`)**:
+  - Painel de gestão de clientes com **isolamento estrito multi-tenant** (cada empresa só vê sua base de clientes).
+  - **Adaptação Dinâmica ao Estilo da Empresa**:
+    - **Estação da Rô (Temático Estrada Real)**: exibe *"Passageiros & Passaporte da Estrada Real"*, com termos ferroviários (*Passageiros*, *Paradas Carimbadas*, *Viagem Doce Grátis*).
+    - **Outras Empresas (Comercial Padrão)**: exibe *"Clientes & Programa de Fidelidade (CRM)"*, com termos universais (*Clientes*, *Pontos de Fidelidade*, *Recompensa Grátis*).
+  - **Passaporte Visual Interativo**: Grid de 10 carimbos por cliente, indicando selos acumulados, ciclos completos e recompensas ativas.
+  - **Filtros Rápidos de Conversão**:
+    - *⭐ Quase Ganhando (7 a 9 selos)*: para campanhas de incentivo imediato.
+    - *🎁 Com Cortesia Disponível (10 selos)*: para avisar sobre resgate de brindes.
+    - *💤 Passageiros Sumidos (+20 dias)*: para reengajamento de clientes inativos.
+    - *🏆 Mais Frequentes (VIPs)*: top compradores e ranking de sabores favoritos.
+  - **Disparo no WhatsApp em 1 Clique**: Gerador de mensagens com nome do cliente, saldo de selos e sabor preferido direto no WhatsApp.
+  - **Edição e Exclusão LGPD**: Permite atualizar endereço de entrega ou excluir dados permanentemente mediante solicitação.
+- Versão `v3.6.7` (Build `2026110407`, Android `versionCode 61`).
+
+---
+
 ## [3.6.6] - 2026-11-04
 
 ### Adicionado & Aprimorado

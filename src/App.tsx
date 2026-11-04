@@ -18,6 +18,9 @@ import {
   Coins,
   RefreshCw,
   Download,
+  Users,
+  Train,
+  ChevronRight,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Header } from "@/components/Header";
@@ -62,6 +65,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { CashShiftModal } from "@/components/cash/CashShiftModal";
 import { CashShift, getCurrentShift } from "@/services/cashShiftService";
 import { CustomerReceiptView } from "@/components/CustomerReceiptView";
+import { CustomersCrmView } from "@/components/CustomersCrmView";
 import { parsePermanentReceiptFromUrl } from "@/lib/receiptExporter";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import {
@@ -165,9 +169,9 @@ export function App() {
     getDateRangeForPreset("7dias")
   );
 
-  // Active App Section: "inicio" (default) | "fichas" | "cotacoes" | "gestao" | "completo" | "consultoria"
+  // Active App Section: "inicio" (default) | "fichas" | "cotacoes" | "gestao" | "completo" | "consultoria" | "clientes"
   const [activeSection, setActiveSection] = useState<
-    "inicio" | "fichas" | "cotacoes" | "gestao" | "completo" | "consultoria"
+    "inicio" | "fichas" | "cotacoes" | "gestao" | "completo" | "consultoria" | "clientes"
   >("inicio");
   const activeSectionRef = useRef(activeSection);
   activeSectionRef.current = activeSection;
@@ -808,6 +812,10 @@ export function App() {
                 ? "Frente de Caixa & Pedidos do Turno"
                 : activeSection === "inicio"
                 ? "Visão Geral & Faturamento"
+                : activeSection === "clientes"
+                ? activeCompany?.cupomConfig?.tipoCupom === "padrao_comercial"
+                  ? "Clientes & Programa de Fidelidade (CRM)"
+                  : "Passageiros & Passaporte da Estrada Real"
                 : activeSection === "fichas"
                 ? "Fichas Técnicas & DRE por Produto"
                 : activeSection === "cotacoes"
@@ -823,6 +831,10 @@ export function App() {
                 ? "Lançamento ágil de vendas, recebimento via Pix Stone e impressão térmica"
                 : activeSection === "inicio"
                 ? "Indicadores do dia, gráficos de vendas e reposição de estoque"
+                : activeSection === "clientes"
+                ? activeCompany?.cupomConfig?.tipoCupom === "padrao_comercial"
+                  ? "Gestão de clientes cadastrados, histórico de consumo e fidelização"
+                  : "Gestão de passageiros frequentes, paradas carimbadas e incentivo a novas viagens"
                 : activeSection === "fichas"
                 ? "Custos dos ingredientes, margem iFood vs Balcão e engenharia de receitas"
                 : activeSection === "cotacoes"
@@ -1257,6 +1269,43 @@ export function App() {
                         </div>
                       )}
 
+                      {/* Atalho Rápido ao CRM & Fidelidade de Passageiros */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3.5 text-xs shadow-xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            {activeCompany?.cupomConfig?.tipoCupom === "padrao_comercial" ? (
+                              <Users className="h-4 w-4" />
+                            ) : (
+                              <Train className="h-4 w-4" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-bold text-foreground flex items-center gap-2">
+                              <span>
+                                {activeCompany?.cupomConfig?.tipoCupom === "padrao_comercial"
+                                  ? "Gestão de Clientes & Fidelidade"
+                                  : "Passageiros & Passaporte da Estrada Real"}
+                              </span>
+                              <span className="rounded-full bg-secondary text-secondary-foreground text-[10px] py-0.5 px-2 font-bold border border-border/60">
+                                CRM
+                              </span>
+                            </h4>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              Acompanhe selos, clientes próximos da cortesia e envie mensagens no WhatsApp com 1 clique.
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setActiveSection("clientes")}
+                          className="shrink-0 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/15 font-bold gap-1.5 text-xs"
+                        >
+                          <span>Ver {activeCompany?.cupomConfig?.tipoCupom === "padrao_comercial" ? "Clientes" : "Passageiros"}</span>
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
                       {/* 5 KPIs */}
                       <KpiCards
                         kpis={analytics.kpis}
@@ -1394,6 +1443,14 @@ export function App() {
                 </div>
               )}
 
+              {/* TELA DE CRM: PASSAGEIROS & FIDELIDADE */}
+              {activeSection === "clientes" && (
+                <CustomersCrmView
+                  empresaId={activeCompany.id}
+                  activeCompany={activeCompany}
+                />
+              )}
+
               {/* TELA 6: CONSULTORIA PEREIRALABS */}
               {activeSection === "consultoria" && (
                 <ConsultingSection
@@ -1497,6 +1554,8 @@ export function App() {
             ? "cotacoes"
             : activeSection === "gestao"
             ? "gestao"
+            : activeSection === "clientes"
+            ? "clientes"
             : "inicio"
         }
         onSelectTab={(tab) => {

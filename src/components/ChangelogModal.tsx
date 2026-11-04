@@ -169,6 +169,10 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
+                  <strong className="text-foreground">Painel de CRM & Fidelidade Multi-Empresa (v3.6.7):</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
+                    Nova tela dedicada para gestão de passageiros e clientes com isolamento estrito de dados (multi-tenant), passaporte visual com 10 carimbos, filtros inteligentes ("Quase Ganhando 7-9 selos", "Cortesia Disponível", "Sumidos +20d") e disparo de mensagens personalizadas no WhatsApp com 1 clique.
+                  </p>
                   <strong className="text-foreground">Entrega Na Estação / Delivery & Roteamento Dinâmico (v3.6.6):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
                     Seletor no PDV entre "NA ESTAÇÃO" (retirada presencial) e "DELIVERY" (entrega em domicílio), suporte a plataformas cadastradas (iFood, AiQFome, WhatsApp), rota ferroviária no bilhete (Linha Matriz x Cidade PDV), seletor de modelo de cupom (Temático Estrada Real vs Comercial Padrão) e conformidade LGPD com venda anônima opcional.

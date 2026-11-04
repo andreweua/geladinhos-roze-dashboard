@@ -18,14 +18,16 @@ import {
   LogOut,
   User,
   Award,
+  Users,
+  Train,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge } from "@/components/ui/primitives";
 import { NavTab } from "./AppBottomNav";
 import { UserProfile } from "@/types/auth";
-import { isPereiraLabsMaster } from "@/services/companyService";
+import { isPereiraLabsMaster, getActiveCompany } from "@/services/companyService";
 
-export type SidebarTab = NavTab | "completo" | "auditoria" | "ia" | "consultoria";
+export type SidebarTab = NavTab | "clientes" | "completo" | "auditoria" | "ia" | "consultoria";
 
 interface AppSidebarProps {
   activeTab: SidebarTab;
@@ -71,6 +73,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const isCashier = currentUser?.role === "operador_caixa";
   const displayCompanyName = companyName || currentUser?.empresaNome || BRAND_CONFIG.companyName;
   const isMaster = isPereiraLabsMaster(currentUser);
+  const activeCompany = getActiveCompany();
+  const isTematico = activeCompany?.cupomConfig?.tipoCupom !== "padrao_comercial";
 
   return (
     <aside className="hidden lg:flex w-64 lg:w-72 shrink-0 flex-col border-r border-border/80 bg-card/90 backdrop-blur-md h-screen sticky top-0 overflow-hidden">
@@ -152,6 +156,28 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               </div>
               <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
                 Pix
+              </Badge>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectTab("clientes")}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl font-medium transition-all ${
+                activeTab === "clientes"
+                  ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                  : "text-foreground/80 hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {isTematico ? (
+                  <Train className="h-4 w-4 shrink-0 text-amber-500" />
+                ) : (
+                  <Users className="h-4 w-4 shrink-0 text-primary" />
+                )}
+                <span>{isTematico ? "Passageiros & Fidelidade" : "Clientes & Fidelidade"}</span>
+              </div>
+              <Badge variant="secondary" className="text-[10px] py-0 px-1.5">
+                CRM
               </Badge>
             </button>
           </div>
