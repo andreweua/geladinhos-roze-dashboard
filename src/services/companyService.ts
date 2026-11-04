@@ -25,6 +25,25 @@ const DEFAULT_COMPANIES: Company[] = [
     criadoEm: "2026-10-01T00:00:00.000Z",
     observacoes: "Unidade Matriz - Jaú/SP",
   },
+  {
+    id: "emp-estacao-da-ro",
+    nome: "Estação da Rô - Geladinhos Gourmet",
+    slug: "estacao-da-ro",
+    nicho: "Sabores da Estrada Real - Conselheiro Lafaiete/MG",
+    corTema: "dourado",
+    chavePix: "14988183327",
+    chavePixTipo: "telefone",
+    whatsapp: "5514988183327",
+    cidade: "Conselheiro Lafaiete - MG",
+    responsavel: "Rozana Helena Miguel",
+    adminEmail: "estacao@estacaodaro.com.br",
+    adminSenha: "admin",
+    cashierPin: "1234",
+    statusAssinatura: "ativo",
+    valorMensalidade: 79.9,
+    criadoEm: "2026-10-01T00:00:00.000Z",
+    observacoes: "Estação da Rô - Sabores da Estrada Real",
+  },
 ];
 
 export function getLocalCompanies(): Company[] {
@@ -36,9 +55,17 @@ export function getLocalCompanies(): Company[] {
     }
     const parsed: Company[] = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      // Garante que a Roze sempre exista
+      // Garante que a Roze e a Estação da Rô sempre existam
+      let changed = false;
       if (!parsed.some((c) => c.id === "emp-roze-gourmet")) {
         parsed.unshift(DEFAULT_COMPANIES[0]);
+        changed = true;
+      }
+      if (!parsed.some((c) => c.id === "emp-estacao-da-ro")) {
+        parsed.push(DEFAULT_COMPANIES[1]);
+        changed = true;
+      }
+      if (changed) {
         saveLocalCompanies(parsed);
       }
       return parsed;

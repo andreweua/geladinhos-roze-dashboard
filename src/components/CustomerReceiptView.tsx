@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Receipt,
   FileText,
@@ -12,6 +12,10 @@ import {
   IceCreamCone,
   ExternalLink,
   MessageCircle,
+  Printer,
+  Train,
+  Sparkles,
+  Award,
 } from "lucide-react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
 import { getActiveCompany } from "@/services/companyService";
@@ -24,6 +28,7 @@ import {
   downloadReceiptOfx,
 } from "@/lib/receiptExporter";
 import { formatFiscalReceiptText } from "@/lib/receiptFormatter";
+import { buscarCliente, getPassaporteGrid } from "@/services/customerService";
 import { Badge, Button } from "@/components/ui/primitives";
 
 interface CustomerReceiptViewProps {
@@ -55,27 +60,188 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
   };
 
   const handleShareWhatsApp = () => {
-    const textWithUrl = `${rawText}\n\n👉 Acesse e baixe seu cupom em PDF a qualquer momento:\n${window.location.href}`;
+    const textWithUrl = `${rawText}\n\n👉 Acesse e baixe seu bilhete de embarque a qualquer momento:\n${window.location.href}`;
     const url = `https://wa.me/?text=${encodeURIComponent(textWithUrl)}`;
     window.open(url, "_blank");
   };
 
   const handleOpenStoreWhatsApp = () => {
     const phone = BRAND_CONFIG.tonConfig.whatsappNumber || "5514988183327";
-    const msg = `Olá, Roze! Gostaria de fazer um novo pedido de geladinhos artesanais gourmet! 🍨✨`;
+    const msg = `Olá, Estação da Rô! Gostaria de fazer um novo pedido de geladinhos artesanais gourmet da Estrada Real! 🍨🚂`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
+  const handlePrintThermal = () => {
+    window.print();
   };
 
   const totalQuantity = venda.itens.reduce((acc, i) => acc + i.quantidade, 0);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-rose-500/10 via-background to-secondary/30 p-4 sm:p-6 flex flex-col items-center justify-center">
-      <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-border/80 bg-card shadow-2xl backdrop-blur-xl">
-        {/* Top Decorative Strip */}
-        <div className="bg-gradient-to-r from-rose-600 via-amber-500 to-rose-600 p-1" />
+  // Informações de Fidelidade do Passaporte da Estrada Real
+  const loyaltyData = useMemo(() => {
+    const existingCust = venda.cliente_telefone
+      ? buscarCliente(venda.cliente_telefone, venda.empresaId || "emp-roze-gourmet")
+      : null;
 
-        {/* Brand Header */}
-        <div className="p-6 text-center border-b border-border/60 bg-secondary/20 relative">
+    let stamps = venda.selos_fidelidade;
+    if (stamps === undefined && existingCust) {
+      stamps = existingCust.selos_atuais;
+    }
+    if (stamps === undefined) {
+      stamps = totalQuantity % 10 === 0 && totalQuantity > 0 ? 10 : totalQuantity % 10;
+    }
+
+    const hasReward = Boolean(
+      (venda.recompensas_fidelidade && venda.recompensas_fidelidade > 0) ||
+      (existingCust && existingCust.recompensas_disponiveis > 0) ||
+      stamps === 10
+    );
+
+    return {
+      stamps: Math.max(0, Math.min(10, stamps)),
+      hasReward,
+      gridText: getPassaporteGrid(stamps, hasReward),
+    };
+  }, [venda, totalQuantity]);
+
+  const passengerName = venda.cliente_nome ? venda.cliente_nome.trim() : "Passageiro(a) Gourmet";
+  const originStation = "Estação da Rô";
+  const destinationStation = "Cremosidade sem escalas e felicidade imediata!";
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-amber-500/10 via-background to-secondary/30 p-3 sm:p-6 flex flex-col items-center justify-center">
+      {/* Estilos dedicados para impressão contínua em impressora térmica de 80mm */}
+      <style>{`
+        @media print {
+          @page {
+            size: 80mm auto;
+            margin: 0;
+          }
+          html, body {
+            width: 80mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #thermal-print-slip, #thermal-print-slip * {
+            visibility: visible !important;
+          }
+          #thermal-print-slip {
+            display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            max-width: 80mm !important;
+            margin: 0 !important;
+            padding: 3mm 4mm !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-family: 'Courier New', Courier, monospace !important;
+            font-size: 11px !important;
+            line-height: 1.25 !important;
+          }
+        }
+        @media screen {
+          #thermal-print-slip {
+            display: none;
+          }
+        }
+      `}</style>
+
+      {/* BILHETE TÉRMICO OCULTO (Renderizado exclusivamente na Impressão 80mm) */}
+      <div id="thermal-print-slip" className="hidden">
+        <div style={{ textAlign: "center", marginBottom: "4px" }}>
+          <strong style={{ fontSize: "13px", display: "block" }}>ESTAÇÃO DA RÔ - GELADINHOS GOURMET</strong>
+          <span style={{ fontSize: "9px", fontStyle: "italic", display: "block" }}>
+            Sabores da Estrada Real - Conselheiro Lafaiete/MG
+          </span>
+          <div style={{ borderBottom: "1px dashed #000", margin: "4px 0" }} />
+          <strong style={{ fontSize: "11px", display: "block" }}>BILHETE DE EMBARQUE GOURMET</strong>
+          <div style={{ borderBottom: "1px dashed #000", margin: "4px 0" }} />
+        </div>
+
+        <div style={{ fontSize: "10px", marginBottom: "4px" }}>
+          <div><strong>Passageiro(a):</strong> {passengerName}</div>
+          <div><strong>Bilhete:</strong> #{shortId}</div>
+          <div><strong>Origem:</strong> {originStation}</div>
+          <div><strong>Destino:</strong> {destinationStation}</div>
+          <div><strong>Embarque:</strong> {formatDateTime(venda.data_venda)}</div>
+        </div>
+
+        <div style={{ borderBottom: "1px solid #000", margin: "4px 0" }} />
+
+        <div style={{ fontSize: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "bold", borderBottom: "1px dashed #000", paddingBottom: "2px" }}>
+            <span>QTD ITEM</span>
+            <span>TOTAL</span>
+          </div>
+          {venda.itens.map((it) => (
+            <div key={it.id} style={{ display: "flex", justifyContent: "space-between", margin: "2px 0" }}>
+              <span>{it.quantidade}x {it.produto_nome.slice(0, 18)}</span>
+              <span>{formatCurrency(it.quantidade * it.preco_unitario)}</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ borderBottom: "1px solid #000", margin: "4px 0" }} />
+
+        <div style={{ fontSize: "11px", display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+          <span>TOTAL DA PASSAGEM:</span>
+          <span>{formatCurrency(venda.valor_total)}</span>
+        </div>
+        <div style={{ fontSize: "9.5px", marginTop: "2px" }}>
+          Pagamento: <strong>{PAYMENT_METHOD_LABELS[venda.forma_pagamento] || venda.forma_pagamento}</strong>
+          {venda.pix_txid && <span> • ID: {venda.pix_txid.slice(0, 12)}</span>}
+        </div>
+
+        <div style={{ borderBottom: "1px dashed #000", margin: "5px 0" }} />
+
+        {/* Passaporte da Estrada Real na Impressão Térmica */}
+        <div style={{ textAlign: "center", margin: "4px 0" }}>
+          <strong style={{ fontSize: "10.5px", display: "block" }}>PASSAPORTE DA ESTRADA REAL</strong>
+          <div style={{ fontFamily: "monospace", fontSize: "11px", letterSpacing: "1px", margin: "3px 0", fontWeight: "bold" }}>
+            {loyaltyData.gridText}
+          </div>
+          {loyaltyData.hasReward && (
+            <div style={{ fontWeight: "bold", fontSize: "10px", margin: "2px 0", border: "1px solid #000", padding: "2px" }}>
+              ⭐ VIAGEM DOCE GRÁTIS DISPONÍVEL! ⭐
+            </div>
+          )}
+        </div>
+
+        <div style={{ borderBottom: "1px dashed #000", margin: "5px 0" }} />
+
+        <div style={{ textAlign: "center", fontSize: "9px" }}>
+          <p style={{ margin: "2px 0", fontStyle: "italic" }}>
+            A cada 10 paradas, ganhe 1 viagem doce! Guarde este bilhete.
+          </p>
+          <p style={{ margin: "2px 0" }}>
+            WhatsApp: (14) 98818-3327 • Instagram: @estacaodaro.gourmet
+          </p>
+          <div style={{ fontSize: "8px", color: "#444", marginTop: "4px" }}>
+            PereiraLabs - Divisão de Tecnologia e IA
+          </div>
+        </div>
+      </div>
+
+      {/* CARD PRINCIPAL INTERATIVO (TELA / NAVEGADOR) */}
+      <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-amber-500/30 bg-card shadow-2xl backdrop-blur-xl">
+        {/* Top Decorative Railroad Strip */}
+        <div className="bg-gradient-to-r from-amber-600 via-rose-600 to-amber-600 p-1.5 flex items-center justify-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-1.5">
+            <Train className="h-3.5 w-3.5" />
+            Estrada Real • Linha Gourmet da Roze
+          </span>
+        </div>
+
+        {/* Brand Boarding Pass Header */}
+        <div className="p-6 text-center border-b border-border/60 bg-gradient-to-b from-amber-500/10 to-transparent relative">
           {onClose && (
             <button
               type="button"
@@ -88,8 +254,8 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
           )}
 
           <div className="inline-flex relative mb-2">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-600 to-amber-500 text-white shadow-lg shadow-rose-500/25">
-              <IceCreamCone className="h-8 w-8" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-600 text-white shadow-lg shadow-amber-500/25">
+              <Train className="h-8 w-8" />
             </div>
             <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs text-white shadow">
               <CheckCircle2 className="h-4 w-4" />
@@ -97,15 +263,15 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
           </div>
 
           <h2 className="text-xl font-black tracking-tight text-foreground">
-            {getActiveCompany()?.nome || getCustomBrandConfig()?.companyName || BRAND_CONFIG.companyName}
+            ESTAÇÃO DA RÔ - GELADINHOS GOURMET
           </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {getActiveCompany()?.nicho || getCustomBrandConfig()?.tagline || BRAND_CONFIG.tagline}
+          <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold mt-0.5">
+            Sabores da Estrada Real - Conselheiro Lafaiete/MG
           </p>
 
           <div className="mt-3 flex items-center justify-center gap-2">
-            <Badge variant="outline" className="text-xs font-mono font-bold border-rose-500/40 text-rose-600 dark:text-rose-400">
-              Cupom #{shortId}
+            <Badge variant="outline" className="text-xs font-mono font-bold border-amber-500/40 text-amber-700 dark:text-amber-400">
+              BILHETE #{shortId}
             </Badge>
             <Badge variant="secondary" className="text-xs">
               {formatDateTime(venda.data_venda)}
@@ -121,12 +287,28 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
           </div>
         )}
 
-        {/* Receipt Content */}
+        {/* Boarding Details & Passport Content */}
         <div className="p-6 space-y-5">
+          {/* Boarding Info Box */}
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2 text-xs">
+            <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+              <span className="text-muted-foreground">Passageiro(a):</span>
+              <strong className="text-foreground text-sm">{passengerName}</strong>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Origem:</span>
+              <strong className="text-foreground">{originStation}</strong>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Destino:</span>
+              <strong className="text-foreground text-right">{destinationStation}</strong>
+            </div>
+          </div>
+
           {/* Status Box */}
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center space-y-1">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-              Pagamento Confirmado
+              Passagem Confirmada & Paga
             </span>
             <p className="text-2xl font-black text-foreground">
               {formatCurrency(venda.valor_total)}
@@ -137,18 +319,65 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
             </p>
           </div>
 
-          {/* Customer Name */}
-          <div className="flex items-center justify-between text-xs py-1 border-b border-border/50 text-muted-foreground">
-            <span>Cliente:</span>
-            <span className="font-bold text-foreground">
-              {venda.cliente_nome ? venda.cliente_nome.trim() : "Consumidor Final"}
-            </span>
+          {/* PASSAPORTE DA ESTRADA REAL - GRADE DE 10 SELOS */}
+          <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-background to-rose-500/10 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-xs font-black uppercase tracking-wider text-foreground">
+                  Passaporte da Estrada Real
+                </span>
+              </div>
+              <Badge variant="outline" className="text-[11px] font-bold border-amber-500/40 text-amber-700 dark:text-amber-300">
+                {loyaltyData.stamps}/10 Paradas
+              </Badge>
+            </div>
+
+            {/* Grid Visual de 10 Posições */}
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-1.5 pt-1">
+              {Array.from({ length: 10 }, (_, idx) => {
+                const isStamped = idx < loyaltyData.stamps;
+                return (
+                  <div
+                    key={idx}
+                    className={`h-11 rounded-xl flex flex-col items-center justify-center border text-center transition-all ${
+                      isStamped
+                        ? "border-amber-500 bg-amber-500/20 text-amber-800 dark:text-amber-300 font-black shadow-xs scale-102"
+                        : "border-border/60 bg-secondary/30 text-muted-foreground/60"
+                    }`}
+                  >
+                    <span className="text-[9px] font-mono leading-none">{idx + 1}</span>
+                    <span className="text-xs font-black leading-none mt-0.5">
+                      {isStamped ? "✓" : "○"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Banner de Viagem Grátis se completou 10 paradas */}
+            {loyaltyData.hasReward ? (
+              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/15 p-2.5 text-center space-y-0.5 animate-pulse">
+                <p className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center justify-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  VIAGEM DOCE GRÁTIS DISPONÍVEL!
+                  <Sparkles className="h-3.5 w-3.5" />
+                </p>
+                <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                  Parabéns! Apresente este bilhete para resgatar seu geladinho cortesia.
+                </p>
+              </div>
+            ) : (
+              <p className="text-[11px] text-center text-muted-foreground italic">
+                A cada 10 paradas, ganhe 1 viagem doce! Guarde este bilhete.
+              </p>
+            )}
           </div>
 
           {/* Items Purchased Table */}
           <div className="space-y-2">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Itens do Pedido ({totalQuantity} un.):
+              Sabores a Bordo ({totalQuantity} un.):
             </p>
             <div className="rounded-2xl border border-border/80 bg-secondary/30 divide-y divide-border/60 overflow-hidden">
               {venda.itens.map((item) => (
@@ -172,25 +401,35 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
             </div>
           </div>
 
-          {/* Download Options (PDF, TXT, CSV, OFX) */}
+          {/* Download & Thermal Print Actions */}
           <div className="space-y-2.5 pt-2">
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Salvar / Importar no Seu Aparelho:
+              Impressão Térmica & Exportações:
             </p>
+
+            {/* Botão de Impressão Térmica 80mm Contínua */}
+            <button
+              type="button"
+              onClick={handlePrintThermal}
+              className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/20 to-rose-500/20 hover:from-amber-500/30 hover:to-rose-500/30 text-amber-900 dark:text-amber-200 font-black text-xs shadow-sm transition-all"
+            >
+              <Printer className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>Imprimir Bilhete Térmico (80mm)</span>
+            </button>
 
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 type="button"
                 onClick={() => {
                   downloadReceiptPdf(venda);
-                  notifySuccess("Cupom em PDF baixado no seu aparelho!");
+                  notifySuccess("Bilhete de embarque em PDF baixado!");
                 }}
                 className="flex items-center gap-2 p-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors"
               >
                 <FileText className="h-4 w-4 shrink-0" />
                 <div className="text-left">
                   <span className="block leading-none">Baixar PDF</span>
-                  <span className="text-[10px] font-normal opacity-80">Cupom térmico</span>
+                  <span className="text-[10px] font-normal opacity-80">Cupom 80mm</span>
                 </div>
               </button>
 
@@ -205,7 +444,7 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
                 <Download className="h-4 w-4 shrink-0" />
                 <div className="text-left">
                   <span className="block leading-none">Salvar TXT</span>
-                  <span className="text-[10px] font-normal opacity-80">Lista p/ Bloco Notas</span>
+                  <span className="text-[10px] font-normal opacity-80">Bloco de Notas</span>
                 </div>
               </button>
 
@@ -213,7 +452,7 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
                 type="button"
                 onClick={() => {
                   downloadReceiptCsv(venda);
-                  notifySuccess("Arquivo .csv baixado para seu app de despesas/Excel!");
+                  notifySuccess("Arquivo .csv baixado para despesas/Excel!");
                 }}
                 className="flex items-center gap-2 p-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-bold text-xs transition-colors"
               >
@@ -257,7 +496,7 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
               ) : (
                 <>
                   <Copy className="h-3.5 w-3.5" />
-                  <span>Copiar Cupom</span>
+                  <span>Copiar Bilhete</span>
                 </>
               )}
             </Button>
@@ -275,12 +514,12 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
           {/* Fast Order / Return to Store Button */}
           <div className="pt-2 border-t border-border/60 text-center">
             <p className="text-[11px] text-muted-foreground mb-2">
-              Amou nossos geladinhos? Quer encomendar para a sua festa ou casa?
+              Deseja pedir mais geladinhos artesanais da Estrada Real para a sua casa ou evento?
             </p>
             <button
               type="button"
               onClick={handleOpenStoreWhatsApp}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-amber-500 p-3 text-xs font-bold text-white shadow-md shadow-rose-500/20 hover:opacity-95 transition-all"
+              className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-600 to-rose-600 p-3 text-xs font-bold text-white shadow-md shadow-amber-500/20 hover:opacity-95 transition-all"
             >
               <MessageCircle className="h-4 w-4" />
               <span>Fazer Novo Pedido com a Roze no WhatsApp</span>
@@ -290,7 +529,7 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
 
         {/* Footer */}
         <div className="border-t border-border/80 px-6 py-3 bg-secondary/30 text-center text-[10px] text-muted-foreground">
-          Documento Não Fiscal • {BRAND_CONFIG.developerCredit.studio}
+          A cada 10 paradas, ganhe 1 viagem doce! Guarde este bilhete. • {BRAND_CONFIG.developerCredit.studio}
         </div>
       </div>
     </div>

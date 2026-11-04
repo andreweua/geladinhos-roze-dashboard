@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   ClipboardList,
   FileSpreadsheet,
@@ -19,6 +19,9 @@ import {
   Percent,
   Receipt,
   Camera,
+  AlertCircle,
+  Loader2,
+  Check,
 } from "lucide-react";
 import {
   Card,
@@ -57,7 +60,8 @@ interface TechnicalSheetAndDreSectionProps {
   onSelectProductId: (id: string) => void;
   onSaveFicha: (
     ficha: FichaTecnicaProduto,
-    novoPrecoVenda?: number
+    novoPrecoVenda?: number,
+    novoNomeProduto?: string
   ) => Promise<void>;
   ifoodFeePct: number;
   onChangeIfoodFeePct: (newRate: number) => void;
@@ -87,11 +91,13 @@ export const TechnicalSheetAndDreSection: React.FC<
   const isRozeCompany = getActiveCompanyId() === "emp-roze-gourmet";
   const activeProducts = produtos.filter((p) => p.ativo);
   const currentProduct =
-    activeProducts.find((p) => p.id === selectedProductId) || activeProducts[0];
+    activeProducts.find((p) => String(p.id) === String(selectedProductId)) || activeProducts[0];
 
   const currentFicha = useMemo(() => {
     if (!currentProduct) return null;
-    const found = fichasTecnicas.find((f) => f.produto_id === currentProduct.id);
+    const found = fichasTecnicas.find(
+      (f) => String(f.produto_id) === String(currentProduct.id)
+    );
     if (found) return found;
 
     const precoVenda = currentProduct.preco_venda || 8.5;
@@ -195,11 +201,16 @@ export const TechnicalSheetAndDreSection: React.FC<
   }, [currentProduct, drePorProduto]);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [draftFicha, setDraftFicha] = useState<FichaTecnicaProduto | null>(() => {
     return currentFicha ? JSON.parse(JSON.stringify(currentFicha)) : null;
   });
   const [draftPrecoVenda, setDraftPrecoVenda] = useState<string>(() => {
     return currentProduct ? String(currentProduct.preco_venda) : "8.50";
+  });
+  const [draftProductName, setDraftProductName] = useState<string>(() => {
+    return currentProduct ? currentProduct.nome : "";
   });
   const [dreViewMode, setDreViewMode] = useState<
     "periodo" | "local_un" | "ifood_un"
@@ -211,15 +222,74 @@ export const TechnicalSheetAndDreSection: React.FC<
   const [insumoSearch, setInsumoSearch] = useState("");
   const [insumoCat, setInsumoCat] = useState<string>("Todas");
 
-  useEffect(() => {
-    if (currentFicha && currentProduct) {
-      setDraftFicha(JSON.parse(JSON.stringify(currentFicha)));
-      setDraftPrecoVenda(String(currentProduct.preco_venda));
-      setIsEditing(false);
-    }
-  }, [currentFicha, currentProduct]);
+  // Rastreia o produto selecionado para sincronizar ficha somente quando trocar de produto
+  const prevProductIdRef = useRef<string | undefined>(currentProduct?.id);
+  const lastStartEditingTimeRef = useRef<number>(0);
 
-  const effectiveFicha = draftFicha || currentFicha;
+  useEffect(() => {
+    if (!currentProduct) return;
+    const isDifferentProduct =
+      String(currentProduct.id) !== String(prevProductIdRef.current);
+
+    // Se o usuário selecionou outro produto nas abas (e não está editando)
+    if (isDifferentProduct) {
+      prevProductIdRef.current = currentProduct.id;
+      if (currentFicha && !isEditing) {
+        setDraftFicha(JSON.parse(JSON.stringify(currentFicha)));
+        setDraftPrecoVenda(String(currentProduct.preco_venda || 8.5));
+        setDraftProductName(currentProduct.nome);
+      }
+      return;
+    }
+
+    // Se o draft ainda não foi inicializado para este produto
+    if (!draftFicha && currentFicha) {
+      setDraftFicha(JSON.parse(JSON.stringify(currentFicha)));
+      setDraftPrecoVenda(String(currentProduct.preco_venda || 8.5));
+      setDraftProductName(currentProduct.nome);
+      return;
+    }
+
+    // Se NÃO está editando e a ficha externa foi modificada (ex: lote salvo ou catálogo atualizado)
+    if (!isEditing && currentFicha) {
+      setDraftFicha(JSON.parse(JSON.stringify(currentFicha)));
+      setDraftPrecoVenda(String(currentProduct.preco_venda || 8.5));
+      setDraftProductName(currentProduct.nome);
+    }
+  }, [currentProduct?.id, currentFicha, isEditing]);
+
+  const effectiveFicha: FichaTecnicaProduto | null =
+    (isEditing && draftFicha) ? draftFicha : (currentFicha || draftFicha);
+
+  const startEditing = () => {
+    lastStartEditingTimeRef.current = Date.now();
+    const base = draftFicha || currentFicha;
+    if (base) {
+      setDraftFicha(JSON.parse(JSON.stringify(base)));
+    }
+    if (currentProduct) {
+      setDraftPrecoVenda(String(currentProduct.preco_venda || 8.5));
+      setDraftProductName(currentProduct.nome);
+    }
+    setIsEditing(true);
+    setSaveError(null);
+  };
+
+  const cancelEditing = () => {
+    // Impede ghost-click de touch screen ou teclado nos primeiros 650ms de ativação
+    if (Date.now() - lastStartEditingTimeRef.current < 650) {
+      return;
+    }
+    if (currentFicha) {
+      setDraftFicha(JSON.parse(JSON.stringify(currentFicha)));
+    }
+    if (currentProduct) {
+      setDraftPrecoVenda(String(currentProduct.preco_venda || 8.5));
+      setDraftProductName(currentProduct.nome);
+    }
+    setIsEditing(false);
+    setSaveError(null);
+  };
 
   // Se a empresa ainda não tiver produtos cadastrados, exibe o Estado Vazio acolhedor
   if (activeProducts.length === 0 || !currentProduct || !effectiveFicha) {
@@ -253,11 +323,7 @@ export const TechnicalSheetAndDreSection: React.FC<
     );
   }
 
-  if (!draftFicha) {
-    return null;
-  }
-
-  const calc = calculateUnitCostFromFicha(draftFicha);
+  const calc = calculateUnitCostFromFicha(effectiveFicha);
   const precoVendaNum =
     parseLocaleNumber(draftPrecoVenda) || currentProduct.preco_venda;
   const lucroLocalUn = Number((precoVendaNum - calc.custoTotalUn).toFixed(2));
@@ -280,10 +346,11 @@ export const TechnicalSheetAndDreSection: React.FC<
     value: string | number
   ) => {
     setDraftFicha((prev) => {
-      if (!prev) return prev;
+      const base = prev ? JSON.parse(JSON.stringify(prev)) : (currentFicha ? JSON.parse(JSON.stringify(currentFicha)) : null);
+      if (!base) return prev;
       return {
-        ...prev,
-        ingredientes: prev.ingredientes.map((ing) =>
+        ...base,
+        ingredientes: (base.ingredientes || []).map((ing: IngredienteFicha) =>
           ing.id === id ? { ...ing, [field]: value } : ing
         ),
       };
@@ -292,11 +359,12 @@ export const TechnicalSheetAndDreSection: React.FC<
 
   const handleAddIngredient = () => {
     setDraftFicha((prev) => {
-      if (!prev) return prev;
+      const base = prev ? JSON.parse(JSON.stringify(prev)) : (currentFicha ? JSON.parse(JSON.stringify(currentFicha)) : null);
+      if (!base) return prev;
       return {
-        ...prev,
+        ...base,
         ingredientes: [
-          ...prev.ingredientes,
+          ...(base.ingredientes || []),
           {
             id: `ing-${Date.now()}`,
             nome: "Novo Insumo / Ingrediente",
@@ -312,25 +380,45 @@ export const TechnicalSheetAndDreSection: React.FC<
 
   const handleRemoveIngredient = (id: string) => {
     setDraftFicha((prev) => {
-      if (!prev || prev.ingredientes.length <= 1) return prev;
+      const base = prev ? JSON.parse(JSON.stringify(prev)) : (currentFicha ? JSON.parse(JSON.stringify(currentFicha)) : null);
+      if (!base || !base.ingredientes || base.ingredientes.length <= 1) return prev;
       return {
-        ...prev,
-        ingredientes: prev.ingredientes.filter((i) => i.id !== id),
+        ...base,
+        ingredientes: base.ingredientes.filter((i: IngredienteFicha) => i.id !== id),
       };
     });
   };
 
   const handleSave = async () => {
-    if (!draftFicha) return;
-    const updatedFicha: FichaTecnicaProduto = {
-      ...draftFicha,
-      preco_ifood_sugerido: dynamicIfood.precoIfood,
-      lucro_ifood_estimado: dynamicIfood.lucroLiquidoIfood,
-    };
-    await onSaveFicha(updatedFicha, precoVendaNum);
-    setIsEditing(false);
-    setSavedNotice(true);
-    setTimeout(() => setSavedNotice(false), 3000);
+    const fichaToSave = draftFicha || currentFicha;
+    if (!fichaToSave || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const updatedFicha: FichaTecnicaProduto = {
+        ...fichaToSave,
+        subtitulo_receita: draftFicha?.subtitulo_receita || fichaToSave.subtitulo_receita,
+        preco_ifood_sugerido: dynamicIfood.precoIfood,
+        lucro_ifood_estimado: dynamicIfood.lucroLiquidoIfood,
+      };
+      await onSaveFicha(
+        updatedFicha,
+        precoVendaNum,
+        draftProductName.trim() || currentProduct.nome
+      );
+      setDraftFicha(updatedFicha);
+      if (draftProductName.trim()) {
+        setDraftProductName(draftProductName.trim());
+      }
+      setIsEditing(false);
+      setSavedNotice(true);
+      setTimeout(() => setSavedNotice(false), 4000);
+    } catch (err: any) {
+      console.error("Erro ao salvar Ficha Técnica:", err);
+      setSaveError(err?.message || "Ocorreu um erro ao salvar as alterações da Ficha Técnica.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // DRE values depending on toggle ("periodo" vs "local_un" vs "ifood_un")
@@ -350,14 +438,14 @@ export const TechnicalSheetAndDreSection: React.FC<
         }
       : dreViewMode === "local_un"
         ? {
-            subtitulo: `Venda Local / Retirada — Por 1 Saquinho (${draftFicha.volume_unitario_ml}ml)`,
+            subtitulo: `Venda Local / Retirada — Por 1 Saquinho (${effectiveFicha.volume_unitario_ml}ml)`,
             receitaBruta: precoVendaNum,
             labelTaxas: "(-) Taxa Venda Direta (Pix/Dinheiro 0%)",
             taxasPagamento: 0,
             receitaLiquida: precoVendaNum,
             cmvInsumos: calc.custoInsumosUn,
-            embalagens: draftFicha.custo_embalagem_un,
-            operacional: draftFicha.custo_operacional_un,
+            embalagens: effectiveFicha.custo_embalagem_un,
+            operacional: effectiveFicha.custo_operacional_un,
             cpvTotal: calc.custoTotalUn,
             lucroLiquido: lucroLocalUn,
           }
@@ -368,8 +456,8 @@ export const TechnicalSheetAndDreSection: React.FC<
             taxasPagamento: dynamicIfood.taxaValor,
             receitaLiquida: dynamicIfood.repasseLiquido,
             cmvInsumos: calc.custoInsumosUn,
-            embalagens: draftFicha.custo_embalagem_un,
-            operacional: draftFicha.custo_operacional_un,
+            embalagens: effectiveFicha.custo_embalagem_un,
+            operacional: effectiveFicha.custo_operacional_un,
             cpvTotal: calc.custoTotalUn,
             lucroLiquido: dynamicIfood.lucroLiquidoIfood,
           };
@@ -572,12 +660,27 @@ export const TechnicalSheetAndDreSection: React.FC<
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex flex-wrap items-center gap-2">
               {activeProducts.map((prod) => {
-                const active = prod.id === currentProduct.id;
+                const active = String(prod.id) === String(currentProduct.id);
                 return (
                   <button
                     key={prod.id}
                     type="button"
-                    onClick={() => onSelectProductId(prod.id)}
+                    onClick={() => {
+                      if (!active) {
+                        if (isEditing) {
+                          if (
+                            window.confirm(
+                              "Você está editando a ficha técnica deste sabor. Deseja realmente trocar de produto e descartar as alterações?"
+                            )
+                          ) {
+                            setIsEditing(false);
+                            onSelectProductId(prod.id);
+                          }
+                        } else {
+                          onSelectProductId(prod.id);
+                        }
+                      }
+                    }}
                     className={`flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-semibold transition-all ${
                       active
                         ? "border-primary bg-primary text-primary-foreground shadow-sm"
@@ -611,6 +714,19 @@ export const TechnicalSheetAndDreSection: React.FC<
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {!isEditing && currentProduct && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={startEditing}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5 text-xs font-bold rounded-xl shadow-sm cursor-pointer"
+                  title={`Editar nome, ingredientes e preços de ${currentProduct.nome}`}
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                  <span>Editar Produto / Ficha</span>
+                </Button>
+              )}
+
               {onOpenCulinaryStudio && currentProduct && (
                 <Button
                   type="button"
@@ -662,41 +778,112 @@ export const TechnicalSheetAndDreSection: React.FC<
         {/* LEFT COLUMN (7 cols): FICHA TÉCNICA COMPLETA (150ML) */}
         <Card className="lg:col-span-7">
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="h-5 w-5 text-rose-500" />
-                Ficha Técnica — {currentProduct.nome}
-              </CardTitle>
-              <CardDescription>{draftFicha.subtitulo_receita}</CardDescription>
+            <div className="flex-1 min-w-0">
+              {isEditing ? (
+                <div className="space-y-1.5 max-w-md animate-in fade-in">
+                  <div className="flex items-center gap-1.5">
+                    <ClipboardList className="h-4 w-4 text-rose-500 shrink-0" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                      Nome do Produto / Sabor
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={draftProductName}
+                    onChange={(e) => setDraftProductName(e.target.value)}
+                    placeholder="Nome do produto ou sabor..."
+                    className="w-full rounded-lg border border-primary/40 bg-background px-3 py-1.5 text-sm font-bold text-foreground focus:border-primary focus:outline-none shadow-xs"
+                  />
+                  <input
+                    type="text"
+                    value={draftFicha?.subtitulo_receita ?? effectiveFicha.subtitulo_receita}
+                    onChange={(e) =>
+                      setDraftFicha((prev) => {
+                        const base = prev || currentFicha;
+                        if (!base) return prev;
+                        return {
+                          ...base,
+                          subtitulo_receita: e.target.value,
+                        };
+                      })
+                    }
+                    placeholder="Subtítulo ou descrição da receita..."
+                    className="w-full rounded-lg border border-input bg-background px-3 py-1 text-xs text-muted-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+              ) : (
+                <>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5 text-rose-500" />
+                    Ficha Técnica — {currentProduct.nome}
+                  </CardTitle>
+                  <CardDescription>{effectiveFicha.subtitulo_receita}</CardDescription>
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
               {!isEditing ? (
                 <Button
                   type="button"
-                  variant="outline"
                   size="sm"
-                  onClick={() => setIsEditing(true)}
+                  onClick={startEditing}
+                  className="bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-700 hover:to-rose-600 text-white gap-2 text-xs font-bold px-3.5 py-2 rounded-xl shadow-sm cursor-pointer"
                 >
-                  <Edit3 className="h-3.5 w-3.5 text-rose-500" />
-                  Editar Ficha
+                  <Edit3 className="h-3.5 w-3.5" />
+                  <span>Editar Ficha & DRE</span>
                 </Button>
               ) : (
-                <Button
-                  type="button"
-                  variant="default"
-                  size="sm"
-                  onClick={handleSave}
-                  className="bg-gradient-to-r from-rose-600 to-rose-500 text-white"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  Salvar Ficha
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    disabled={isSaving}
+                    onClick={handleSave}
+                    className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white gap-1.5 text-xs font-bold shadow-md cursor-pointer"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span>Salvando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-3.5 w-3.5" />
+                        <span>Salvar Ficha</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={isSaving}
+                    onClick={cancelEditing}
+                    className="text-xs hover:bg-secondary cursor-pointer"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
               )}
             </div>
           </CardHeader>
 
           <CardContent className="space-y-5">
+            {/* Feedback Alerts */}
+            {savedNotice && (
+              <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/15 p-3 text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-2 animate-in fade-in">
+                <Check className="h-4 w-4 text-emerald-600" />
+                <span>Ficha Técnica e DRE salvas com sucesso! Custos e margens atualizados.</span>
+              </div>
+            )}
+            {saveError && (
+              <div className="rounded-xl border border-rose-500/40 bg-rose-500/15 p-3 text-xs font-bold text-rose-800 dark:text-rose-300 flex items-center gap-2 animate-in fade-in">
+                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                <span>{saveError}</span>
+              </div>
+            )}
             {/* Batch Parameters */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-xl border border-border/70 bg-secondary/35 p-3">
@@ -708,19 +895,23 @@ export const TechnicalSheetAndDreSection: React.FC<
                   <LocaleNumberInput
                     maxDecimals={0}
                     fallbackOnBlur={1}
-                    value={draftFicha.rendimento_unidades}
+                    value={draftFicha?.rendimento_unidades ?? effectiveFicha.rendimento_unidades}
                     onValueChange={(val) =>
-                      setDraftFicha({
-                        ...draftFicha,
-                        rendimento_unidades: Math.max(1, val ?? 1),
+                      setDraftFicha((prev) => {
+                        const base = prev || currentFicha;
+                        if (!base) return prev;
+                        return {
+                          ...base,
+                          rendimento_unidades: typeof val === "number" ? Math.max(1, val) : (val === undefined ? 1 : base.rendimento_unidades),
+                        };
                       })
                     }
                     className="mt-1 w-full rounded-md border border-input bg-background px-2 py-1 text-sm font-bold"
                   />
                 ) : (
                   <p className="mt-1 text-base font-extrabold text-foreground">
-                    {draftFicha.rendimento_unidades} un (
-                    {draftFicha.volume_unitario_ml}ml)
+                    {effectiveFicha.rendimento_unidades} un (
+                    {effectiveFicha.volume_unitario_ml}ml)
                   </p>
                 )}
               </div>
@@ -765,10 +956,32 @@ export const TechnicalSheetAndDreSection: React.FC<
                   <Clock className="h-3 w-3 text-amber-500" />
                   Padronização
                 </span>
-                <p className="mt-1 text-base font-extrabold text-foreground">
-                  {draftFicha.volume_unitario_ml} ml
-                </p>
-                <p className="text-[10px] text-muted-foreground">
+                {isEditing ? (
+                  <div className="inline-flex items-center gap-1 mt-1">
+                    <LocaleNumberInput
+                      maxDecimals={0}
+                      fallbackOnBlur={150}
+                      value={draftFicha?.volume_unitario_ml ?? effectiveFicha.volume_unitario_ml}
+                      onValueChange={(val) =>
+                        setDraftFicha((prev) => {
+                          const base = prev || currentFicha;
+                          if (!base) return prev;
+                          return {
+                            ...base,
+                            volume_unitario_ml: typeof val === "number" ? Math.max(10, Math.round(val)) : 150,
+                          };
+                        })
+                      }
+                      className="h-8 w-20 rounded border border-input bg-background px-2 text-sm font-bold text-foreground"
+                    />
+                    <span className="text-xs font-semibold text-muted-foreground">ml</span>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-base font-extrabold text-foreground">
+                    {effectiveFicha.volume_unitario_ml} ml
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground mt-0.5">
                   Validade: 30 dias congelado
                 </p>
               </div>
@@ -779,7 +992,7 @@ export const TechnicalSheetAndDreSection: React.FC<
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Ingredientes da Receita (Rendimento:{" "}
-                  {draftFicha.rendimento_unidades} saquinhos de 150ml)
+                  {effectiveFicha.rendimento_unidades} saquinhos de 150ml)
                 </h4>
                 <button
                   type="button"
@@ -804,11 +1017,17 @@ export const TechnicalSheetAndDreSection: React.FC<
                       {isEditing && <th className="py-2.5 pr-2 text-right" />}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/60">
-                    {draftFicha.ingredientes.map((ing) => {
+                  <tbody
+                    className={`divide-y divide-border/60 ${!isEditing ? "cursor-pointer" : ""}`}
+                    onClick={() => {
+                      if (!isEditing) startEditing();
+                    }}
+                    title={!isEditing ? "Clique em qualquer ingrediente para abrir o modo de edição da receita" : undefined}
+                  >
+                    {effectiveFicha.ingredientes.map((ing) => {
                       const custoPorUn =
                         Number(ing.custo_receita || 0) /
-                        Math.max(1, draftFicha.rendimento_unidades);
+                        Math.max(1, effectiveFicha.rendimento_unidades);
                       return (
                         <tr key={ing.id} className="hover:bg-secondary/25">
                           <td className="py-2.5 pl-3 pr-2 font-medium text-foreground">
@@ -869,7 +1088,25 @@ export const TechnicalSheetAndDreSection: React.FC<
                                   }
                                   className="w-16 rounded border border-input bg-background px-1.5 py-1 text-center text-xs"
                                 />
-                                <span>{ing.unidade}</span>
+                                <select
+                                  value={ing.unidade}
+                                  onChange={(e) =>
+                                    handleIngredientChange(
+                                      ing.id,
+                                      "unidade",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="h-6 rounded border border-input bg-background px-1 text-[11px] font-medium text-foreground focus:border-primary focus:outline-none"
+                                >
+                                  <option value="g">g</option>
+                                  <option value="ml">ml</option>
+                                  <option value="un">un</option>
+                                  <option value="kg">kg</option>
+                                  <option value="l">l</option>
+                                  <option value="pote">pote</option>
+                                  <option value="lata">lata</option>
+                                </select>
                               </div>
                             ) : (
                               `${ing.quantidade_receita} ${ing.unidade}`
@@ -926,6 +1163,17 @@ export const TechnicalSheetAndDreSection: React.FC<
                   </tfoot>
                 </table>
               </div>
+
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="w-full text-center py-2.5 px-3 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 rounded-xl border border-dashed border-primary/40 mt-2.5 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                  <span>Clique aqui ou nos campos para editar os ingredientes, rendimento e custos</span>
+                </button>
+              )}
             </div>
 
             {/* Packaging (R$ 0,05) + Operational Cost (15% Gás/Energia) + Final Unit Cost */}
@@ -936,18 +1184,22 @@ export const TechnicalSheetAndDreSection: React.FC<
                 </p>
                 {isEditing ? (
                   <LocaleCurrencyInput
-                    value={draftFicha.custo_embalagem_un}
+                    value={draftFicha?.custo_embalagem_un ?? effectiveFicha.custo_embalagem_un}
                     onValueChange={(val) =>
-                      setDraftFicha({
-                        ...draftFicha,
-                        custo_embalagem_un: val ?? 0,
+                      setDraftFicha((prev) => {
+                        const base = prev || currentFicha;
+                        if (!base) return prev;
+                        return {
+                          ...base,
+                          custo_embalagem_un: val ?? 0,
+                        };
                       })
                     }
                     className="mt-1 w-full rounded border border-input bg-card px-2 py-1 text-xs font-bold"
                   />
                 ) : (
                   <p className="mt-1 text-sm font-bold text-foreground">
-                    {formatCurrency(draftFicha.custo_embalagem_un)}
+                    {formatCurrency(effectiveFicha.custo_embalagem_un)}
                   </p>
                 )}
               </div>
@@ -958,18 +1210,22 @@ export const TechnicalSheetAndDreSection: React.FC<
                 </p>
                 {isEditing ? (
                   <LocaleCurrencyInput
-                    value={draftFicha.custo_operacional_un}
+                    value={draftFicha?.custo_operacional_un ?? effectiveFicha.custo_operacional_un}
                     onValueChange={(val) =>
-                      setDraftFicha({
-                        ...draftFicha,
-                        custo_operacional_un: val ?? 0,
+                      setDraftFicha((prev) => {
+                        const base = prev || currentFicha;
+                        if (!base) return prev;
+                        return {
+                          ...base,
+                          custo_operacional_un: val ?? 0,
+                        };
                       })
                     }
                     className="mt-1 w-full rounded border border-input bg-card px-2 py-1 text-xs font-bold"
                   />
                 ) : (
                   <p className="mt-1 text-sm font-bold text-foreground">
-                    {formatCurrency(draftFicha.custo_operacional_un)}
+                    {formatCurrency(effectiveFicha.custo_operacional_un)}
                   </p>
                 )}
               </div>
@@ -997,21 +1253,61 @@ export const TechnicalSheetAndDreSection: React.FC<
               {isEditing ? (
                 <textarea
                   rows={2}
-                  value={draftFicha.modo_preparo}
+                  value={draftFicha?.modo_preparo ?? effectiveFicha.modo_preparo}
                   onChange={(e) =>
-                    setDraftFicha({
-                      ...draftFicha,
-                      modo_preparo: e.target.value,
+                    setDraftFicha((prev) => {
+                      const base = prev || currentFicha;
+                      if (!base) return prev;
+                      return {
+                        ...base,
+                        modo_preparo: e.target.value,
+                      };
                     })
                   }
                   className="w-full rounded-lg border border-input bg-background p-2 text-xs"
                 />
               ) : (
                 <p className="leading-relaxed text-foreground/90">
-                  {draftFicha.modo_preparo}
+                  {effectiveFicha.modo_preparo}
                 </p>
               )}
             </div>
+
+            {/* Bottom Save Bar when editing */}
+            {isEditing && (
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/60 animate-in fade-in">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  disabled={isSaving}
+                  onClick={handleSave}
+                  className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white gap-1.5 text-xs font-bold shadow-md cursor-pointer"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-3.5 w-3.5" />
+                      <span>Salvar Ficha</span>
+                    </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isSaving}
+                  onClick={cancelEditing}
+                  className="text-xs hover:bg-secondary cursor-pointer"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

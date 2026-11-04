@@ -7,6 +7,30 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.6.1] - 2026-11-04
+
+### Corrigido & Aprimorado
+- **Blindagem e Estabilização da Edição da Ficha Técnica & DRE (`TechnicalSheetAndDreSection`)**:
+  - **Proteção contra Ghost-Clicks & Toques Móveis Involuntários**: Adicionada trava de segurança com debounce temporal de 650ms (`editGuardRef`) ao entrar no modo de edição. Cliques residuais gerados pela transição de toque móvel não fecham mais o formulário.
+  - **Ergonomia e Prevenção de Toques Concorrentes**: O botão **"💾 Salvar Ficha"** foi movido para o topo e estilizado em verde esmeralda vibrante, enquanto o botão **"Cancelar"** foi colocado em posição secundária com espaçamento seguro, eliminando colisão de coordenadas de toque no mobile.
+  - **Trava de Proteção contra Perda de Edição**: Diálogo de confirmação antes de trocar de sabor/produto na barra superior quando houver modificações pendentes não salvas.
+  - **Pílulas de Produto Isoladas**: Tocar na pílula do produto atualmente ativo não reseta nem fecha o modo de edição.
+- **Detecção Inteligente de Teclado no Celular (`AppBottomNav`)**:
+  - Escuta ativa de eventos `focusin` e `focusout` em campos de texto, números e seletores (`input`, `textarea`, `select`), ocultando dinamicamente a barra de navegação inferior flutuante enquanto o teclado virtual estiver aberto, liberando espaço na tela e prevenindo toques acidentais nos botões de navegação.
+- **Persistência Híbrida e Resiliente de Fichas Técnicas & DRE (`dataService`)**:
+  - Implementado fallback local inteligente para gravação e leitura de fichas técnicas (`localStorage`), garantindo que receitas e DRE sejam salvos e consultados mesmo que a tabela `fichas_tecnicas` ainda não tenha sido criada no Supabase ou haja falha de conexão.
+  - Sincronização automática com a tabela Supabase `public.fichas_tecnicas` (com migração SQL fornecida em `supabase/migrations/20261103_fichas_tecnicas_and_dre.sql`).
+  - Normalização universal de IDs de produto via `String(id)` para evitar descompasso entre identificadores numéricos e textuais.
+- **Sanitização Financeira e Margens iFood (`utils.ts`, `analytics.ts`)**:
+  - Tratamento defensivo em `formatCurrency` e `formatNumber` contra `NaN` e valores não finitos.
+  - Blindagem de cálculo de markup iFood em `calculateDynamicIfoodPrice` com retorno seguro.
+- **Pausa de Polling em Segundo Plano (`App.tsx`)**:
+  - A sincronização periódica automática em segundo plano é suspensa temporariamente enquanto o usuário estiver navegando ou editando na seção de Fichas Técnicas (`fichas`), prevenindo recarregamentos intempestivos da interface.
+- **Atualização de Versão e OTA (Over-The-Air)**:
+  - Versão atualizada para `v3.6.1` (Build `2026110401`, Android `versionCode 55`).
+
+---
+
 ## [3.5.9] - 2026-11-02
 
 ### Adicionado & Aprimorado

@@ -33,13 +33,15 @@ export function calculateDynamicIfoodPrice(
   repasseLiquido: number;
   lucroLiquidoIfood: number;
 } {
+  const safePrecoLocal = Number.isFinite(Number(precoLocal)) ? Math.max(0, Number(precoLocal)) : 0;
+  const safeCustoUnitario = Number.isFinite(Number(custoUnitario)) ? Math.max(0, Number(custoUnitario)) : 0;
   const taxaSegura = Math.min(95, Math.max(0, Number(taxaIfoodPct) || 0));
   const fatorDivisor = Number(((100 - taxaSegura) / 100).toFixed(4));
   const precoIfood =
-    fatorDivisor > 0 ? Number((precoLocal / fatorDivisor).toFixed(2)) : precoLocal;
+    fatorDivisor > 0 ? Number((safePrecoLocal / fatorDivisor).toFixed(2)) : safePrecoLocal;
   const taxaValor = Number((precoIfood * (taxaSegura / 100)).toFixed(2));
   const repasseLiquido = Number((precoIfood - taxaValor).toFixed(2));
-  const lucroLiquidoIfood = Number((repasseLiquido - custoUnitario).toFixed(2));
+  const lucroLiquidoIfood = Number((repasseLiquido - safeCustoUnitario).toFixed(2));
 
   return {
     fatorDivisor,

@@ -58,16 +58,16 @@ export function calculateUnitCostFromFicha(ficha: FichaTecnicaProduto): {
   custoInsumosUn: number;
   custoTotalUn: number;
 } {
-  const rendimento = Math.max(1, ficha.rendimento_unidades);
-  const custoInsumosReceita = ficha.ingredientes.reduce(
-    (acc, ing) => acc + Number(ing.custo_receita || 0),
+  const rendimento = Math.max(1, Number(ficha?.rendimento_unidades) || 1);
+  const ingredientes = Array.isArray(ficha?.ingredientes) ? ficha.ingredientes : [];
+  const custoInsumosReceita = ingredientes.reduce(
+    (acc, ing) => acc + (Number(ing.custo_receita) && Number.isFinite(Number(ing.custo_receita)) ? Number(ing.custo_receita) : 0),
     0
   );
   const custoInsumosUn = custoInsumosReceita / rendimento;
-  const custoTotalUn =
-    custoInsumosUn +
-    Number(ficha.custo_embalagem_un || 0) +
-    Number(ficha.custo_operacional_un || 0);
+  const embalagemUn = Number(ficha?.custo_embalagem_un) && Number.isFinite(Number(ficha?.custo_embalagem_un)) ? Number(ficha.custo_embalagem_un) : 0;
+  const operacionalUn = Number(ficha?.custo_operacional_un) && Number.isFinite(Number(ficha?.custo_operacional_un)) ? Number(ficha.custo_operacional_un) : 0;
+  const custoTotalUn = custoInsumosUn + embalagemUn + operacionalUn;
 
   return {
     custoInsumosReceita: Number(custoInsumosReceita.toFixed(2)),
@@ -527,22 +527,25 @@ function ensureFichasForProducts(
   if (currentId === "emp-roze-gourmet") {
     const defaults = getDefaultFichasTecnicas();
     for (const d of defaults) {
-      map.set(d.produto_id, d);
+      map.set(String(d.produto_id), d);
     }
   }
 
   if (Array.isArray(existingFichas)) {
     for (const f of existingFichas) {
-      map.set(f.produto_id, f);
+      if (f && f.produto_id) {
+        map.set(String(f.produto_id), f);
+      }
     }
   }
 
   for (const prod of produtos) {
-    if (!map.has(prod.id)) {
+    const prodIdStr = String(prod.id);
+    if (!map.has(prodIdStr)) {
       const custoInsumo = Math.max(0.5, prod.custo_estimado - 0.35);
       const precoIfood = prod.preco_ifood || Number((prod.preco_venda * 1.35).toFixed(2));
-      map.set(prod.id, {
-        produto_id: prod.id,
+      map.set(prodIdStr, {
+        produto_id: prodIdStr,
         subtitulo_receita: `Receita Artesanal • ${prod.nome}`,
         rendimento_unidades: 10,
         volume_unitario_ml: 150,
@@ -556,14 +559,14 @@ function ensureFichasForProducts(
         modo_preparo: `Preparo artesanal e dosagem padronizada de ${prod.nome}.`,
         ingredientes: [
           {
-            id: `ing-${prod.id}-1`,
+            id: `ing-${prodIdStr}-1`,
             nome: `Ingrediente Principal / Base (${prod.nome})`,
             quantidade_receita: 1000,
             unidade: "g",
             custo_receita: Number((custoInsumo * 10 * 0.65).toFixed(2)),
           },
           {
-            id: `ing-${prod.id}-2`,
+            id: `ing-${prodIdStr}-2`,
             nome: `Embalagem / Complemento`,
             quantidade_receita: 10,
             unidade: "un",
@@ -1005,6 +1008,55 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
           preco_unitario: Number(i.preco_unitario),
         }));
 
+        // Consulta fichas técnicas na nuvem se a tabela fichas_tecnicas existir no Supabase
+        let remoteFichas: FichaTecnicaProduto[] = [];
+        try {
+          let fQuery = supabase.from("fichas_tecnicas").select("*");
+          if (activeCompId !== "emp-roze-gourmet") {
+            fQuery = fQuery.eq("empresa_id", activeCompId);
+          }
+          const { data: fData, error: fErr } = await fQuery;
+          if (!fErr && Array.isArray(fData)) {
+            remoteFichas = fData.map((f: any) => {
+              let parsedIngredientes = f.ingredientes;
+              if (typeof parsedIngredientes === "string") {
+                try {
+                  parsedIngredientes = JSON.parse(parsedIngredientes);
+                } catch {
+                  parsedIngredientes = [];
+                }
+              }
+              return {
+                produto_id: String(f.produto_id),
+                subtitulo_receita: f.subtitulo_receita,
+                rendimento_unidades: Number(f.rendimento_unidades) || 10,
+                volume_unitario_ml: Number(f.volume_unitario_ml) || 150,
+                tempo_preparo_min: Number(f.tempo_preparo_min) || 30,
+                custo_embalagem_un: Number(f.custo_embalagem_un) || 0.1,
+                custo_operacional_un: Number(f.custo_operacional_un) || 0.35,
+                preco_ifood_sugerido: Number(f.preco_ifood_sugerido) || 0,
+                lucro_ifood_estimado: Number(f.lucro_ifood_estimado) || 0,
+                modo_preparo: f.modo_preparo || "",
+                ingredientes: Array.isArray(parsedIngredientes) ? parsedIngredientes : [],
+              };
+            });
+          }
+        } catch {
+          // Se a tabela ainda não foi criada no Supabase, continua normalmente com fallback local
+        }
+
+        const mergedFichas = [...(localSnap.fichasTecnicas || [])];
+        for (const rf of remoteFichas) {
+          const idx = mergedFichas.findIndex(
+            (lf) => String(lf.produto_id) === String(rf.produto_id)
+          );
+          if (idx >= 0) {
+            mergedFichas[idx] = rf;
+          } else {
+            mergedFichas.push(rf);
+          }
+        }
+
         const freshSnapshot: DashboardDataSnapshot = {
           produtos: combinedProds,
           vendas: allVendas,
@@ -1012,7 +1064,7 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
           estoqueLotes: combinedLotes,
           fichasTecnicas: ensureFichasForProducts(
             combinedProds,
-            localSnap.fichasTecnicas,
+            mergedFichas,
             activeCompId
           ),
           source: "supabase",
@@ -1219,7 +1271,7 @@ export async function createNewSale(
 
   // Salva / atualiza histórico do cliente no CRM local da empresa ativa
   if (saleStatus === "concluida") {
-    saveOrUpdateCustomer({
+    const updatedCust = saveOrUpdateCustomer({
       empresaId: currentId,
       nome: payload.cliente_nome,
       telefone: payload.cliente_telefone,
@@ -1229,6 +1281,10 @@ export async function createNewSale(
         quantidade: i.quantidade,
       })),
     });
+    if (updatedCust) {
+      novaVenda.selos_fidelidade = updatedCust.selos_atuais;
+      novaVenda.recompensas_fidelidade = updatedCust.recompensas_disponiveis;
+    }
   }
 
   const novosItens: ItemVenda[] = preparedItems.map((i, idx) => ({
@@ -1665,33 +1721,53 @@ export async function createNewProduct(
   };
 
   saveLocalSnapshot(updatedSnapshot, currentCompId);
+
+  if (checkIsSupabaseConfigured() && supabase) {
+    try {
+      const fichaUpsertData: Record<string, any> = {
+        id: `ficha-${novoProdId}`,
+        produto_id: novoProdId,
+        empresa_id: currentCompId,
+        subtitulo_receita: novaFicha.subtitulo_receita,
+        rendimento_unidades: novaFicha.rendimento_unidades,
+        volume_unitario_ml: novaFicha.volume_unitario_ml,
+        tempo_preparo_min: novaFicha.tempo_preparo_min,
+        custo_embalagem_un: novaFicha.custo_embalagem_un,
+        custo_operacional_un: novaFicha.custo_operacional_un,
+        preco_ifood_sugerido: novaFicha.preco_ifood_sugerido,
+        lucro_ifood_estimado: novaFicha.lucro_ifood_estimado,
+        modo_preparo: novaFicha.modo_preparo,
+        ingredientes: novaFicha.ingredientes,
+        updated_at: nowIso,
+      };
+      await supabase
+        .from("fichas_tecnicas")
+        .upsert(fichaUpsertData, { onConflict: "id" });
+    } catch (err) {
+      console.warn("Aviso ao tentar salvar nova ficha no Supabase:", err);
+    }
+  }
+
   return { snapshot: updatedSnapshot, newProduct: novoProduto };
 }
 
 export async function saveProductFichaTecnica(
   ficha: FichaTecnicaProduto,
-  novoPrecoVenda?: number
+  novoPrecoVenda?: number,
+  companyId?: string,
+  novoNomeProduto?: string
 ): Promise<DashboardDataSnapshot> {
-  const current = await fetchDashboardData();
+  const currentCompId = companyId || getActiveCompanyId();
+  // Obtém o snapshot local imediato para não sofrer com latência ou dados desatualizados de rede
+  const current = getLocalSnapshot(currentCompId);
   const { custoTotalUn } = calculateUnitCostFromFicha(ficha);
-
-  if (current.source === "supabase" && supabase) {
-    const updateData: Record<string, number> = {
-      custo_estimado: custoTotalUn,
-    };
-    if (typeof novoPrecoVenda === "number" && novoPrecoVenda > 0) {
-      updateData.preco_venda = Number(novoPrecoVenda.toFixed(2));
-    }
-    await supabase
-      .from("produtos")
-      .update(updateData)
-      .eq("id", ficha.produto_id);
-  }
+  const prodIdStr = String(ficha.produto_id).trim();
 
   const novosProdutos = current.produtos.map((p) => {
-    if (p.id !== ficha.produto_id) return p;
+    if (String(p.id).trim() !== prodIdStr) return p;
     return {
       ...p,
+      nome: novoNomeProduto?.trim() || p.nome,
       custo_estimado: custoTotalUn,
       preco_ifood: ficha.preco_ifood_sugerido,
       preco_venda:
@@ -1702,7 +1778,7 @@ export async function saveProductFichaTecnica(
   });
 
   const existingIdx = current.fichasTecnicas.findIndex(
-    (f) => f.produto_id === ficha.produto_id
+    (f) => String(f.produto_id).trim() === prodIdStr
   );
   const novasFichas = [...current.fichasTecnicas];
   if (existingIdx >= 0) {
@@ -1718,14 +1794,66 @@ export async function saveProductFichaTecnica(
     lastSyncedAt: new Date().toISOString(),
   };
 
-  saveLocalSnapshot(updatedSnapshot);
+  // Garante a gravação imediata no armazenamento local da empresa
+  saveLocalSnapshot(updatedSnapshot, currentCompId);
+
+  // Se o Supabase estiver configurado, envia a atualização em background
+  if (checkIsSupabaseConfigured() && supabase) {
+    try {
+      const updateData: Record<string, any> = {
+        custo_estimado: custoTotalUn,
+      };
+      if (typeof novoPrecoVenda === "number" && novoPrecoVenda > 0) {
+        updateData.preco_venda = Number(novoPrecoVenda.toFixed(2));
+      }
+      if (novoNomeProduto?.trim()) {
+        updateData.nome = novoNomeProduto.trim();
+      }
+      const { error: prodErr } = await supabase
+        .from("produtos")
+        .update(updateData)
+        .eq("id", prodIdStr);
+      if (prodErr) {
+        console.warn("Aviso ao atualizar produto no Supabase:", prodErr);
+      }
+
+      // Upsert na tabela de fichas_tecnicas caso ela exista no Supabase
+      const fichaUpsertData: Record<string, any> = {
+        id: `ficha-${prodIdStr}`,
+        produto_id: prodIdStr,
+        empresa_id: currentCompId,
+        subtitulo_receita: ficha.subtitulo_receita,
+        rendimento_unidades: ficha.rendimento_unidades,
+        volume_unitario_ml: ficha.volume_unitario_ml,
+        tempo_preparo_min: ficha.tempo_preparo_min,
+        custo_embalagem_un: ficha.custo_embalagem_un,
+        custo_operacional_un: ficha.custo_operacional_un,
+        preco_ifood_sugerido: ficha.preco_ifood_sugerido,
+        lucro_ifood_estimado: ficha.lucro_ifood_estimado,
+        modo_preparo: ficha.modo_preparo,
+        ingredientes: ficha.ingredientes,
+        updated_at: new Date().toISOString(),
+      };
+      const { error: fErr } = await supabase
+        .from("fichas_tecnicas")
+        .upsert(fichaUpsertData, { onConflict: "id" });
+      if (fErr) {
+        console.warn("Aviso ao fazer upsert na tabela fichas_tecnicas no Supabase:", fErr);
+      }
+    } catch (err) {
+      console.warn("Aviso ao tentar atualizar produto ou ficha no Supabase (salvando localmente):", err);
+    }
+  }
+
   return updatedSnapshot;
 }
 
 export async function saveBatchFichasTecnicas(
-  fichas: FichaTecnicaProduto[]
+  fichas: FichaTecnicaProduto[],
+  companyId?: string
 ): Promise<DashboardDataSnapshot> {
-  const current = await fetchDashboardData();
+  const currentCompId = companyId || getActiveCompanyId();
+  const current = getLocalSnapshot(currentCompId);
   const fichaMap = new Map(fichas.map((f) => [f.produto_id, f]));
 
   const novosProdutos = current.produtos.map((p) => {
@@ -1746,7 +1874,32 @@ export async function saveBatchFichasTecnicas(
     lastSyncedAt: new Date().toISOString(),
   };
 
-  saveLocalSnapshot(updatedSnapshot);
+  saveLocalSnapshot(updatedSnapshot, currentCompId);
+
+  if (checkIsSupabaseConfigured() && supabase) {
+    try {
+      const upsertRows = fichas.map((f) => ({
+        id: `ficha-${String(f.produto_id).trim()}`,
+        produto_id: String(f.produto_id).trim(),
+        empresa_id: currentCompId,
+        subtitulo_receita: f.subtitulo_receita,
+        rendimento_unidades: f.rendimento_unidades,
+        volume_unitario_ml: f.volume_unitario_ml,
+        tempo_preparo_min: f.tempo_preparo_min,
+        custo_embalagem_un: f.custo_embalagem_un,
+        custo_operacional_un: f.custo_operacional_un,
+        preco_ifood_sugerido: f.preco_ifood_sugerido,
+        lucro_ifood_estimado: f.lucro_ifood_estimado,
+        modo_preparo: f.modo_preparo,
+        ingredientes: f.ingredientes,
+        updated_at: new Date().toISOString(),
+      }));
+      await supabase.from("fichas_tecnicas").upsert(upsertRows, { onConflict: "id" });
+    } catch (err) {
+      console.warn("Aviso ao tentar atualizar lote de fichas no Supabase:", err);
+    }
+  }
+
   return updatedSnapshot;
 }
 
@@ -1816,8 +1969,12 @@ export async function resetToCleanSlate(): Promise<DashboardDataSnapshot> {
  * Exclui permanentemente um produto do catálogo da empresa ativa,
  * removendo também seus lotes de estoque e sua respectiva ficha técnica.
  */
-export async function deleteProduct(produtoId: string): Promise<DashboardDataSnapshot> {
-  const current = await fetchDashboardData();
+export async function deleteProduct(
+  produtoId: string,
+  companyId?: string
+): Promise<DashboardDataSnapshot> {
+  const currentCompId = companyId || getActiveCompanyId();
+  const current = await fetchDashboardData(currentCompId);
   const nowIso = new Date().toISOString();
 
   if (current.source === "supabase" && supabase) {
@@ -1841,7 +1998,7 @@ export async function deleteProduct(produtoId: string): Promise<DashboardDataSna
     lastSyncedAt: nowIso,
   };
 
-  saveLocalSnapshot(updatedSnapshot);
+  saveLocalSnapshot(updatedSnapshot, currentCompId);
   return updatedSnapshot;
 }
 

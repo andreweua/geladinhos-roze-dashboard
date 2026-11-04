@@ -32,6 +32,9 @@ import {
   Camera,
   Barcode,
   Search,
+  Printer,
+  Train,
+  Award,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
@@ -46,6 +49,8 @@ import {
   buscarCliente,
   formatPhoneBr,
   ClienteRecorrente,
+  getCustomerLoyaltySummary,
+  getPassaporteGrid,
 } from "@/services/customerService";
 import { getActiveCompany, getActiveCompanyId } from "@/services/companyService";
 import {
@@ -171,6 +176,11 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   const totalUnidades = useMemo(() => {
     return selectedItems.reduce((acc, item) => acc + item.qtdSelecionada, 0);
   }, [selectedItems]);
+
+  // Resumo de Fidelidade do Passaporte da Estrada Real do Cliente
+  const customerLoyalty = useMemo(() => {
+    return getCustomerLoyaltySummary(selectedCustomer, totalUnidades);
+  }, [selectedCustomer, totalUnidades]);
 
   // Trava de segurança no carrinho
   const isCartEmpty = selectedItems.length === 0 || totalUnidades === 0 || totalVenda <= 0;
@@ -358,6 +368,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       valor_total: totalVenda,
       status: "concluida",
       pix_txid: activeTxId || undefined,
+      selos_fidelidade: customerLoyalty.displayStamps,
+      recompensas_fidelidade: customerLoyalty.totalRewards,
       itens: selectedItems.map((i, idx) => ({
         id: `item-${idx}`,
         produto_id: i.produto_id,
@@ -821,32 +833,90 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
                 {/* Loyalty Info Banner if selected */}
                 {selectedCustomer && (
-                  selectedCustomer.totalPedidos > 0 ? (
-                    <div className="mt-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                          Histórico do Cliente:
-                        </span>{" "}
-                        <span className="text-muted-foreground">
-                          {selectedCustomer.totalPedidos} compras • Total: {formatCurrency(selectedCustomer.totalGasto)} • Ticket Médio: {formatCurrency(selectedCustomer.ticketMedio)}
+                  <div className="mt-2 space-y-2">
+                    {selectedCustomer.totalPedidos > 0 ? (
+                      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                            Histórico do Cliente:
+                          </span>{" "}
+                          <span className="text-muted-foreground">
+                            {selectedCustomer.totalPedidos} compras • Total: {formatCurrency(selectedCustomer.totalGasto)} • Ticket Médio: {formatCurrency(selectedCustomer.ticketMedio)}
+                          </span>
+                        </div>
+                        {selectedCustomer.saboresFavoritos.length > 0 && (
+                          <div className="text-[11px] text-muted-foreground">
+                            ❤️ Favorito: <strong className="text-foreground">{selectedCustomer.saboresFavoritos[0].sabor}</strong> ({selectedCustomer.saboresFavoritos[0].quantidade} un.)
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-2.5 text-xs flex items-center justify-between gap-2 text-blue-700 dark:text-blue-300">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                          <span>
+                            <strong>Novo cliente nesta loja!</strong> Primeira compra registrada.
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Passaporte da Estrada Real (Fidelidade 10 Selos) */}
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Train className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                          <span className="font-bold text-foreground">
+                            Passaporte da Estrada Real:
+                          </span>
+                        </div>
+                        <span className="font-mono text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                          {selectedCustomer.selos_atuais}/10 paradas
+                          {totalUnidades > 0 && (
+                            <span className="text-muted-foreground font-normal ml-1">
+                              (+{totalUnidades} nesta viagem)
+                            </span>
+                          )}
                         </span>
                       </div>
-                      {selectedCustomer.saboresFavoritos.length > 0 && (
-                        <div className="text-[11px] text-muted-foreground">
-                          ❤️ Favorito: <strong className="text-foreground">{selectedCustomer.saboresFavoritos[0].sabor}</strong> ({selectedCustomer.saboresFavoritos[0].quantidade} un.)
+
+                      {/* 10 Posições do Passaporte */}
+                      <div className="grid grid-cols-10 gap-1 text-center font-mono text-[10px]">
+                        {Array.from({ length: 10 }, (_, idx) => {
+                          const isCurrentlyStamped = idx < selectedCustomer.selos_atuais;
+                          const isStampedWithCart = idx < customerLoyalty.displayStamps;
+                          return (
+                            <div
+                              key={idx}
+                              className={`py-1 rounded border text-center font-bold ${
+                                isCurrentlyStamped
+                                  ? "border-amber-500 bg-amber-500/20 text-amber-800 dark:text-amber-300"
+                                  : isStampedWithCart
+                                  ? "border-emerald-500 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 animate-pulse"
+                                  : "border-border/60 bg-secondary/30 text-muted-foreground/50"
+                              }`}
+                              title={`Parada ${idx + 1}/10`}
+                            >
+                              {isCurrentlyStamped || isStampedWithCart ? "✓" : idx + 1}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Notificação Visual: Viagem Grátis Disponível */}
+                      {customerLoyalty.hasFreeTrip && (
+                        <div className="rounded-lg border border-emerald-500/40 bg-gradient-to-r from-emerald-500/15 via-amber-500/15 to-emerald-500/15 p-2 text-xs flex items-center justify-between gap-2 shadow-xs">
+                          <div className="flex items-center gap-1.5 font-black text-emerald-800 dark:text-emerald-300">
+                            <Sparkles className="h-3.5 w-3.5 text-amber-500 animate-bounce" />
+                            <span>🎉 Viagem Grátis Disponível!</span>
+                          </div>
+                          <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                            Resgate de 1 Geladinho
+                          </span>
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div className="mt-2 rounded-lg bg-blue-500/10 border border-blue-500/20 p-2.5 text-xs flex items-center justify-between gap-2 text-blue-700 dark:text-blue-300">
-                      <div className="flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-blue-500" />
-                        <span>
-                          <strong>Novo cliente nesta loja!</strong> Primeira compra registrada.
-                        </span>
-                      </div>
-                    </div>
-                  )
+                  </div>
                 )}
               </div>
 
@@ -1219,16 +1289,16 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                         </button>
                       </div>
 
-                      {/* Download Receipt in PDF, TXT or CSV */}
+                      {/* Download Receipt in PDF, TXT or CSV & Thermal Print */}
                       <div className="flex flex-wrap items-center gap-2 pt-1">
                         <button
                           type="button"
                           onClick={() => downloadReceiptPdf(buildCurrentTempSale())}
-                          title="Baixar Cupom em PDF"
+                          title="Baixar Bilhete de Embarque em PDF (80mm)"
                           className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 transition-colors"
                         >
                           <FileText className="h-3.5 w-3.5" />
-                          <span>Baixar PDF</span>
+                          <span>Bilhete PDF (80mm)</span>
                         </button>
                         <button
                           type="button"

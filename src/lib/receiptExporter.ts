@@ -188,82 +188,85 @@ export function downloadReceiptPdf(
   options: FiscalReceiptOptions = {}
 ): void {
   const shortId = (venda.id.length > 8 ? venda.id.slice(-6) : venda.id).toUpperCase();
-  const companyName = (options.empresaNome || BRAND_CONFIG.companyName).toUpperCase();
-  const companyTagline = BRAND_CONFIG.tagline;
-  const customerName = venda.cliente_nome ? venda.cliente_nome.trim() : "Consumidor Final";
+  const companyName = options.empresaNome || "ESTAÇÃO DA RÔ - GELADINHOS GOURMET";
+  const companyTagline = options.empresaSubtitulo || "Sabores da Estrada Real - Conselheiro Lafaiete/MG";
+  const customerName = venda.cliente_nome ? venda.cliente_nome.trim() : "Passageiro(a) Gourmet";
   const dateFormatted = formatDateTime(venda.data_venda);
   const paymentMethodLabel =
     PAYMENT_METHOD_LABELS[venda.forma_pagamento] || venda.forma_pagamento;
+  const origin = options.origem || "Estação da Rô";
+  const destination = options.destino || "Cremosidade sem escalas e felicidade imediata!";
 
-  // Criar documento PDF com dimensões de cupom 80mm de largura por altura dinâmica
-  // 80mm de largura x 180mm de altura
+  // Altura dinâmica para acomodar todos os itens e a seção do Passaporte da Estrada Real
+  const estimatedHeight = Math.max(210, 185 + venda.itens.length * 5);
+
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
-    format: [80, 210],
+    format: [80, estimatedHeight],
   });
 
   const pageWidth = 80;
-  let y = 10;
+  let y = 8;
 
-  // 1. Cabeçalho da Empresa
+  // 1. Cabeçalho Temático Estrada Real
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text(companyName, pageWidth / 2, y, { align: "center" });
-  y += 5;
+  doc.setFontSize(10.5);
+  doc.text(companyName.toUpperCase(), pageWidth / 2, y, { align: "center" });
+  y += 4.5;
 
   doc.setFont("helvetica", "italic");
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.text(companyTagline, pageWidth / 2, y, { align: "center" });
   y += 4;
 
-  if (options.empresaEndereco || BRAND_CONFIG.basesOperacionais.jau.logradouro) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(6.5);
-    const end = `${BRAND_CONFIG.basesOperacionais.jau.cidade} • Tel: (14) 98818-3327`;
-    doc.text(end, pageWidth / 2, y, { align: "center" });
-    y += 5;
-  }
-
   // Divisória dupla
-  doc.setDrawColor(60, 60, 60);
-  doc.setLineWidth(0.5);
+  doc.setDrawColor(80, 80, 80);
+  doc.setLineWidth(0.4);
   doc.line(6, y, pageWidth - 6, y);
-  y += 4;
+  y += 3.5;
 
-  // 2. Identificação do Cupom
+  // Título do Bilhete de Embarque
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text("CUPOM NÃO FISCAL DE COMPRA", pageWidth / 2, y, { align: "center" });
+  doc.text("BILHETE DE EMBARQUE GOURMET", pageWidth / 2, y, { align: "center" });
   y += 4;
 
+  // Dados de Embarque e Passageiro
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.text(`Pedido: #${shortId}`, 6, y);
-  doc.text(`Data: ${dateFormatted}`, pageWidth - 6, y, { align: "right" });
-  y += 4;
+  doc.setFontSize(7);
+  doc.text(`Passageiro(a): ${customerName}`, 6, y);
+  doc.text(`Bilhete: #${shortId}`, pageWidth - 6, y, { align: "right" });
+  y += 3.5;
 
-  doc.text(`Cliente: ${customerName}`, 6, y);
-  y += 4;
+  doc.text(`Origem: ${origin}`, 6, y);
+  y += 3.5;
+
+  doc.setFontSize(6.5);
+  doc.text(`Destino: ${destination}`, 6, y);
+  y += 3.5;
+
+  doc.text(`Embarque: ${dateFormatted}`, 6, y);
+  y += 3.5;
 
   // Linha divisória
   doc.setLineWidth(0.2);
   doc.line(6, y, pageWidth - 6, y);
-  y += 4;
+  y += 3.5;
 
-  // 3. Cabeçalho dos Itens
+  // 2. Cabeçalho dos Itens
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
   doc.text("QTD", 6, y);
-  doc.text("ITEM / SABOR", 15, y);
+  doc.text("SABOR / ITEM A BORDO", 15, y);
   doc.text("UNIT", 54, y, { align: "right" });
   doc.text("TOTAL", pageWidth - 6, y, { align: "right" });
-  y += 3;
+  y += 2.8;
 
   doc.line(6, y, pageWidth - 6, y);
   y += 3.5;
 
-  // 4. Lista de Itens
+  // 3. Lista de Itens
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
 
@@ -272,109 +275,152 @@ export function downloadReceiptPdf(
 
     doc.text(`${item.quantidade}x`, 6, y);
 
-    // Trunca nome do produto se for longo para caber na coluna
     const nomeCortado =
-      item.produto_nome.length > 20
-        ? item.produto_nome.slice(0, 19) + "…"
+      item.produto_nome.length > 21
+        ? item.produto_nome.slice(0, 20) + "…"
         : item.produto_nome;
     doc.text(nomeCortado, 15, y);
 
     doc.text(formatCurrency(item.preco_unitario), 54, y, { align: "right" });
     doc.text(formatCurrency(totalItem), pageWidth - 6, y, { align: "right" });
 
-    y += 4;
+    y += 3.8;
   });
 
   y += 1;
   doc.line(6, y, pageWidth - 6, y);
-  y += 4.5;
+  y += 4;
 
-  // 5. Totalizador
+  // 4. Totalizador
   const totalQuantity = venda.itens.reduce((acc, i) => acc + i.quantidade, 0);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.text(`Qtd. Total de Itens:`, 6, y);
   doc.text(`${totalQuantity} un.`, pageWidth - 6, y, { align: "right" });
+  y += 4;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.text("TOTAL DA PASSAGEM:", 6, y);
+  doc.text(formatCurrency(venda.valor_total), pageWidth - 6, y, { align: "right" });
   y += 4.5;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("TOTAL PAGO:", 6, y);
-  doc.text(formatCurrency(venda.valor_total), pageWidth - 6, y, { align: "right" });
-  y += 5;
-
   doc.line(6, y, pageWidth - 6, y);
-  y += 4;
+  y += 3.5;
 
-  // 6. Dados do Pagamento
+  // 5. Dados do Pagamento
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.text("FORMA DE PAGAMENTO:", 6, y);
   doc.text(paymentMethodLabel, pageWidth - 6, y, { align: "right" });
-  y += 4;
+  y += 3.5;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
 
   if (venda.forma_pagamento === "Pix") {
-    doc.text("Status: Pix Stone OpenBank Confirmado [OK]", 6, y);
-    y += 3.5;
+    doc.text("Pix Stone OpenBank Confirmado [OK]", 6, y);
+    y += 3;
     if (venda.pix_txid) {
-      doc.text(`ID Transacao: ${venda.pix_txid}`, 6, y);
-      y += 3.5;
+      doc.text(`ID: ${venda.pix_txid}`, 6, y);
+      y += 3;
     }
   } else if (
     venda.forma_pagamento === "Cartao_Credito" ||
     venda.forma_pagamento === "Cartao_Debito"
   ) {
-    doc.text(`Status: Autorizado Maquininha Stone/Ton [OK]`, 6, y);
-    y += 3.5;
-    doc.text(`Autorizacao: AUT-${shortId}`, 6, y);
-    y += 3.5;
+    doc.text(`Autorizado Stone / Ton [OK] • AUT-${shortId}`, 6, y);
+    y += 3;
   } else if (venda.forma_pagamento === "Dinheiro") {
-    doc.text("Status: Recebido em Especie no Caixa [OK]", 6, y);
+    doc.text("Recebido em Especie no Caixa [OK]", 6, y);
+    y += 3;
+  }
+
+  y += 1.5;
+  doc.setLineWidth(0.3);
+  doc.line(6, y, pageWidth - 6, y);
+  y += 3.5;
+
+  // 6. SEÇÃO PASSAPORTE DA ESTRADA REAL (10 Posições)
+  let stamps = options.selosAtuais;
+  if (stamps === undefined && venda.selos_fidelidade !== undefined) {
+    stamps = venda.selos_fidelidade;
+  }
+  if (stamps === undefined) {
+    stamps = totalQuantity % 10 === 0 && totalQuantity > 0 ? 10 : totalQuantity % 10;
+  }
+
+  const isFreeTrip = Boolean(
+    options.viagemGratisDisponivel ||
+    (venda.recompensas_fidelidade && venda.recompensas_fidelidade > 0) ||
+    stamps === 10
+  );
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.text("PASSAPORTE DA ESTRADA REAL", pageWidth / 2, y, { align: "center" });
+  y += 3.5;
+
+  // Renderizar 10 quadradinhos gráficos centralizados
+  const boxSize = 4.8;
+  const boxGap = 1.4;
+  const totalGridWidth = 10 * boxSize + 9 * boxGap;
+  let startX = (pageWidth - totalGridWidth) / 2;
+
+  for (let i = 0; i < 10; i++) {
+    const isStamped = i < stamps;
+    const curX = startX + i * (boxSize + boxGap);
+
+    if (isStamped) {
+      // Quadrado com carimbo preenchido
+      doc.setFillColor(240, 240, 240);
+      doc.rect(curX, y, boxSize, boxSize, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      doc.text("X", curX + boxSize / 2, y + 3.6, { align: "center" });
+    } else {
+      // Quadrado vazio
+      doc.rect(curX, y, boxSize, boxSize, "D");
+    }
+  }
+  y += boxSize + 3;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.text(`Progresso: ${stamps}/10 paradas carimbadas`, pageWidth / 2, y, { align: "center" });
+  y += 3.5;
+
+  if (isFreeTrip) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text("⭐ VIAGEM DOCE GRATIS DISPONIVEL! ⭐", pageWidth / 2, y, { align: "center" });
     y += 3.5;
   }
 
-  y += 3;
-  doc.setLineWidth(0.4);
   doc.line(6, y, pageWidth - 6, y);
-  y += 5;
-
-  // 7. Rodapé / Agradecimento
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7);
-  doc.text("Agradecemos pela sua preferencia!", pageWidth / 2, y, {
-    align: "center",
-  });
   y += 3.5;
 
-  doc.setFontSize(6);
-  doc.text(
-    "Geladinhos artesanais gourmet de 150ml feitos com amor.",
-    pageWidth / 2,
-    y,
-    { align: "center" }
-  );
-  y += 4;
+  // 7. Rodapé Temático
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6.5);
+  doc.text("A cada 10 paradas, ganhe 1 viagem doce! Guarde este bilhete.", pageWidth / 2, y, {
+    align: "center",
+  });
+  y += 3;
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.5);
-  doc.text("Desenvolvido por:", pageWidth / 2, y, { align: "center" });
-  y += 3;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(6.5);
-  doc.text("PereiraLabs", pageWidth / 2, y, { align: "center" });
-  y += 3;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.5);
-  doc.text("Divisao de Tecnologia e IA", pageWidth / 2, y, { align: "center" });
-  y += 2.8;
-  doc.text("Louzada & Pereira - Solucoes Digitais", pageWidth / 2, y, { align: "center" });
+  doc.setFontSize(6);
+  const zap = options.empresaTelefone || "(14) 98818-3327";
+  const insta = options.instagram || "@estacaodaro.gourmet";
+  doc.text(`WhatsApp: ${zap} • Instagram: ${insta}`, pageWidth / 2, y, { align: "center" });
+  y += 3.5;
+
+  doc.setFontSize(5);
+  doc.text("Desenvolvido por: PereiraLabs - Divisao de Tecnologia e IA", pageWidth / 2, y, { align: "center" });
 
   // Salva o PDF no dispositivo
-  doc.save(`cupom-fiscal-venda-${shortId}.pdf`);
+  doc.save(`bilhete-embarque-${shortId}.pdf`);
 }
 
 /**

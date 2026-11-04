@@ -12,6 +12,11 @@ export interface ClienteRecorrente {
   primeiraCompra: string;
   ultimaCompra: string;
   saboresFavoritos: Array<{ sabor: string; quantidade: number }>;
+  // Fidelidade - Passaporte da Estrada Real
+  selos_atuais: number; // 0 a 10 paradas carimbadas no passaporte atual
+  ciclos_completos: number; // Quantidade de vezes que completou 10 paradas
+  total_selos_historico: number; // Total acumulado de selos desde a primeira compra
+  recompensas_disponiveis: number; // Viagens doces gratuitas disponíveis para resgate
 }
 
 export function formatPhoneBr(raw: string): string {
@@ -66,6 +71,13 @@ export function getRegisteredCustomers(empresaId?: string): ClienteRecorrente[] 
     // Isolamento Estrito: Garante que nenhum dado de outro tenant retorne
     return list
       .filter((c) => c.empresaId === compId)
+      .map((c) => ({
+        ...c,
+        selos_atuais: Number(c.selos_atuais) || 0,
+        ciclos_completos: Number(c.ciclos_completos) || 0,
+        total_selos_historico: Number(c.total_selos_historico) || 0,
+        recompensas_disponiveis: Number(c.recompensas_disponiveis) || 0,
+      }))
       .sort(
         (a, b) => new Date(b.ultimaCompra || 0).getTime() - new Date(a.ultimaCompra || 0).getTime()
       );
@@ -141,7 +153,13 @@ export function buscarCliente(telefone: string, empresaIdAtual: string): Cliente
   });
 
   if (foundLocal) {
-    return foundLocal;
+    return {
+      ...foundLocal,
+      selos_atuais: Number(foundLocal.selos_atuais) || 0,
+      ciclos_completos: Number(foundLocal.ciclos_completos) || 0,
+      total_selos_historico: Number(foundLocal.total_selos_historico) || 0,
+      recompensas_disponiveis: Number(foundLocal.recompensas_disponiveis) || 0,
+    };
   }
 
   // 2. Não existe na empresa ativa: busca no portfólio global
@@ -160,6 +178,10 @@ export function buscarCliente(telefone: string, empresaIdAtual: string): Cliente
       primeiraCompra: "", // ZERADO
       ultimaCompra: "", // ZERADO
       saboresFavoritos: [], // ZERADO
+      selos_atuais: 0,
+      ciclos_completos: 0,
+      total_selos_historico: 0,
+      recompensas_disponiveis: 0,
     };
   }
 
@@ -206,6 +228,10 @@ export function searchCustomers(query: string, empresaIdAtual?: string): Cliente
           primeiraCompra: "",
           ultimaCompra: "",
           saboresFavoritos: [],
+          selos_atuais: 0,
+          ciclos_completos: 0,
+          total_selos_historico: 0,
+          recompensas_disponiveis: 0,
         },
       ];
     }
@@ -215,7 +241,50 @@ export function searchCustomers(query: string, empresaIdAtual?: string): Cliente
 }
 
 /**
- * Salva ou atualiza os dados do cliente no CRM local da empresa ativa.
+ * Retorna a grade visual textual do Passaporte da Estrada Real com 10 posições:
+ * Ex: [X] [X] [X] [ ] [ ] [ ] [ ] [ ] [ ] [ ] (3/10 paradas)
+ */
+export function getPassaporteGrid(selos: number, completouViagemGratis: boolean = false): string {
+  const displaySelos = completouViagemGratis && selos === 0 ? 10 : Math.max(0, Math.min(10, selos));
+  const grid = Array.from({ length: 10 }, (_, i) => (i < displaySelos ? "[X]" : "[ ]")).join(" ");
+  return `${grid} (${displaySelos}/10 paradas)`;
+}
+
+/**
+ * Calcula o resumo do programa de fidelidade "Passaporte da Estrada Real"
+ * Cada geladinho comprado = 1 selo/parada na Estrada Real.
+ * Ciclo de 1 a 10 paradas. A cada 10 paradas ganha 1 viagem grátis (1 geladinho gratuito).
+ */
+export function getCustomerLoyaltySummary(
+  cliente: ClienteRecorrente | null,
+  adicionandoGeladinhos: number = 0
+) {
+  const currentStamps = cliente?.selos_atuais || 0;
+  const currentRewards = cliente?.recompensas_disponiveis || 0;
+  const totalWithNew = currentStamps + adicionandoGeladinhos;
+  const newRewards = Math.floor(totalWithNew / 10);
+  const remainingStamps = totalWithNew % 10;
+  const totalRewards = currentRewards + newRewards;
+  const willCompleteCycle = totalWithNew >= 10;
+  const displayStamps = willCompleteCycle && remainingStamps === 0 ? 10 : remainingStamps;
+
+  return {
+    currentStamps,
+    currentRewards,
+    totalWithNew,
+    newRewards,
+    remainingStamps,
+    totalRewards,
+    willCompleteCycle,
+    displayStamps,
+    hasFreeTrip: totalRewards > 0 || willCompleteCycle,
+    gridText: getPassaporteGrid(displayStamps, willCompleteCycle),
+  };
+}
+
+/**
+ * Salva ou atualiza os dados do cliente no CRM local da empresa ativa
+ * com persistência do Passaporte da Estrada Real (Fidelização de Selos).
  */
 export function saveOrUpdateCustomer(params: {
   empresaId: string;
@@ -223,6 +292,7 @@ export function saveOrUpdateCustomer(params: {
   telefone?: string;
   valorCompra: number;
   itens?: Array<{ produto_nome: string; quantidade: number }>;
+  resgatarViagemGratis?: boolean;
 }): ClienteRecorrente | null {
   const { empresaId } = params;
   if (!empresaId) {
@@ -245,6 +315,12 @@ export function saveOrUpdateCustomer(params: {
   const now = new Date().toISOString();
   let updatedCustomer: ClienteRecorrente;
 
+  // Quantidade de geladinhos comprados nesta venda (1 geladinho = 1 selo/parada)
+  const totalGeladinhosComprados = (params.itens || []).reduce(
+    (acc, i) => acc + (Number(i.quantidade) || 0),
+    0
+  );
+
   if (existingIdx >= 0) {
     const existing = all[existingIdx];
     const newTotalPedidos = existing.totalPedidos + 1;
@@ -262,6 +338,24 @@ export function saveOrUpdateCustomer(params: {
       .sort((a, b) => b.quantidade - a.quantidade)
       .slice(0, 5);
 
+    // Cálculo dos Selos do Passaporte da Estrada Real
+    const prevSelos = Number(existing.selos_atuais) || 0;
+    const prevCiclos = Number(existing.ciclos_completos) || 0;
+    let prevRecompensas = Number(existing.recompensas_disponiveis) || 0;
+    const prevTotalHistorico = Number(existing.total_selos_historico) || 0;
+
+    // Se o cliente resgatou uma viagem doce grátis nesta venda
+    if (params.resgatarViagemGratis && prevRecompensas > 0) {
+      prevRecompensas -= 1;
+    }
+
+    const totalAcumulado = prevSelos + totalGeladinhosComprados;
+    const novosCiclosGanhos = Math.floor(totalAcumulado / 10);
+    const novosSelosAtuais = totalAcumulado % 10;
+    const novasRecompensas = prevRecompensas + novosCiclosGanhos;
+    const novosCiclosCompletos = prevCiclos + novosCiclosGanhos;
+    const novoTotalHistorico = prevTotalHistorico + totalGeladinhosComprados;
+
     updatedCustomer = {
       ...existing,
       empresaId,
@@ -271,6 +365,10 @@ export function saveOrUpdateCustomer(params: {
       ticketMedio: Number((newTotalGasto / newTotalPedidos).toFixed(2)),
       ultimaCompra: now,
       saboresFavoritos: updatedFlavors,
+      selos_atuais: novosSelosAtuais,
+      ciclos_completos: novosCiclosCompletos,
+      total_selos_historico: novoTotalHistorico,
+      recompensas_disponiveis: novasRecompensas,
     };
 
     all[existingIdx] = updatedCustomer;
@@ -279,6 +377,13 @@ export function saveOrUpdateCustomer(params: {
       .map((i) => ({ sabor: i.produto_nome, quantidade: i.quantidade }))
       .sort((a, b) => b.quantidade - a.quantidade)
       .slice(0, 5);
+
+    const totalAcumulado = totalGeladinhosComprados;
+    const novosCiclosGanhos = Math.floor(totalAcumulado / 10);
+    const novosSelosAtuais = totalAcumulado % 10;
+    const novasRecompensas = novosCiclosGanhos;
+    const novosCiclosCompletos = novosCiclosGanhos;
+    const novoTotalHistorico = totalGeladinhosComprados;
 
     updatedCustomer = {
       empresaId,
@@ -291,6 +396,10 @@ export function saveOrUpdateCustomer(params: {
       primeiraCompra: now,
       ultimaCompra: now,
       saboresFavoritos: initialFlavors,
+      selos_atuais: novosSelosAtuais,
+      ciclos_completos: novosCiclosCompletos,
+      total_selos_historico: novoTotalHistorico,
+      recompensas_disponiveis: novasRecompensas,
     };
 
     all.unshift(updatedCustomer);

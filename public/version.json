@@ -1,10 +1,11 @@
 {
-  "version": "3.5.9",
-  "build": 2026110201,
-  "releaseDate": "2026-11-02T05:00:00.000Z",
+  "version": "3.6.1",
+  "build": 2026110401,
+  "releaseDate": "2026-11-04T03:50:00.000Z",
   "features": [
-    "Cadastro Completo de Produtos & Portfólio: modal dedicado, persistência híbrida Nuvem/Local sem perda em sincronização, e disponibilidade imediata no PDV",
-    "Ficha Técnica e Receitas Imediatas: ao cadastrar um novo produto, a receita é gerada automaticamente com insumos editáveis e navegação direta",
-    "Personalização de Unidades & Filiais Operacionais: edição livre de nomes (ex: Matriz, Filial 1, Loja 2), cidades, tipos de operação e CEPs para SaaS Nacional"
+    "Blindagem Absoluta na Edição da Ficha Técnica: bloqueio de ghost-clicks móveis, proteção de toque e digitação contínua",
+    "Persistência Garantida de Receitas e DRE: sincronização segura com Supabase e fallback local imediato",
+    "Detecção Inteligente de Teclado Móvel: ocultação suave da barra inferior durante preenchimento de receitas e custos",
+    "Padronização de IDs Multi-Tenant: compatibilidade robusta com identificadores numéricos e textuais de produtos"
   ]
 }

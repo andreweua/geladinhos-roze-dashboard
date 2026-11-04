@@ -1,30 +1,39 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { VendaDetalhada } from "@/types/dashboard";
+import { getPassaporteGrid } from "@/services/customerService";
 
 export interface FiscalReceiptOptions {
   empresaNome?: string;
+  empresaSubtitulo?: string;
   empresaCnpj?: string;
   empresaTelefone?: string;
   empresaEndereco?: string;
   pixKey?: string;
   instagram?: string;
   receiptUrl?: string;
+  origem?: string;
+  destino?: string;
+  selosAtuais?: number;
+  viagemGratisDisponivel?: boolean;
 }
 
 /**
- * Gera um comprovante / cupom digital estruturado no formato fiscal para WhatsApp
+ * Gera um comprovante / cupom digital estruturado no formato temático:
+ * BILHETE DE EMBARQUE GOURMET - ESTAÇÃO DA RÔ (Sabores da Estrada Real)
  */
 export function formatFiscalReceiptText(
   venda: VendaDetalhada,
   options: FiscalReceiptOptions = {}
 ): string {
-  const companyName = options.empresaNome || BRAND_CONFIG.companyName;
-  const companyTagline = BRAND_CONFIG.tagline;
-  const customerName = venda.cliente_nome ? venda.cliente_nome.trim() : "Cliente";
+  const companyName = options.empresaNome || "ESTAÇÃO DA RÔ - GELADINHOS GOURMET";
+  const companyTagline = options.empresaSubtitulo || "Sabores da Estrada Real - Conselheiro Lafaiete/MG";
+  const customerName = venda.cliente_nome ? venda.cliente_nome.trim() : "Passageiro(a) Gourmet";
   const dateFormatted = formatDateTime(venda.data_venda);
   const paymentMethodLabel = PAYMENT_METHOD_LABELS[venda.forma_pagamento] || venda.forma_pagamento;
   const shortId = venda.id.length > 8 ? venda.id.slice(-6).toUpperCase() : venda.id.toUpperCase();
+  const origin = options.origem || "Estação da Rô";
+  const destination = options.destino || "Cremosidade sem escalas e felicidade imediata!";
 
   const divider = "------------------------------------------------";
   const doubleDivider = "================================";
@@ -40,6 +49,23 @@ export function formatFiscalReceiptText(
     .join("\n");
 
   const totalQuantity = venda.itens.reduce((acc, i) => acc + i.quantidade, 0);
+
+  // Fidelidade: Passaporte da Estrada Real
+  let stamps = options.selosAtuais;
+  if (stamps === undefined && venda.selos_fidelidade !== undefined) {
+    stamps = venda.selos_fidelidade;
+  }
+  if (stamps === undefined) {
+    stamps = totalQuantity % 10 === 0 && totalQuantity > 0 ? 10 : totalQuantity % 10;
+  }
+
+  const isFreeTripAvailable = Boolean(
+    options.viagemGratisDisponivel ||
+    (venda.recompensas_fidelidade && venda.recompensas_fidelidade > 0) ||
+    stamps === 10
+  );
+
+  const passportGrid = getPassaporteGrid(stamps, isFreeTripAvailable);
 
   // Informações específicas do meio de pagamento
   let paymentDetails = `💳 Forma de Pagamento: *${paymentMethodLabel}*`;
@@ -59,27 +85,32 @@ export function formatFiscalReceiptText(
     paymentDetails += `\n💵 Pagamento em Espécie: *Recebido no Caixa ✅*`;
   }
 
-  const receipt = `🧾 *${companyName.toUpperCase()}*
+  const receipt = `🚂 *${companyName.toUpperCase()}*
 _${companyTagline}_
 ${doubleDivider}
-*CUPOM NÃO FISCAL DE VENDA*
-*Pedido Nº:* #${shortId}
-*Data/Hora:* ${dateFormatted}
-*Cliente:* ${customerName}
+🎫 *BILHETE DE EMBARQUE GOURMET*
+*Bilhete Nº:* #${shortId}
+*Passageiro(a):* ${customerName}
+*Origem:* ${origin}
+*Destino:* ${destination}
+*Data/Embarque:* ${dateFormatted}
 ${divider}
-*ITENS DO PEDIDO:*
+🍦 *SABORES A BORDO (ITENS):*
 ${itemsText}
 ${divider}
 Qtd. Total de Itens: *${totalQuantity} unidade(s)*
-*VALOR TOTAL:* *${formatCurrency(venda.valor_total)}*
+*TOTAL DA PASSAGEM:* *${formatCurrency(venda.valor_total)}*
 ${divider}
 *DETALHES DO PAGAMENTO:*
 ${paymentDetails}
-${options.receiptUrl ? `\n📥 *Acesse seu cupom e baixe em PDF / Excel a qualquer momento:*\n${options.receiptUrl}\n` : ""}
+${divider}
+🎫 *PASSAPORTE DA ESTRADA REAL*
+Progresso: ${passportGrid}
+${isFreeTripAvailable ? `\n🎉 *⭐ VIAGEM DOCE GRÁTIS DISPONÍVEL! ⭐*\n_Apresente este bilhete para resgatar seu geladinho cortesia!_\n` : ""}${options.receiptUrl ? `\n📥 *Acesse seu cupom e baixe em PDF a qualquer momento:*\n${options.receiptUrl}\n` : ""}
 ${doubleDivider}
-✨ *Agradecemos imensamente pela preferência!*
-Esperamos que você se delicie com nossos geladinhos artesanais gourmet de 150ml feitos com muito carinho! ❤️🍦
-${options.instagram ? `📸 Instagram: ${options.instagram}\n` : ""}
+A cada 10 paradas, ganhe 1 viagem doce! Guarde este bilhete.
+📱 WhatsApp: ${options.empresaTelefone || "(14) 98818-3327"}
+📸 Instagram: ${options.instagram || "@estacaodaro.gourmet"}
 ${divider}
 _Desenvolvido por:_
 *PereiraLabs*

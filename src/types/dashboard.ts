@@ -99,6 +99,8 @@ export interface Venda {
   motivo_cancelamento?: string;
   data_cancelamento?: string;
   estornou_estoque?: boolean;
+  selos_fidelidade?: number; // Selos acumulados no Passaporte da Estrada Real (0 a 10)
+  recompensas_fidelidade?: number; // Viagens doces gratuitas disponíveis
 }
 
 export interface ItemVenda {

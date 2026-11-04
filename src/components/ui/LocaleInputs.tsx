@@ -33,22 +33,39 @@ export const LocaleCurrencyInput: React.FC<LocaleCurrencyInputProps> = ({
   const [textValue, setTextValue] = useState<string>(() =>
     formatEditableCurrency(value, emptyWhenZero)
   );
-  const lastExternalValueRef = useRef<number | string | undefined | null>(value);
+  const lastEmittedValueRef = useRef<number | string | undefined | null>(value);
+  const lastEmittedRawRef = useRef<string>(textValue);
 
   useEffect(() => {
-    // Sincroniza quando o valor muda externamente (ex: preenchimento automático, leitor QR/GTIN)
+    // Quando NÃO está focado, sincroniza livremente com o valor externo formatado
     if (!isFocused) {
       setTextValue(formatEditableCurrency(value, emptyWhenZero));
-      lastExternalValueRef.current = value;
-    } else if (value !== lastExternalValueRef.current) {
-      const currentParsed = parseLocaleNumber(textValue);
-      const externalParsed =
-        typeof value === "number" ? value : parseLocaleNumber(String(value ?? ""));
-      if (currentParsed !== externalParsed) {
-        setTextValue(formatEditableCurrency(value, emptyWhenZero));
-      }
-      lastExternalValueRef.current = value;
+      lastEmittedValueRef.current = value;
+      lastEmittedRawRef.current = formatEditableCurrency(value, emptyWhenZero);
+      return;
     }
+
+    // Se ESTÁ focado e o usuário apagou o texto (""), NÃO sobrescreve com "0,00" enquanto digita!
+    if (textValue === "") {
+      return;
+    }
+
+    // Se o valor externo é igual ao que o próprio input acabou de emitir pelo handleChange,
+    // preserva a digitação ativa (vírgula pendente, zeros, etc.)
+    const externalParsed =
+      typeof value === "number" ? value : parseLocaleNumber(String(value ?? ""));
+    const lastEmittedParsed =
+      typeof lastEmittedValueRef.current === "number"
+        ? lastEmittedValueRef.current
+        : parseLocaleNumber(String(lastEmittedValueRef.current ?? ""));
+
+    if (externalParsed === lastEmittedParsed) {
+      return;
+    }
+
+    // Se veio um valor genuinamente diferente de fonte externa
+    setTextValue(formatEditableCurrency(value, emptyWhenZero));
+    lastEmittedValueRef.current = value;
   }, [value, isFocused, emptyWhenZero]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -57,7 +74,8 @@ export const LocaleCurrencyInput: React.FC<LocaleCurrencyInputProps> = ({
     // Permite apagar tudo com Backspace / Delete
     if (raw === "") {
       setTextValue("");
-      lastExternalValueRef.current = undefined;
+      lastEmittedValueRef.current = undefined;
+      lastEmittedRawRef.current = "";
       onValueChange(undefined, "");
       return;
     }
@@ -74,9 +92,16 @@ export const LocaleCurrencyInput: React.FC<LocaleCurrencyInputProps> = ({
       normalized = parts[0] + decimalSeparator + parts.slice(1).join("");
     }
 
+    // Remove zero à esquerda redundante antes de dígito inteiro (ex: "05" vira "5", mas "0," preserva)
+    if (parts[0].length > 1 && parts[0].startsWith("0")) {
+      const cleanInt = parts[0].replace(/^0+/, "") || "0";
+      normalized = cleanInt + (parts.length > 1 ? decimalSeparator + parts[1] : "");
+    }
+
     setTextValue(normalized);
     const parsed = parseLocaleNumber(normalized);
-    lastExternalValueRef.current = parsed;
+    lastEmittedValueRef.current = parsed;
+    lastEmittedRawRef.current = normalized;
     onValueChange(parsed, normalized);
   };
 
@@ -89,9 +114,13 @@ export const LocaleCurrencyInput: React.FC<LocaleCurrencyInputProps> = ({
     setIsFocused(false);
     const parsed = parseLocaleNumber(textValue);
     if (parsed !== undefined) {
-      setTextValue(formatEditableCurrency(parsed, emptyWhenZero));
+      const formatted = formatEditableCurrency(parsed, emptyWhenZero);
+      setTextValue(formatted);
+      onValueChange(parsed, formatted);
     } else {
-      setTextValue("");
+      const fallbackFormatted = emptyWhenZero ? "" : formatEditableCurrency(0, false);
+      setTextValue(fallbackFormatted);
+      onValueChange(emptyWhenZero ? undefined : 0, fallbackFormatted);
     }
     onBlur?.(e);
   };
@@ -141,21 +170,34 @@ export const LocaleNumberInput: React.FC<LocaleNumberInputProps> = ({
   const [textValue, setTextValue] = useState<string>(() =>
     formatEditableNumber(value, maxDecimals, emptyWhenZero)
   );
-  const lastExternalValueRef = useRef<number | string | undefined | null>(value);
+  const lastEmittedValueRef = useRef<number | string | undefined | null>(value);
+  const lastEmittedRawRef = useRef<string>(textValue);
 
   useEffect(() => {
     if (!isFocused) {
       setTextValue(formatEditableNumber(value, maxDecimals, emptyWhenZero));
-      lastExternalValueRef.current = value;
-    } else if (value !== lastExternalValueRef.current) {
-      const currentParsed = parseLocaleNumber(textValue);
-      const externalParsed =
-        typeof value === "number" ? value : parseLocaleNumber(String(value ?? ""));
-      if (currentParsed !== externalParsed) {
-        setTextValue(formatEditableNumber(value, maxDecimals, emptyWhenZero));
-      }
-      lastExternalValueRef.current = value;
+      lastEmittedValueRef.current = value;
+      lastEmittedRawRef.current = formatEditableNumber(value, maxDecimals, emptyWhenZero);
+      return;
     }
+
+    if (textValue === "") {
+      return;
+    }
+
+    const externalParsed =
+      typeof value === "number" ? value : parseLocaleNumber(String(value ?? ""));
+    const lastEmittedParsed =
+      typeof lastEmittedValueRef.current === "number"
+        ? lastEmittedValueRef.current
+        : parseLocaleNumber(String(lastEmittedValueRef.current ?? ""));
+
+    if (externalParsed === lastEmittedParsed) {
+      return;
+    }
+
+    setTextValue(formatEditableNumber(value, maxDecimals, emptyWhenZero));
+    lastEmittedValueRef.current = value;
   }, [value, isFocused, maxDecimals, emptyWhenZero]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,16 +206,21 @@ export const LocaleNumberInput: React.FC<LocaleNumberInputProps> = ({
     // Permite apagar tudo com Backspace / Delete
     if (raw === "") {
       setTextValue("");
-      lastExternalValueRef.current = undefined;
+      lastEmittedValueRef.current = undefined;
+      lastEmittedRawRef.current = "";
       onValueChange(undefined, "");
       return;
     }
 
     if (maxDecimals <= 0) {
-      const digitsOnly = raw.replace(/\D/g, "");
+      let digitsOnly = raw.replace(/\D/g, "");
+      if (digitsOnly.length > 1 && digitsOnly.startsWith("0")) {
+        digitsOnly = digitsOnly.replace(/^0+/, "") || "0";
+      }
       setTextValue(digitsOnly);
       const parsed = digitsOnly ? parseInt(digitsOnly, 10) : undefined;
-      lastExternalValueRef.current = parsed;
+      lastEmittedValueRef.current = parsed;
+      lastEmittedRawRef.current = digitsOnly;
       onValueChange(parsed, digitsOnly);
       return;
     }
@@ -188,9 +235,15 @@ export const LocaleNumberInput: React.FC<LocaleNumberInputProps> = ({
       normalized = parts[0] + decimalSeparator + parts.slice(1).join("");
     }
 
+    if (parts[0].length > 1 && parts[0].startsWith("0")) {
+      const cleanInt = parts[0].replace(/^0+/, "") || "0";
+      normalized = cleanInt + (parts.length > 1 ? decimalSeparator + parts[1] : "");
+    }
+
     setTextValue(normalized);
     const parsed = parseLocaleNumber(normalized);
-    lastExternalValueRef.current = parsed;
+    lastEmittedValueRef.current = parsed;
+    lastEmittedRawRef.current = normalized;
     onValueChange(parsed, normalized);
   };
 
@@ -203,12 +256,16 @@ export const LocaleNumberInput: React.FC<LocaleNumberInputProps> = ({
     setIsFocused(false);
     const parsed = parseLocaleNumber(textValue);
     if (parsed !== undefined) {
-      setTextValue(formatEditableNumber(parsed, maxDecimals, emptyWhenZero));
+      const formatted = formatEditableNumber(parsed, maxDecimals, emptyWhenZero);
+      setTextValue(formatted);
+      onValueChange(parsed, formatted);
     } else if (fallbackOnBlur !== undefined) {
-      setTextValue(formatEditableNumber(fallbackOnBlur, maxDecimals, emptyWhenZero));
-      onValueChange(fallbackOnBlur, String(fallbackOnBlur));
+      const formatted = formatEditableNumber(fallbackOnBlur, maxDecimals, emptyWhenZero);
+      setTextValue(formatted);
+      onValueChange(fallbackOnBlur, formatted);
     } else {
       setTextValue("");
+      onValueChange(undefined, "");
     }
     onBlur?.(e);
   };

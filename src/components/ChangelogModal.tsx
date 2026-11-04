@@ -149,7 +149,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
             </div>
           </div>
 
-          {/* Active Version Highlight: v3.5.9 */}
+          {/* Active Version Highlight: v3.6.1 */}
           <div className="rounded-2xl border-2 border-primary/50 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4 sm:p-5 shadow-md">
             <div className="flex items-center justify-between gap-2 border-b border-primary/25 pb-3">
               <div className="flex items-center gap-2">
@@ -159,7 +159,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                 </span>
               </div>
               <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-black">
-                NOVA • 02/11/2026
+                NOVA • 04/11/2026
               </span>
             </div>
 
@@ -169,9 +169,9 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Painel de Configurações da Empresa & Gateway Pix (7 Abas Responsivas):</strong>
+                  <strong className="text-foreground">Blindagem da Edição de Ficha Técnica & DRE:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Resolução de visibilidade de todas as 7 abas com expansão para telas amplas, setas de navegação responsivas para mobile, suporte a rolagem pela roda do mouse e auto-centralização ao clicar.
+                    Proteção contra ghost-clicks de telas sensíveis (delay guard de 650ms), botão "Salvar Ficha" destacado em esmeralda, separação de botões para evitar toques concorrentes e trava de segurança ao trocar de sabor com dados não salvos.
                   </p>
                 </div>
               </div>
@@ -181,9 +181,9 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Layers className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Inputs com Separador Padrão do País & Edição Livre no Teclado:</strong>
+                  <strong className="text-foreground">Detecção de Teclado Móvel & Ocultação de Barra:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Entradas monetárias e numéricas utilizam vírgula (pt-BR) e permitem apagar totalmente e digitar novos valores pelo teclado mesmo após preenchimento automático por QR Code de NF ou scanner.
+                    A barra de navegação inferior flutuante se esconde suavemente ao focar em campos de digitação no celular, liberando tela limpa para preencher ingredientes e custos.
                   </p>
                 </div>
               </div>
@@ -193,13 +193,28 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Smartphone className="h-3.5 w-3.5" />
                 </div>
                 <div>
-                  <strong className="text-foreground">Scanner de Cotações com Google ML Kit Padronizado:</strong>
+                  <strong className="text-foreground">Sincronização Híbrida Supabase com Fallback Local:</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5">
-                    Leitura de código de barras nas cotações operando prioritariamente pelo Google ML Kit com alta velocidade e precisão de foco.
+                    Persistência garantida das fichas técnicas no navegador e na nuvem, compatibilidade com IDs numéricos e alfanuméricos e pausa de polling durante a edição.
                   </p>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Past Version: v3.5.8 a v3.5.9 */}
+          <div className="rounded-2xl border border-border/70 bg-card p-4 space-y-2.5">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-xs font-bold text-foreground">
+                Versão 3.5.8 a 3.5.9 — Configurações da Empresa (7 Abas), Moeda pt-BR e Scanner ML Kit
+              </span>
+              <span className="text-[10px] text-muted-foreground">01 a 02/11/2026</span>
+            </div>
+            <ul className="text-[11px] text-muted-foreground space-y-1.5 list-disc list-inside">
+              <li>Painel da Empresa com 7 abas responsivas, navegação por setas e suporte a rolagem por roda do mouse.</li>
+              <li>Campos de moeda e valores numéricos com separador pt-BR (vírgula) e liberdade total de exclusão pelo teclado.</li>
+              <li>Scanner de cotações com Google ML Kit padronizado em alta velocidade.</li>
+            </ul>
           </div>
 
           {/* Past Version: v3.5.5 a v3.5.7 */}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   LayoutDashboard,
   ChefHat,
@@ -169,6 +169,8 @@ export function App() {
   const [activeSection, setActiveSection] = useState<
     "inicio" | "fichas" | "cotacoes" | "gestao" | "completo" | "consultoria"
   >("inicio");
+  const activeSectionRef = useRef(activeSection);
+  activeSectionRef.current = activeSection;
 
   // Sub-aba de Gestão & Inteligência ("ia" | "auditoria")
   const [gestaoSubTab, setGestaoSubTab] = useState<"ia" | "auditoria">("ia");
@@ -346,24 +348,38 @@ export function App() {
 
     // 2. Atualiza ao alternar de aplicativo ou desbloquear a tela do celular
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
+      const isUserTyping =
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA" ||
+        document.activeElement?.tagName === "SELECT";
+      if (
+        document.visibilityState === "visible" &&
+        !isUserTyping &&
+        activeSectionRef.current !== "fichas"
+      ) {
         loadData(false);
       }
     };
     window.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleVisibilityChange);
 
-    // 3. Polling de sincronização a cada 20 segundos enquanto a tela estiver aberta
+    // 3. Polling de sincronização a cada 30 segundos enquanto a tela estiver aberta, exceto se estiver preenchendo formulários ou na Ficha Técnica
     const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
+      const isUserTyping =
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA" ||
+        document.activeElement?.tagName === "SELECT";
+      if (
+        document.visibilityState === "visible" &&
+        !isUserTyping &&
+        activeSectionRef.current !== "fichas"
+      ) {
         loadData(false);
       }
-    }, 20000);
+    }, 30000);
 
     return () => {
       supabase?.removeChannel(channel);
       window.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleVisibilityChange);
       clearInterval(interval);
     };
   }, [loadData]);
@@ -618,7 +634,7 @@ export function App() {
   };
 
   const handleCreateProduct = async (payload: NewProductPayload): Promise<void> => {
-    const { snapshot: updated, newProduct } = await createNewProduct(payload);
+    const { snapshot: updated, newProduct } = await createNewProduct(payload, activeCompany?.id);
     setSnapshot(updated);
     setSelectedProductId(newProduct.id);
     if (payload.goToRecipe) {
@@ -631,22 +647,28 @@ export function App() {
       alert("Acesso Somente Leitura: Consultores não têm permissão para excluir produtos.");
       return;
     }
-    const updated = await deleteProduct(produtoId);
+    const updated = await deleteProduct(produtoId, activeCompany?.id);
     setSnapshot(updated);
   };
 
   const handleSaveFicha = async (
     ficha: FichaTecnicaProduto,
-    novoPrecoVenda?: number
+    novoPrecoVenda?: number,
+    novoNomeProduto?: string
   ) => {
-    const updated = await saveProductFichaTecnica(ficha, novoPrecoVenda);
+    const updated = await saveProductFichaTecnica(
+      ficha,
+      novoPrecoVenda,
+      activeCompany?.id,
+      novoNomeProduto
+    );
     setSnapshot(updated);
   };
 
   const handleSaveBatchFichas = async (
     updatedFichas: FichaTecnicaProduto[]
   ) => {
-    const updated = await saveBatchFichasTecnicas(updatedFichas);
+    const updated = await saveBatchFichasTecnicas(updatedFichas, activeCompany?.id);
     setSnapshot(updated);
   };
 

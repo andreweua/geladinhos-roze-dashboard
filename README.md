@@ -1,8 +1,8 @@
 # 🍧 Geladinhos Gourmet da Roze — Sistema de Gestão, PDV, Cotações & Inteligência Artificial
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-3.5.9-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-3.6.1-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v53%29-38bdf8)
+![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v55%29-38bdf8)
 ![RSC Sistemas](https://img.shields.io/badge/GTIN%20%2F%20EAN--13-RSC%20Sistemas%20%2B%20Fotos-f59e0b)
 ![Atacado e Varejo](https://img.shields.io/badge/Cota%C3%A7%C3%B5es-Atacado%20%26%20Varejo-8b5cf6)
 ![Segurança de Caixa](https://img.shields.io/badge/Caixa-Abertura%20Obrigat%C3%B3ria-10b981)
@@ -16,7 +16,28 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 
 ---
 
-## 🚀 Destaques das Versões 3.5.x (Última Atualização: v3.5.9)
+## 🚀 Destaques da Versão 3.6.1 (Build 2026110401 • Android versionCode 55)
+
+### 1. 🛡️ Blindagem Absoluta na Edição da Ficha Técnica & DRE
+- **Proteção contra Ghost-Clicks & Toques Acidentais**: Inclusão de proteção de debounce/guard (650ms) ao alternar para o modo de edição, impedindo que toques em telas sensíveis ou cliques múltiplos fechem a tela de edição involuntariamente.
+- **Ergonomia e Inversão de Botões**: Botão **"💾 Salvar Ficha"** reposicionado em primeiro plano e com destaque visual verde esmeralda; botão **"Cancelar"** posicionado em segundo plano com espaçamento seguro para evitar toques concorrentes.
+- **Confirmação Inteligente contra Perda de Dados**: Se houver alterações em andamento na receita e o usuário tentar trocar de sabor ou produto na barra superior, um diálogo de confirmação previne o descarte acidental dos dados digitados.
+- **Isolamento de Pílulas Ativas**: Tocar na pílula do produto atualmente em edição mantém o estado intacto, evitando reinicialização indesejada do formulário.
+
+### 2. 📱 Ocultação Inteligente da Barra de Navegação Móvel (`AppBottomNav`)
+- **Detecção de Teclado Ativo**: A barra flutuante inferior é ocultada automaticamente enquanto qualquer campo de entrada (`input`, `textarea`, `select`) estiver em foco no smartphone, garantindo visão desobstruída dos campos de custo, rendimento e ingredientes.
+
+### 3. ☁️ Sincronização Híbrida Resiliente com Nuvem Supabase
+- **Persistência Segura com Fallback Local**: Sincronização em tempo real das fichas técnicas com a tabela Supabase `public.fichas_tecnicas` (quando configurada) e persistência imediata no `localStorage`, assegurando que nenhuma receita se perca mesmo offline ou com instabilidade de rede.
+- **Normalização de IDs Multi-Tenant**: Compatibilidade estrita entre identificadores numéricos e textuais (`String(id)`), garantindo vínculo perfeito entre produtos do catálogo e suas respectivas fichas técnicas.
+- **Pausa de Polling em Edição**: Ciclos de atualização em segundo plano são pausados temporariamente enquanto o usuário edita a ficha técnica, evitando substituição de dados no meio da digitação.
+
+### 4. 🧮 Sanitização Numérica & Margens Seguras
+- Proteção robusta contra valores `NaN` ou não finitos na formatação de moeda (`formatCurrency`), indicadores de DRE e na precificação dinâmica para o iFood.
+
+---
+
+## 🚀 Destaques das Versões 3.5.x
 
 ### 1. ⚙️ Painel de Configurações da Empresa & Gateway Pix (7 Abas Responsivas — v3.5.9)
 - **Visualização Completa em 7 Abas**: *Meu Plano*, *IA Gemini (SaaS)*, *Chave Pix & TON*, *API Stone*, *Dados da Empresa*, *Polos & CEPs* e *Nuvem Supabase*.
@@ -42,7 +63,7 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 
 ### 5. 🔔 Sistema de Atualização OTA (Over-The-Air) & Rastreabilidade Técnica
 - **Notificação Sonora, Tátil e Visual**: Aviso de nova versão com chime melódico sintetizado via *Web Audio API*, vibração háptica e botão claro para fechar o alerta.
-- **Rastreabilidade Técnica no Rodapé**: Exibição exata da versão instalada em execução (`Versão: v3.5.9 • Build: 2026110201 • Ambiente: PWA Web App / Android Nativo versionCode 53`).
+- **Rastreabilidade Técnica no Rodapé**: Exibição exata da versão instalada em execução (`Versão: v3.6.1 • Build: 2026110401 • Ambiente: PWA Web App / Android Nativo versionCode 55`).
 - **Links Permanentes de Atualização Android**: Botões diretos para baixar o `.APK` atualizado disponíveis no rodapé do sistema, no alerta de atualização e na janela **Novidades ✨**.
 
 ---
@@ -71,7 +92,7 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 ## 📱 Suporte PWA e Aplicativo Android Nativo
 
 - **Aplicativo Android Nativo (Capacitor 8 + Google ML Kit)**:
-  - Compilação automatizada via GitHub Actions (`.github/workflows/build-apk.yml`) gerando o pacote oficial `PereiraLabs-PDV-Foods-v3.5.9.apk` e `PereiraLabs-PDV-Foods-latest.apk`.
+  - Compilação automatizada via GitHub Actions (`.github/workflows/build-apk.yml`) gerando o pacote oficial `PereiraLabs-PDV-Foods-v3.6.1.apk` e `PereiraLabs-PDV-Foods-latest.apk`.
   - Safe Area nativa configurada para celulares modernos (incluindo Samsung Galaxy A26 / Android 15).
 - **PWA (Progressive Web App)**:
   - Instalação em 1 clique no Android, iOS e Desktop com funcionamento offline e atualização automática via Service Worker (`public/sw.js`).

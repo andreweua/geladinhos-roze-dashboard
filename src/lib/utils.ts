@@ -8,16 +8,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(value: number): string {
+  const safeValue = typeof value === "number" && Number.isFinite(value) ? value : 0;
   return new Intl.NumberFormat(BRAND_CONFIG.locale, {
     style: "currency",
     currency: BRAND_CONFIG.currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(safeValue);
 }
 
 export function formatNumber(value: number): string {
-  return new Intl.NumberFormat(BRAND_CONFIG.locale).format(value);
+  const safeValue = typeof value === "number" && Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat(BRAND_CONFIG.locale).format(safeValue);
 }
 
 export interface LocaleNumberFormatInfo {

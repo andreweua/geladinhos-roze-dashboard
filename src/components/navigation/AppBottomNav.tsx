@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   ChefHat,
@@ -28,6 +28,37 @@ export const AppBottomNav: React.FC<AppBottomNavProps> = ({
   onOpenAuth,
 }) => {
   const isCashier = userRole === "operador_caixa";
+  const [isInputActive, setIsInputActive] = useState(false);
+
+  // Oculta a barra inferior flutuante enquanto o teclado virtual do celular estiver aberto
+  // para evitar toques acidentais ou sobreposição nos inputs da ficha técnica / formulários
+  useEffect(() => {
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT")
+      ) {
+        setIsInputActive(true);
+      }
+    };
+    const handleFocusOut = () => {
+      setIsInputActive(false);
+    };
+
+    window.addEventListener("focusin", handleFocusIn);
+    window.addEventListener("focusout", handleFocusOut);
+    return () => {
+      window.removeEventListener("focusin", handleFocusIn);
+      window.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
+
+  if (isInputActive) {
+    return null;
+  }
 
   return (
     <nav
