@@ -173,6 +173,8 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
         <div style={{ fontSize: "10px", marginBottom: "4px" }}>
           <div><strong>Passageiro(a):</strong> {passengerName}</div>
           <div><strong>Bilhete:</strong> {shortId}</div>
+          {receiptTexts.tipoCupom !== "padrao_comercial" && <div><strong>Linha:</strong> {receiptTexts.linha}</div>}
+          <div><strong>Atendimento:</strong> {receiptTexts.tipoEntregaLabel}</div>
           <div><strong>Origem:</strong> {originStation}</div>
           <div><strong>Parada:</strong> {currentStopStation}</div>
           <div><strong>Próxima Parada:</strong> {nextStopStation}</div>
@@ -300,6 +302,16 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
             <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
               <span className="text-muted-foreground">Passageiro(a):</span>
               <strong className="text-foreground text-sm">{passengerName}</strong>
+            </div>
+            {receiptTexts.tipoCupom !== "padrao_comercial" && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Linha:</span>
+                <strong className="text-foreground text-right">{receiptTexts.linha}</strong>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Atendimento:</span>
+              <strong className="text-foreground text-right">{receiptTexts.tipoEntregaLabel}</strong>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Origem:</span>

@@ -1147,6 +1147,10 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
           ...v,
           empresaId: v.empresa_id || v.empresaId || activeCompId,
           canal_venda: v.canal_venda || channelMap[v.id] || "Balcao",
+          tipo_entrega: v.tipo_entrega || "NA_ESTACAO",
+          plataforma_delivery: v.plataforma_delivery || undefined,
+          endereco_entrega: v.endereco_entrega || undefined,
+          linha_rota: v.linha_rota || undefined,
           valor_total: Number(v.valor_total),
         }));
 
@@ -1236,6 +1240,10 @@ export interface NewSalePayload {
   empresaId?: string;
   forma_pagamento: PaymentMethod;
   canal_venda?: CanalVenda;
+  tipo_entrega?: "NA_ESTACAO" | "DELIVERY";
+  plataforma_delivery?: string;
+  endereco_entrega?: string;
+  linha_rota?: string;
   cliente_nome?: string;
   cliente_telefone?: string;
   status?: "concluida" | "pendente" | "cancelada";
@@ -1305,6 +1313,10 @@ export async function createNewSale(
       empresa_id: currentId,
       forma_pagamento: payload.forma_pagamento,
       canal_venda: payload.canal_venda || "Balcao",
+      tipo_entrega: payload.tipo_entrega || "NA_ESTACAO",
+      plataforma_delivery: payload.plataforma_delivery || null,
+      endereco_entrega: payload.endereco_entrega?.trim() || null,
+      linha_rota: payload.linha_rota || null,
       cliente_nome: payload.cliente_nome?.trim() || null,
       cliente_telefone: payload.cliente_telefone?.trim() || null,
       valor_total: valorTotal,
@@ -1323,12 +1335,16 @@ export async function createNewSale(
       .select()
       .single();
 
-    // Se a coluna canal_venda ou empresa_id ainda não existir no banco remoto (PGRST204), retenta sem ela
+    // Se as novas colunas ou canal_venda / empresa_id ainda não existirem no banco remoto (PGRST204), retenta sem elas
     if (
       vendaErr &&
       (vendaErr.code === "PGRST204" ||
         vendaErr.message?.toLowerCase().includes("canal_venda") ||
-        vendaErr.message?.toLowerCase().includes("empresa_id"))
+        vendaErr.message?.toLowerCase().includes("empresa_id") ||
+        vendaErr.message?.toLowerCase().includes("tipo_entrega") ||
+        vendaErr.message?.toLowerCase().includes("plataforma_delivery") ||
+        vendaErr.message?.toLowerCase().includes("endereco_entrega") ||
+        vendaErr.message?.toLowerCase().includes("linha_rota"))
     ) {
       console.warn(
         "Ajustando payload de venda para compatibilidade com o schema remoto do Supabase."
@@ -1336,6 +1352,10 @@ export async function createNewSale(
       const safeData = { ...saleInsertData };
       delete safeData.canal_venda;
       delete safeData.empresa_id;
+      delete safeData.tipo_entrega;
+      delete safeData.plataforma_delivery;
+      delete safeData.endereco_entrega;
+      delete safeData.linha_rota;
       const retry = await supabase
         .from("vendas")
         .insert(safeData)
@@ -1360,11 +1380,12 @@ export async function createNewSale(
       await supabase.from("itens_venda").insert(itemsToInsert);
 
       // Salva / atualiza histórico do cliente no CRM com escopo restrito à empresa atual
-      if (saleStatus === "concluida") {
+      if (saleStatus === "concluida" && (payload.cliente_nome || payload.cliente_telefone)) {
         saveOrUpdateCustomer({
           empresaId: currentId,
           nome: payload.cliente_nome,
           telefone: payload.cliente_telefone,
+          endereco: payload.endereco_entrega?.trim(),
           valorCompra: valorTotal,
           itens: preparedItems.map((i) => ({
             produto_nome: productMap.get(i.produto_id)?.nome || "Produto",
@@ -1409,6 +1430,10 @@ export async function createNewSale(
     cliente_nome: payload.cliente_nome?.trim() || undefined,
     cliente_telefone: payload.cliente_telefone?.trim() || undefined,
     canal_venda: payload.canal_venda || "Balcao",
+    tipo_entrega: payload.tipo_entrega || "NA_ESTACAO",
+    plataforma_delivery: payload.plataforma_delivery,
+    endereco_entrega: payload.endereco_entrega?.trim() || undefined,
+    linha_rota: payload.linha_rota,
     data_venda: nowIso,
     forma_pagamento: payload.forma_pagamento,
     valor_total: valorTotal,
@@ -1419,11 +1444,12 @@ export async function createNewSale(
   };
 
   // Salva / atualiza histórico do cliente no CRM local da empresa ativa
-  if (saleStatus === "concluida") {
+  if (saleStatus === "concluida" && (payload.cliente_nome || payload.cliente_telefone)) {
     const updatedCust = saveOrUpdateCustomer({
       empresaId: currentId,
       nome: payload.cliente_nome,
       telefone: payload.cliente_telefone,
+      endereco: payload.endereco_entrega?.trim(),
       valorCompra: valorTotal,
       itens: preparedItems.map((i) => ({
         produto_nome: productMap.get(i.produto_id)?.nome || "Produto",

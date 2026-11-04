@@ -1,8 +1,8 @@
 # 🍧 Geladinhos Gourmet da Roze — Sistema de Gestão, PDV, Cotações & Inteligência Artificial
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-3.6.5-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-3.6.6-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v59%29-38bdf8)
+![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v60%29-38bdf8)
 ![RSC Sistemas](https://img.shields.io/badge/GTIN%20%2F%20EAN--13-RSC%20Sistemas%20%2B%20Fotos-f59e0b)
 ![Atacado e Varejo](https://img.shields.io/badge/Cota%C3%A7%C3%B5es-Atacado%20%26%20Varejo-8b5cf6)
 ![Segurança de Caixa](https://img.shields.io/badge/Caixa-Abertura%20Obrigat%C3%B3ria-10b981)
@@ -13,6 +13,16 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 - 🌐 **Aplicação Web / PWA (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
 - 📲 **Download Direto do Aplicativo Android (APK Oficial)**: [Baixar APK Mais Recente (GitHub Releases)](https://github.com/andreweua/geladinhos-roze-dashboard/releases/latest)
 - 📋 **Histórico Completo de Alterações**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
+
+---
+
+## 🚀 Destaques da Versão 3.6.6 (Build 2026110406 • Android versionCode 60)
+
+- **Modalidade de Entrega no PDV ("NA ESTAÇÃO" vs "DELIVERY")**: controle direto na tela de venda para escolha entre retirada presencial no balcão e entrega em domicílio, com seleção de plataformas (Delivery Próprio, iFood, AiQFome, WhatsApp Delivery) e campo de endereço.
+- **Roteamento Ferroviário no Bilhete de Embarque**: linha formatada dinamicamente (`[Linha Matriz] x [Cidade PDV]`), Origem (cidade PDV), Parada (estação cadastrada) e Próxima Parada (endereço do cliente no delivery ou "Retirada na Estação").
+- **Seletor de Estilo de Cupom**: escolha entre o modelo temático de trem com passaporte de 10 carimbos (Estação da Rô) e o modelo comercial padrão limpo e universal para filiais e novas empresas.
+- **Venda Rápida Anônima & LGPD**: possibilidade de finalizar a venda sem exigir dados pessoais do cliente em cumprimento à LGPD, ou gravar histórico e endereço no CRM quando identificado.
+- **Script SQL de Migração Supabase**: `supabase/migrations/20261104_pos_delivery_and_receipt_styles.sql` com as novas colunas e índices.
 
 ---
 

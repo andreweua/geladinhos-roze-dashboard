@@ -90,12 +90,17 @@ export interface Company {
   permitirEstoqueNegativo?: boolean; // Permite vender produtos mesmo se o estoque for <= 0
   geminiApiKey?: string; // Chave de API Google Gemini privativa da empresa assinante
   geminiModel?: string; // Modelo de IA preferencial (ex: gemini-2.5-flash, gemini-3-flash-preview)
-  cupomConfig?: CompanyReceiptConfig; // Textos temáticos do Cupom / Bilhete de Embarque
+  cupomConfig?: CompanyReceiptConfig; // Textos e estilo do Cupom / Bilhete de Embarque
+  plataformasDelivery?: string[]; // Opções ativas de delivery cadastradas pela empresa (ex: "iFood", "AiQFome", "Delivery Próprio", "WhatsApp")
 }
 
+export type TipoCupom = "tematico_embarque" | "padrao_comercial";
+
 export interface CompanyReceiptConfig {
-  origem?: string; // Ex: "Conselheiro Lafaiete - MG" (padrão: cidade da empresa)
-  paradaNome?: string; // Ex: "Estação da Rô" (a cidade da empresa é acrescentada automaticamente)
-  proximaParada?: string; // Ex: "Casa do Cliente" ou a cidade atual
+  tipoCupom?: TipoCupom; // Estilo visual do comprovante
+  linhaOrigemMatriz?: string; // Padrão: "Conselheiro Lafaiete - MG"
+  origem?: string; // Ex: "Conselheiro Lafaiete - MG" (padrão: cidade da filial/PDV)
+  paradaNome?: string; // Ex: "Estação da Rô" (o nome da unidade/cidade é acrescentado)
+  proximaParada?: string; // Fallback se não for informado endereço no PDV
   destino?: string; // Ex: "Cremosidade sem escalas e felicidade imediata!"
 }

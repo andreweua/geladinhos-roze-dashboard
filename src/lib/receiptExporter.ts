@@ -201,7 +201,7 @@ export function downloadReceiptPdf(
   const destination = texts.destino;
 
   // Altura dinâmica para acomodar todos os itens e a seção do Passaporte da Estrada Real
-  const estimatedHeight = Math.max(210, 195 + venda.itens.length * 5);
+  const estimatedHeight = Math.max(220, 205 + venda.itens.length * 5);
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -212,7 +212,7 @@ export function downloadReceiptPdf(
   const pageWidth = 80;
   let y = 8;
 
-  // 1. Cabeçalho Temático Estrada Real
+  // 1. Cabeçalho Temático Estrada Real ou Comercial
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.text(companyName.toUpperCase(), pageWidth / 2, y, { align: "center" });
@@ -229,34 +229,67 @@ export function downloadReceiptPdf(
   doc.line(6, y, pageWidth - 6, y);
   y += 3.5;
 
-  // Título do Bilhete de Embarque
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text("BILHETE DE EMBARQUE GOURMET", pageWidth / 2, y, { align: "center" });
-  y += 4;
+  if (texts.tipoCupom === "padrao_comercial") {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("CUPOM DE VENDA (NAO FISCAL)", pageWidth / 2, y, { align: "center" });
+    y += 4;
 
-  // Dados de Embarque e Passageiro
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.text(`Passageiro(a): ${customerName}`, 6, y);
-  doc.text(`Bilhete: ${ticketNumber}`, pageWidth - 6, y, { align: "right" });
-  y += 3.5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(`Cliente: ${customerName}`, 6, y);
+    doc.text(`Pedido: ${ticketNumber}`, pageWidth - 6, y, { align: "right" });
+    y += 3.5;
 
-  doc.setFontSize(6.5);
-  doc.text(`Origem: ${origin}`, 6, y);
-  y += 3.5;
+    doc.setFontSize(6.5);
+    doc.text(`Atendimento: ${texts.tipoEntregaLabel}`, 6, y);
+    y += 3.5;
 
-  doc.text(`Parada: ${currentStop}`, 6, y);
-  y += 3.5;
+    if (venda.tipo_entrega === "DELIVERY" && texts.proximaParada) {
+      const endClean = texts.proximaParada.slice(0, 42);
+      doc.text(`Endereco: ${endClean}`, 6, y);
+      y += 3.5;
+    }
 
-  doc.text(`Proxima Parada: ${nextStop}`, 6, y);
-  y += 3.5;
+    doc.text(`Data: ${dateFormatted}`, 6, y);
+    y += 3.5;
+  } else {
+    // Título do Bilhete de Embarque
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("BILHETE DE EMBARQUE GOURMET", pageWidth / 2, y, { align: "center" });
+    y += 4;
 
-  doc.text(`Destino: ${destination}`, 6, y);
-  y += 3.5;
+    // Dados de Embarque e Passageiro
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(`Passageiro(a): ${customerName}`, 6, y);
+    doc.text(`Bilhete: ${ticketNumber}`, pageWidth - 6, y, { align: "right" });
+    y += 3.5;
 
-  doc.text(`Embarque: ${dateFormatted}`, 6, y);
-  y += 3.5;
+    doc.setFontSize(6.5);
+    doc.text(`Linha: ${texts.linha}`, 6, y);
+    y += 3.5;
+
+    doc.text(`Atendimento: ${texts.tipoEntregaLabel}`, 6, y);
+    y += 3.5;
+
+    doc.text(`Origem: ${origin}`, 6, y);
+    y += 3.5;
+
+    doc.text(`Parada: ${currentStop}`, 6, y);
+    y += 3.5;
+
+    const nextClean = texts.proximaParada.length > 38 ? texts.proximaParada.slice(0, 38) + "..." : texts.proximaParada;
+    doc.text(`Proxima Parada: ${nextClean}`, 6, y);
+    y += 3.5;
+
+    doc.text(`Destino: ${destination}`, 6, y);
+    y += 3.5;
+
+    doc.text(`Embarque: ${dateFormatted}`, 6, y);
+    y += 3.5;
+  }
 
   // Linha divisória
   doc.setLineWidth(0.2);
@@ -351,72 +384,84 @@ export function downloadReceiptPdf(
   doc.line(6, y, pageWidth - 6, y);
   y += 3.5;
 
-  // 6. SEÇÃO PASSAPORTE DA ESTRADA REAL (10 Posições)
-  let stamps = options.selosAtuais;
-  if (stamps === undefined && venda.selos_fidelidade !== undefined) {
-    stamps = venda.selos_fidelidade;
-  }
-  if (stamps === undefined) {
-    stamps = totalQuantity % 10 === 0 && totalQuantity > 0 ? 10 : totalQuantity % 10;
-  }
-
-  const isFreeTrip = Boolean(
-    options.viagemGratisDisponivel ||
-    (venda.recompensas_fidelidade && venda.recompensas_fidelidade > 0) ||
-    stamps === 10
-  );
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.text("PASSAPORTE DA ESTRADA REAL", pageWidth / 2, y, { align: "center" });
-  y += 3.5;
-
-  // Renderizar 10 quadradinhos gráficos centralizados
-  const boxSize = 4.8;
-  const boxGap = 1.4;
-  const totalGridWidth = 10 * boxSize + 9 * boxGap;
-  let startX = (pageWidth - totalGridWidth) / 2;
-
-  for (let i = 0; i < 10; i++) {
-    const isStamped = i < stamps;
-    const curX = startX + i * (boxSize + boxGap);
-
-    if (isStamped) {
-      // Quadrado com carimbo preenchido
-      doc.setFillColor(240, 240, 240);
-      doc.rect(curX, y, boxSize, boxSize, "FD");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(6.5);
-      doc.text("X", curX + boxSize / 2, y + 3.6, { align: "center" });
-    } else {
-      // Quadrado vazio
-      doc.rect(curX, y, boxSize, boxSize, "D");
+  // 6. SEÇÃO PASSAPORTE DA ESTRADA REAL (Apenas se for Bilhete Temático)
+  if (texts.tipoCupom !== "padrao_comercial") {
+    let stamps = options.selosAtuais;
+    if (stamps === undefined && venda.selos_fidelidade !== undefined) {
+      stamps = venda.selos_fidelidade;
     }
-  }
-  y += boxSize + 3;
+    if (stamps === undefined) {
+      stamps = totalQuantity % 10 === 0 && totalQuantity > 0 ? 10 : totalQuantity % 10;
+    }
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.text(`Progresso: ${stamps}/10 paradas carimbadas`, pageWidth / 2, y, { align: "center" });
-  y += 3.5;
+    const isFreeTrip = Boolean(
+      options.viagemGratisDisponivel ||
+      (venda.recompensas_fidelidade && venda.recompensas_fidelidade > 0) ||
+      stamps === 10
+    );
 
-  if (isFreeTrip) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.text("PASSAPORTE DA ESTRADA REAL", pageWidth / 2, y, { align: "center" });
+    y += 3.5;
+
+    // Renderizar 10 quadradinhos gráficos centralizados
+    const boxSize = 4.8;
+    const boxGap = 1.4;
+    const totalGridWidth = 10 * boxSize + 9 * boxGap;
+    let startX = (pageWidth - totalGridWidth) / 2;
+
+    for (let i = 0; i < 10; i++) {
+      const isStamped = i < stamps;
+      const curX = startX + i * (boxSize + boxGap);
+
+      if (isStamped) {
+        // Quadrado com carimbo preenchido
+        doc.setFillColor(240, 240, 240);
+        doc.rect(curX, y, boxSize, boxSize, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(6.5);
+        doc.text("X", curX + boxSize / 2, y + 3.6, { align: "center" });
+      } else {
+        // Quadrado vazio
+        doc.rect(curX, y, boxSize, boxSize, "D");
+      }
+    }
+    y += boxSize + 3;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    doc.text(`Progresso: ${stamps}/10 paradas carimbadas`, pageWidth / 2, y, { align: "center" });
+    y += 3.5;
+
+    if (isFreeTrip) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.text("⭐ VIAGEM DOCE GRATIS DISPONIVEL! ⭐", pageWidth / 2, y, { align: "center" });
+      y += 3.5;
+    }
+
+    doc.line(6, y, pageWidth - 6, y);
+    y += 3.5;
+
+    // 7. Rodapé Temático
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(6.5);
+    doc.text("A cada 10 paradas, ganhe 1 viagem doce! Guarde este bilhete.", pageWidth / 2, y, {
+      align: "center",
+    });
+    y += 3;
+  } else {
+    // Rodapé Comercial Padrão
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7);
-    doc.text("⭐ VIAGEM DOCE GRATIS DISPONIVEL! ⭐", pageWidth / 2, y, { align: "center" });
+    doc.text("Agradecemos a sua preferencia! Volte sempre!", pageWidth / 2, y, {
+      align: "center",
+    });
+    y += 3.5;
+    doc.line(6, y, pageWidth - 6, y);
     y += 3.5;
   }
-
-  doc.line(6, y, pageWidth - 6, y);
-  y += 3.5;
-
-  // 7. Rodapé Temático
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(6.5);
-  doc.text("A cada 10 paradas, ganhe 1 viagem doce! Guarde este bilhete.", pageWidth / 2, y, {
-    align: "center",
-  });
-  y += 3;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6);
@@ -443,6 +488,9 @@ export function generatePermanentReceiptUrl(venda: VendaDetalhada): string {
   const payload = {
     i: venda.id,
     e: venda.empresaId,
+    te: venda.tipo_entrega,
+    pd: venda.plataforma_delivery,
+    ee: venda.endereco_entrega,
     // Snapshot dos textos do cupom: o link abre corretamente em qualquer aparelho
     r: resolveReceiptTexts(venda),
     d: venda.data_venda,
@@ -495,6 +543,9 @@ export function parsePermanentReceiptFromUrl(): VendaDetalhada | null {
       valor_total: Number(p.v) || 0,
       status: "concluida",
       pix_txid: p.x || undefined,
+      tipo_entrega: p.te || undefined,
+      plataforma_delivery: p.pd || undefined,
+      endereco_entrega: p.ee || undefined,
       cupom_textos: p.r && typeof p.r === "object" ? p.r : undefined,
       itens: Array.isArray(p.it)
         ? p.it.map((item: [string, string, number, number, number], idx: number) => ({

@@ -169,6 +169,10 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
+                  <strong className="text-foreground">Entrega Na Estação / Delivery & Roteamento Dinâmico (v3.6.6):</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
+                    Seletor no PDV entre "NA ESTAÇÃO" (retirada presencial) e "DELIVERY" (entrega em domicílio), suporte a plataformas cadastradas (iFood, AiQFome, WhatsApp), rota ferroviária no bilhete (Linha Matriz x Cidade PDV), seletor de modelo de cupom (Temático Estrada Real vs Comercial Padrão) e conformidade LGPD com venda anônima opcional.
+                  </p>
                   <strong className="text-foreground">Sincronização de Produtos com a Nuvem (v3.6.5):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
                     Produtos cadastrados no aplicativo agora são sincronizados automaticamente com a tabela "produtos" no Supabase ao abrir o app.

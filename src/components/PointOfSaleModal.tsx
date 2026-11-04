@@ -35,6 +35,9 @@ import {
   Printer,
   Train,
   Award,
+  Truck,
+  MapPin,
+  Store,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
@@ -58,6 +61,7 @@ import {
   downloadReceiptTxt,
   downloadReceiptCsv,
 } from "@/lib/receiptExporter";
+import { resolveReceiptTexts } from "@/lib/receiptFormatter";
 import {
   createStonePixCharge,
   subscribeToPixSettlement,
@@ -103,11 +107,32 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   // Cart Quantities: produto_id -> quantity
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-  // Customer details & CRM
+  // Customer details & CRM & LGPD
+  const [identificarCliente, setIdentificarCliente] = useState<boolean>(true);
   const [clienteNome, setClienteNome] = useState<string>("");
   const [clienteTelefone, setClienteTelefone] = useState<string>("");
   const [selectedCustomer, setSelectedCustomer] = useState<ClienteRecorrente | null>(null);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+
+  // Delivery Mode & Address (Requisitos Na Estação vs Delivery)
+  const [tipoEntrega, setTipoEntrega] = useState<"NA_ESTACAO" | "DELIVERY">("NA_ESTACAO");
+  const [plataformaDelivery, setPlataformaDelivery] = useState<string>("Delivery Próprio");
+  const [enderecoEntrega, setEnderecoEntrega] = useState<string>("");
+
+  // Plataformas de delivery aceitas pela empresa
+  const plataformasDisponiveis = useMemo(() => {
+    if (activeCompany?.plataformasDelivery && activeCompany.plataformasDelivery.length > 0) {
+      return activeCompany.plataformasDelivery;
+    }
+    return ["Delivery Próprio", "iFood", "AiQFome", "WhatsApp Delivery"];
+  }, [activeCompany?.plataformasDelivery]);
+
+  // Rota do Bilhete (Linha Matriz x Cidade PDV)
+  const rotaLinha = useMemo(() => {
+    const matriz = activeCompany?.cupomConfig?.linhaOrigemMatriz?.trim() || "Conselheiro Lafaiete - MG";
+    const cidadeAtual = activeCompany?.cidade?.trim() || "Jaú - SP";
+    return `${matriz} x ${cidadeAtual}`;
+  }, [activeCompany]);
 
   // Sales Channel (Origem da Venda)
   const [canalVenda, setCanalVenda] = useState<CanalVenda>("Balcao");
@@ -257,10 +282,15 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
         setPaymentStatus("paid");
         setSuccessAnimation(true);
         await onSubmitSale({
+          empresaId: activeEmpresaId,
           forma_pagamento: "Pix",
-          cliente_nome: clienteNome.trim() || undefined,
-          cliente_telefone: clienteTelefone.trim() || undefined,
+          cliente_nome: identificarCliente && clienteNome.trim() ? clienteNome.trim() : undefined,
+          cliente_telefone: identificarCliente && clienteTelefone.trim() ? clienteTelefone.trim() : undefined,
           canal_venda: canalVenda,
+          tipo_entrega: tipoEntrega,
+          plataforma_delivery: tipoEntrega === "DELIVERY" ? plataformaDelivery : undefined,
+          endereco_entrega: tipoEntrega === "DELIVERY" ? enderecoEntrega.trim() || undefined : undefined,
+          linha_rota: rotaLinha,
           status: "concluida",
           pix_txid: stonePixData.txid,
           pix_copia_cola: stonePixData.copia_e_cola,
@@ -275,6 +305,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
           setQuantities({});
           setClienteNome("");
           setClienteTelefone("");
+          setEnderecoEntrega("");
+          setTipoEntrega("NA_ESTACAO");
           setSelectedCustomer(null);
           setCanalVenda("Balcao");
           setStep("cart");
@@ -357,13 +389,22 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   };
 
   const buildCurrentTempSale = (): VendaDetalhada => {
-    return {
+    const proximaParada =
+      tipoEntrega === "DELIVERY"
+        ? enderecoEntrega.trim() || "Entrega em Domicílio"
+        : "Retirada na Estação";
+
+    const temp: VendaDetalhada = {
       id: `PED-${Date.now().toString().slice(-6)}`,
       empresaId: activeEmpresaId,
       data_venda: new Date().toISOString(),
-      cliente_nome: clienteNome.trim() || undefined,
-      cliente_telefone: clienteTelefone.trim() || undefined,
+      cliente_nome: identificarCliente && clienteNome.trim() ? clienteNome.trim() : undefined,
+      cliente_telefone: identificarCliente && clienteTelefone.trim() ? clienteTelefone.trim() : undefined,
       canal_venda: canalVenda,
+      tipo_entrega: tipoEntrega,
+      plataforma_delivery: tipoEntrega === "DELIVERY" ? plataformaDelivery : undefined,
+      endereco_entrega: tipoEntrega === "DELIVERY" ? enderecoEntrega.trim() || undefined : undefined,
+      linha_rota: rotaLinha,
       forma_pagamento: paymentMethod,
       valor_total: totalVenda,
       status: "concluida",
@@ -379,6 +420,21 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
         custo_unitario: i.custo_estimado || 0,
       })),
     };
+
+    temp.cupom_textos = resolveReceiptTexts(temp, {
+      tipoCupom: activeCompany?.cupomConfig?.tipoCupom || "tematico_embarque",
+      linha: rotaLinha,
+      origem: activeCompany?.cidade?.trim() || "Jaú - SP",
+      paradaNome: activeCompany?.nome || "Estação da Rô",
+      proximaParada,
+      destino: activeCompany?.cupomConfig?.destino?.trim() || "Cremosidade sem escalas e felicidade imediata!",
+      tipoEntrega,
+      plataformaDelivery: tipoEntrega === "DELIVERY" ? plataformaDelivery : undefined,
+      enderecoEntrega: tipoEntrega === "DELIVERY" ? enderecoEntrega.trim() || undefined : undefined,
+      empresaNome: activeCompany?.nome,
+    });
+
+    return temp;
   };
 
   // Simulação imediata do Webhook Stone OpenBank para testes
@@ -408,9 +464,13 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       await onSubmitSale({
         empresaId: activeEmpresaId,
         forma_pagamento: "Pix",
-        cliente_nome: clienteNome.trim() || undefined,
-        cliente_telefone: clienteTelefone.trim() || undefined,
+        cliente_nome: identificarCliente && clienteNome.trim() ? clienteNome.trim() : undefined,
+        cliente_telefone: identificarCliente && clienteTelefone.trim() ? clienteTelefone.trim() : undefined,
         canal_venda: canalVenda,
+        tipo_entrega: tipoEntrega,
+        plataforma_delivery: tipoEntrega === "DELIVERY" ? plataformaDelivery : undefined,
+        endereco_entrega: tipoEntrega === "DELIVERY" ? enderecoEntrega.trim() || undefined : undefined,
+        linha_rota: rotaLinha,
         status: "concluida",
         pix_txid: stonePixData.txid,
         pix_copia_cola: stonePixData.copia_e_cola,
@@ -425,6 +485,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
         setQuantities({});
         setClienteNome("");
         setClienteTelefone("");
+        setEnderecoEntrega("");
+        setTipoEntrega("NA_ESTACAO");
         setSelectedCustomer(null);
         setCanalVenda("Balcao");
         setStep("cart");
@@ -460,9 +522,13 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       await onSubmitSale({
         empresaId: activeEmpresaId,
         forma_pagamento: paymentMethod,
-        cliente_nome: clienteNome.trim() || undefined,
-        cliente_telefone: clienteTelefone.trim() || undefined,
+        cliente_nome: identificarCliente && clienteNome.trim() ? clienteNome.trim() : undefined,
+        cliente_telefone: identificarCliente && clienteTelefone.trim() ? clienteTelefone.trim() : undefined,
         canal_venda: canalVenda,
+        tipo_entrega: tipoEntrega,
+        plataforma_delivery: tipoEntrega === "DELIVERY" ? plataformaDelivery : undefined,
+        endereco_entrega: tipoEntrega === "DELIVERY" ? enderecoEntrega.trim() || undefined : undefined,
+        linha_rota: rotaLinha,
         status: "concluida",
         pix_txid: paymentMethod === "Pix" ? activeTxId : undefined,
         pix_copia_cola: paymentMethod === "Pix" ? activePixPayload : undefined,
@@ -476,6 +542,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
       setQuantities({});
       setClienteNome("");
       setClienteTelefone("");
+      setEnderecoEntrega("");
+      setTipoEntrega("NA_ESTACAO");
       setSelectedCustomer(null);
       setCanalVenda("Balcao");
       setStep("cart");
@@ -671,6 +739,103 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
           {step === "cart" ? (
             <div className="space-y-4">
+              {/* Modalidade de Entrega: Na Estação vs Delivery */}
+              <div className="rounded-xl border border-border/80 bg-background/60 p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Store className="h-3.5 w-3.5 text-primary" />
+                    Forma de Entrega / Retirada:
+                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground">
+                    Define a Próxima Parada no Bilhete
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTipoEntrega("NA_ESTACAO");
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 px-3 text-center transition-all ${
+                      tipoEntrega === "NA_ESTACAO"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-xs ring-1 ring-primary/40"
+                        : "border-border/70 bg-card/60 text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                    }`}
+                  >
+                    <Train className="h-4 w-4 shrink-0" />
+                    <div className="text-left">
+                      <p className="text-xs font-bold leading-tight">🚉 NA ESTAÇÃO</p>
+                      <p className="text-[10px] opacity-75 font-normal">Retirada Presencial</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTipoEntrega("DELIVERY");
+                      if (canalVenda === "Balcao") setCanalVenda("iFood");
+                    }}
+                    className={`flex items-center justify-center gap-2 rounded-lg border py-2.5 px-3 text-center transition-all ${
+                      tipoEntrega === "DELIVERY"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-xs ring-1 ring-primary/40"
+                        : "border-border/70 bg-card/60 text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                    }`}
+                  >
+                    <Truck className="h-4 w-4 shrink-0" />
+                    <div className="text-left">
+                      <p className="text-xs font-bold leading-tight">🛵 DELIVERY</p>
+                      <p className="text-[10px] opacity-75 font-normal">Entrega em Domicílio</p>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Se for Delivery: Escolha da Plataforma e Endereço */}
+                {tipoEntrega === "DELIVERY" && (
+                  <div className="pt-2 border-t border-border/50 space-y-2.5 animate-in fade-in duration-150">
+                    <div>
+                      <label className="block text-[11px] font-medium text-muted-foreground mb-1">
+                        Plataforma / Logística de Entrega:
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {plataformasDisponiveis.map((plat) => (
+                          <button
+                            key={plat}
+                            type="button"
+                            onClick={() => {
+                              setPlataformaDelivery(plat);
+                              if (plat.toLowerCase().includes("ifood")) setCanalVenda("iFood");
+                              else if (plat.toLowerCase().includes("whats")) setCanalVenda("WhatsApp");
+                            }}
+                            className={`rounded-lg border px-2.5 py-1 text-xs transition-all ${
+                              plataformaDelivery === plat
+                                ? "border-primary bg-primary/15 text-primary font-bold ring-1 ring-primary/40"
+                                : "border-border/60 bg-card/50 text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                            }`}
+                          >
+                            {plat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-foreground mb-1 flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-primary" />
+                        Endereço de Entrega (Próxima Parada no bilhete):
+                      </label>
+                      <input
+                        type="text"
+                        value={enderecoEntrega}
+                        onChange={(e) => setEnderecoEntrega(e.target.value)}
+                        placeholder="Ex: Rua Floriano Peixoto, 120 - Apto 32, Bairro Bela Vista"
+                        className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Channel / Origem da Venda */}
               <div className="rounded-xl border border-border/80 bg-background/60 p-3">
                 <div className="flex items-center justify-between mb-2">
@@ -709,76 +874,99 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                 </div>
               </div>
 
-              {/* Customer Contact Strip & Automatic CRM Link */}
+              {/* Customer Contact Strip & Automatic CRM Link & LGPD Option */}
               <div className="rounded-xl border border-border/80 bg-background/60 p-3.5 space-y-2 relative">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={identificarCliente}
+                      onChange={(e) => setIdentificarCliente(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                    />
                     <User className="h-3.5 w-3.5 text-primary" />
-                    Identificação do Cliente (CRM por WhatsApp):
+                    <span>Identificar Passageiro / Cliente (Fidelidade & CRM)</span>
+                  </label>
+                  <span className="text-[10px] font-medium text-muted-foreground bg-secondary/50 rounded-full px-2 py-0.5">
+                    LGPD: Opcional
                   </span>
-                  {selectedCustomer && (
-                    selectedCustomer.totalPedidos > 0 ? (
-                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
-                        ⭐ Cliente Cadastrado ({selectedCustomer.totalPedidos} {selectedCustomer.totalPedidos === 1 ? "compra" : "compras"})
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5">
-                        ✨ Novo Cliente
-                      </span>
-                    )
-                  )}
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-[11px] font-medium text-muted-foreground mb-1">
-                      WhatsApp com DDD (Chave única do cliente):
-                    </label>
-                    <input
-                      type="tel"
-                      value={clienteTelefone}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setClienteTelefone(val);
-                        setShowSuggestions(true);
-                        // Se digitou número completo, busca e vincula cliente mantendo histórico zerado se de outro tenant
-                        const clean = val.replace(/\D/g, "");
-                        if (clean.length >= 10) {
-                          const match = buscarCliente(clean, activeEmpresaId);
-                          if (match) {
-                            setSelectedCustomer(match);
-                            if (match.nome && !clienteNome) {
-                              setClienteNome(match.nome);
+                {!identificarCliente ? (
+                  <div className="p-2.5 rounded-lg bg-secondary/40 border border-border/50 text-[11px] text-muted-foreground">
+                    🛡️ <span className="font-semibold text-foreground">Venda rápida anônima ativada:</span> Nenhum dado pessoal do cliente será gravado no sistema ou no banco de dados, em conformidade com a LGPD.
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-end">
+                      {selectedCustomer && (
+                        selectedCustomer.totalPedidos > 0 ? (
+                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+                            ⭐ Cliente Cadastrado ({selectedCustomer.totalPedidos} {selectedCustomer.totalPedidos === 1 ? "compra" : "compras"})
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5">
+                            ✨ Novo Cliente
+                          </span>
+                        )
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="block text-[11px] font-medium text-muted-foreground mb-1">
+                          WhatsApp com DDD (Chave única do cliente):
+                        </label>
+                        <input
+                          type="tel"
+                          value={clienteTelefone}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setClienteTelefone(val);
+                            setShowSuggestions(true);
+                            // Se digitou número completo, busca e vincula cliente mantendo histórico zerado se de outro tenant
+                            const clean = val.replace(/\D/g, "");
+                            if (clean.length >= 10) {
+                              const match = buscarCliente(clean, activeEmpresaId);
+                              if (match) {
+                                setSelectedCustomer(match);
+                                if (match.nome && !clienteNome) {
+                                  setClienteNome(match.nome);
+                                }
+                                if (match.endereco && !enderecoEntrega) {
+                                  setEnderecoEntrega(match.endereco);
+                                }
+                              }
                             }
-                          }
-                        }
-                      }}
-                      onFocus={() => setShowSuggestions(true)}
-                      placeholder="Ex: 14988183327"
-                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
-                    />
-                  </div>
+                          }}
+                          onFocus={() => setShowSuggestions(true)}
+                          placeholder="Ex: 14988183327"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-[11px] font-medium text-muted-foreground mb-1">
-                      Nome do Cliente:
-                    </label>
-                    <input
-                      type="text"
-                      value={clienteNome}
-                      onChange={(e) => {
-                        setClienteNome(e.target.value);
-                        setShowSuggestions(true);
-                      }}
-                      onFocus={() => setShowSuggestions(true)}
-                      placeholder="Ex: Mariana Silva"
-                      className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                </div>
+                      <div>
+                        <label className="block text-[11px] font-medium text-muted-foreground mb-1">
+                          Nome do Cliente / Passageiro:
+                        </label>
+                        <input
+                          type="text"
+                          value={clienteNome}
+                          onChange={(e) => {
+                            setClienteNome(e.target.value);
+                            setShowSuggestions(true);
+                          }}
+                          onFocus={() => setShowSuggestions(true)}
+                          placeholder="Ex: Mariana Silva"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Auto-suggest dropdown when searching or typing */}
-                {showSuggestions && matchingCustomers.length > 0 && (
+                {identificarCliente && showSuggestions && matchingCustomers.length > 0 && (
                   <div className="absolute left-3 right-3 top-full z-20 mt-1 rounded-xl border border-border bg-card p-2 shadow-xl">
                     <div className="flex items-center justify-between px-2 py-1 text-[11px] font-bold text-muted-foreground border-b border-border/50">
                       <span>Clientes Sugeridos ({matchingCustomers.length})</span>
@@ -798,6 +986,9 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                           onClick={() => {
                             setClienteTelefone(cust.telefoneFormatado || cust.telefone);
                             setClienteNome(cust.nome);
+                            if (cust.endereco && !enderecoEntrega) {
+                              setEnderecoEntrega(cust.endereco);
+                            }
                             setSelectedCustomer(cust);
                             setShowSuggestions(false);
                           }}
@@ -808,6 +999,11 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                             <p className="text-[11px] text-muted-foreground font-mono">
                               {cust.telefoneFormatado || cust.telefone}
                             </p>
+                            {cust.endereco && (
+                              <p className="text-[10px] text-muted-foreground truncate max-w-xs">
+                                📍 {cust.endereco}
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
                             {cust.totalPedidos > 0 ? (

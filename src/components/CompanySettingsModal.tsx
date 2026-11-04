@@ -38,6 +38,7 @@ import {
   wipeCompanyData,
 } from "@/services/dataService";
 import { getActiveCompany, updateCompany } from "@/services/companyService";
+import { TipoCupom } from "@/types/multiTenant";
 import { updateCurrentUserEmpresa } from "@/services/authService";
 import { ClientPlanManagementCard } from "@/components/billing/ClientPlanManagementCard";
 
@@ -127,7 +128,10 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     whatsappNumber: currentActiveComp?.whatsapp || currentConfig.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
     permitirEstoqueNegativo: currentActiveComp?.permitirEstoqueNegativo ?? false,
 
-    // Cupom / Bilhete de Embarque
+    // Cupom / Bilhete de Embarque & Delivery
+    tipoCupom: (currentActiveComp?.cupomConfig?.tipoCupom || "tematico_embarque") as TipoCupom,
+    linhaOrigemMatriz: currentActiveComp?.cupomConfig?.linhaOrigemMatriz || "Conselheiro Lafaiete - MG",
+    plataformasDelivery: (currentActiveComp?.plataformasDelivery || ["Delivery Próprio", "iFood", "AiQFome", "WhatsApp Delivery"]).join(", "),
     cupomOrigem: currentActiveComp?.cupomConfig?.origem || "",
     cupomParada: currentActiveComp?.cupomConfig?.paradaNome || "",
     cupomProximaParada: currentActiveComp?.cupomConfig?.proximaParada || "",
@@ -184,6 +188,9 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         tagline: activeComp?.nicho || live.tagline || BRAND_CONFIG.tagline,
         whatsappNumber: activeComp?.whatsapp || live.tonConfig?.whatsappNumber || BRAND_CONFIG.tonConfig.whatsappNumber,
         permitirEstoqueNegativo: activeComp?.permitirEstoqueNegativo ?? false,
+        tipoCupom: (activeComp?.cupomConfig?.tipoCupom || "tematico_embarque") as TipoCupom,
+        linhaOrigemMatriz: activeComp?.cupomConfig?.linhaOrigemMatriz || "Conselheiro Lafaiete - MG",
+        plataformasDelivery: (activeComp?.plataformasDelivery || ["Delivery Próprio", "iFood", "AiQFome", "WhatsApp Delivery"]).join(", "),
         cupomOrigem: activeComp?.cupomConfig?.origem || "",
         cupomParada: activeComp?.cupomConfig?.paradaNome || "",
         cupomProximaParada: activeComp?.cupomConfig?.proximaParada || "",
@@ -282,7 +289,13 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         permitirEstoqueNegativo: formData.permitirEstoqueNegativo,
         geminiApiKey: formData.geminiApiKey.trim(),
         geminiModel: formData.geminiModel.trim(),
+        plataformasDelivery: formData.plataformasDelivery
+          .split(",")
+          .map((p) => p.trim())
+          .filter(Boolean),
         cupomConfig: {
+          tipoCupom: formData.tipoCupom || "tematico_embarque",
+          linhaOrigemMatriz: formData.linhaOrigemMatriz.trim() || "Conselheiro Lafaiete - MG",
           origem: formData.cupomOrigem.trim(),
           paradaNome: formData.cupomParada.trim(),
           proximaParada: formData.cupomProximaParada.trim(),
@@ -389,6 +402,9 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
         tagline: BRAND_CONFIG.tagline,
         whatsappNumber: BRAND_CONFIG.tonConfig.whatsappNumber,
         permitirEstoqueNegativo: false,
+        tipoCupom: "tematico_embarque",
+        linhaOrigemMatriz: "Conselheiro Lafaiete - MG",
+        plataformasDelivery: "Delivery Próprio, iFood, AiQFome, WhatsApp Delivery",
         cupomOrigem: "",
         cupomParada: "",
         cupomProximaParada: "",
@@ -1178,65 +1194,118 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Cupom / Bilhete de Embarque */}
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3.5 space-y-3">
+              {/* Modelo de Cupom & Bilhete de Embarque */}
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3.5 space-y-4">
                 <div>
-                  <h4 className="text-xs font-extrabold text-foreground">
-                    🎫 Cupom / Bilhete de Embarque
+                  <h4 className="text-xs font-extrabold text-foreground flex items-center gap-1.5">
+                    <span>🎫 Modelo de Cupom & Comprovante</span>
                   </h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
-                    Textos impressos no cupom (PDF 80mm, WhatsApp e link). Campos em branco usam os dados da empresa (cidade cadastrada).
+                    Escolha se esta empresa utiliza o modelo temático da ferrovia (Bilhete de Embarque) ou o comprovante não-fiscal universal.
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  <div>
-                    <label className="text-xs font-bold text-foreground block mb-1">
-                      Origem:
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.cupomOrigem}
-                      onChange={(e) => setFormData({ ...formData, cupomOrigem: e.target.value })}
-                      placeholder={getActiveCompany()?.cidade || "Conselheiro Lafaiete - MG"}
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                    />
+
+                {/* Seletor do Modelo de Cupom */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, tipoCupom: "tematico_embarque" })}
+                    className={`flex flex-col text-left p-3 rounded-xl border transition-all ${
+                      formData.tipoCupom === "tematico_embarque"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-xs ring-1 ring-primary/40"
+                        : "border-border/70 bg-card/60 text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold flex items-center gap-1.5 text-foreground">
+                      🚂 Bilhete de Embarque Temático
+                    </span>
+                    <span className="text-[10px] mt-1 text-muted-foreground font-normal leading-relaxed">
+                      Rota ferroviária Estrada Real (Linha, Parada, Próxima Parada) e Passaporte com 10 carimbos de fidelidade.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, tipoCupom: "padrao_comercial" })}
+                    className={`flex flex-col text-left p-3 rounded-xl border transition-all ${
+                      formData.tipoCupom === "padrao_comercial"
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-xs ring-1 ring-primary/40"
+                        : "border-border/70 bg-card/60 text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                    }`}
+                  >
+                    <span className="text-xs font-extrabold flex items-center gap-1.5 text-foreground">
+                      🧾 Comprovante Comercial Padrão
+                    </span>
+                    <span className="text-[10px] mt-1 text-muted-foreground font-normal leading-relaxed">
+                      Cupom não-fiscal limpo e universal para filiais e outras empresas. Identificação de pedido, itens e forma de entrega.
+                    </span>
+                  </button>
+                </div>
+
+                {/* Campos do Modelo Temático de Embarque */}
+                {formData.tipoCupom === "tematico_embarque" && (
+                  <div className="pt-2 border-t border-amber-500/20 space-y-3 animate-in fade-in">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div>
+                        <label className="text-xs font-bold text-foreground block mb-1">
+                          Linha Origem Matriz (Rota Ferroviária):
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.linhaOrigemMatriz}
+                          onChange={(e) => setFormData({ ...formData, linhaOrigemMatriz: e.target.value })}
+                          placeholder="Conselheiro Lafaiete - MG"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                        />
+                        <span className="text-[10px] text-muted-foreground mt-0.5 block">
+                          Rota no cupom: <strong className="text-foreground">{formData.linhaOrigemMatriz || "Conselheiro Lafaiete - MG"} x {formData.merchantCity || "Jaú - SP"}</strong>
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-foreground block mb-1">
+                          Nome da Parada (Estação da Unidade):
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.cupomParada}
+                          onChange={(e) => setFormData({ ...formData, cupomParada: e.target.value })}
+                          placeholder="Estação da Rô"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-bold text-foreground block mb-1">
+                          Mensagem de Destino:
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.cupomDestino}
+                          onChange={(e) => setFormData({ ...formData, cupomDestino: e.target.value })}
+                          placeholder="Cremosidade sem escalas e felicidade imediata!"
+                          className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-foreground block mb-1">
-                      Parada (nome; a cidade cadastrada é acrescentada):
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.cupomParada}
-                      onChange={(e) => setFormData({ ...formData, cupomParada: e.target.value })}
-                      placeholder="Estação da Rô"
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-foreground block mb-1">
-                      Próxima Parada:
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.cupomProximaParada}
-                      onChange={(e) => setFormData({ ...formData, cupomProximaParada: e.target.value })}
-                      placeholder="Casa do Cliente (ou a cidade atual)"
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-foreground block mb-1">
-                      Destino:
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.cupomDestino}
-                      onChange={(e) => setFormData({ ...formData, cupomDestino: e.target.value })}
-                      placeholder="Cremosidade sem escalas e felicidade imediata!"
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                    />
-                  </div>
+                )}
+
+                {/* Configuração de Plataformas Delivery Cadastradas */}
+                <div className="pt-3 border-t border-amber-500/20 space-y-1.5">
+                  <label className="text-xs font-bold text-foreground block">
+                    🛵 Formas e Plataformas de Entrega Delivery:
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.plataformasDelivery}
+                    onChange={(e) => setFormData({ ...formData, plataformasDelivery: e.target.value })}
+                    placeholder="Delivery Próprio, iFood, AiQFome, WhatsApp Delivery"
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Separe por vírgulas as plataformas utilizadas pela empresa. Elas serão exibidas no PDV para seleção rápida quando a venda for no modo DELIVERY.
+                  </p>
                 </div>
               </div>
             </div>

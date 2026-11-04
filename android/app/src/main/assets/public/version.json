@@ -1,10 +1,12 @@
 {
-  "version": "3.6.5",
-  "build": 2026110405,
-  "releaseDate": "2026-11-04T06:10:00.000Z",
+  "version": "3.6.6",
+  "build": 2026110406,
+  "releaseDate": "2026-11-04T07:40:00.000Z",
   "features": [
-    "Sincronizacao automatica de produtos cadastrados no app com o Supabase (syncPendingLocalProductsToSupabase)",
-    "Correcao de ID e permissoes RLS para novos produtos e lotes de estoque na nuvem",
-    "Script SQL 20261104_produtos_sync_and_permissions.sql para liberar acesso na tabela produtos"
+    "Seletor NA ESTACAO vs DELIVERY no PDV com cadastro de plataformas (iFood, AiQFome, WhatsApp)",
+    "Roteamento ferroviario dinamico no Bilhete de Embarque (Linha Matriz x Cidade PDV, Origem, Parada, Proxima Parada)",
+    "Seletor de Modelo de Cupom nas Configuracoes: Tematico Estrada Real vs Comercial Padrao",
+    "Opcao de Venda Rapida Anonima em conformidade com a LGPD e persistencia de endereco no CRM",
+    "Script SQL de migracao 20261104_pos_delivery_and_receipt_styles.sql para o Supabase"
   ]
 }

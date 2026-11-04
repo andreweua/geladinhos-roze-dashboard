@@ -91,6 +91,10 @@ export interface Venda {
   data_venda: string;
   forma_pagamento: PaymentMethod;
   canal_venda?: CanalVenda;
+  tipo_entrega?: "NA_ESTACAO" | "DELIVERY"; // Modalidade de atendimento
+  plataforma_delivery?: string; // Ex: "Delivery Próprio", "iFood", "AiQFome", "WhatsApp"
+  endereco_entrega?: string; // Endereço completo ou bairro informado pelo cliente
+  linha_rota?: string; // Ex: "Conselheiro Lafaiete - MG x Conselheiro Lafaiete - MG"
   valor_total: number;
   status: SaleStatus;
   pix_txid?: string;
@@ -101,12 +105,17 @@ export interface Venda {
   estornou_estoque?: boolean;
   selos_fidelidade?: number; // Selos acumulados no Passaporte da Estrada Real (0 a 10)
   cupom_textos?: {
+    tipoCupom?: "tematico_embarque" | "padrao_comercial";
     companyName: string;
     companyTagline: string;
+    linha?: string;
     origem: string;
     parada: string;
     proximaParada: string;
     destino: string;
+    tipoEntrega?: string;
+    plataformaDelivery?: string;
+    enderecoEntrega?: string;
   }; // Snapshot dos textos do cupom (links permanentes)
   recompensas_fidelidade?: number; // Viagens doces gratuitas disponíveis
 }

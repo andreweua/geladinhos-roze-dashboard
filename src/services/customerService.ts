@@ -6,6 +6,7 @@ export interface ClienteRecorrente {
   telefone: string; // Chave primária única da empresa (somente dígitos)
   telefoneFormatado: string;
   nome: string;
+  endereco?: string; // Endereço de entrega cadastrado
   totalPedidos: number;
   totalGasto: number;
   ticketMedio: number;
@@ -290,6 +291,7 @@ export function saveOrUpdateCustomer(params: {
   empresaId: string;
   nome?: string;
   telefone?: string;
+  endereco?: string;
   valorCompra: number;
   itens?: Array<{ produto_nome: string; quantidade: number }>;
   resgatarViagemGratis?: boolean;
@@ -360,6 +362,7 @@ export function saveOrUpdateCustomer(params: {
       ...existing,
       empresaId,
       nome: rawName || existing.nome,
+      endereco: params.endereco?.trim() || existing.endereco,
       totalPedidos: newTotalPedidos,
       totalGasto: newTotalGasto,
       ticketMedio: Number((newTotalGasto / newTotalPedidos).toFixed(2)),
@@ -390,6 +393,7 @@ export function saveOrUpdateCustomer(params: {
       telefone: customerId,
       telefoneFormatado: cleanPhone.length >= 8 ? formatPhoneBr(cleanPhone) : rawName,
       nome: rawName || `Cliente ${cleanPhone.slice(-4)}`,
+      endereco: params.endereco?.trim() || undefined,
       totalPedidos: 1,
       totalGasto: Number(params.valorCompra.toFixed(2)),
       ticketMedio: Number(params.valorCompra.toFixed(2)),

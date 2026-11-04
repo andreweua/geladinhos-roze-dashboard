@@ -7,6 +7,30 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.6.6] - 2026-11-04
+
+### Adicionado & Aprimorado
+- **Modalidade de Entrega no PDV ("NA ESTAÇÃO" vs "DELIVERY")**:
+  - Seleção visual rápida no ponto de venda para definir se o pedido é para consumo/retirada local ("NA ESTAÇÃO") ou entrega em domicílio ("DELIVERY").
+  - Quando "DELIVERY" é selecionado, exibe seletor de logística (Delivery Próprio, iFood, AiQFome, WhatsApp Delivery) e campo de "Endereço de Entrega".
+- **Roteamento Ferroviário Dinâmico no Bilhete de Embarque**:
+  - **Linha**: `[Linha Origem Matriz] x [Cidade PDV]` (ex: `Conselheiro Lafaiete - MG x Jaú - SP`).
+  - **Origem**: Cidade cadastrada da unidade/PDV.
+  - **Parada**: Nome da estação/unidade (ex: `Estação da Rô`).
+  - **Próxima Parada**: Endereço do cliente preenchido no PDV (se Delivery) ou "Retirada na Estação" (se Na Estação).
+- **Seletor de Modelo de Cupom nas Configurações da Empresa**:
+  - Opção entre **Bilhete de Embarque Temático** (estilo ferrovia Estrada Real com 10 carimbos de passaporte) e **Comprovante Comercial Padrão** (recibo não-fiscal limpo universal para qualquer ramo/filial).
+- **Cadastro de Plataformas Delivery nas Configurações**:
+  - A empresa pode customizar sua lista de canais de entrega ("Delivery Próprio, iFood, AiQFome, WhatsApp Delivery").
+- **Conformidade com a LGPD & CRM de Endereço**:
+  - Opção de venda anônima / rápida no PDV: o operador pode desmarcar a identificação para respeitar a decisão do cliente de não fornecer dados pessoais.
+  - Quando identificado, o endereço de entrega é salvo e vinculado ao cliente para preenchimento automático nas próximas compras.
+- **Script SQL de Migração Supabase**:
+  - `supabase/migrations/20261104_pos_delivery_and_receipt_styles.sql` adicionando `tipo_entrega`, `plataforma_delivery`, `endereco_entrega`, `linha_rota` na tabela `vendas`, e `plataformas_delivery` e `cupom_config` na tabela `empresas`.
+- Versão `v3.6.6` (Build `2026110406`, Android `versionCode 60`).
+
+---
+
 ## [3.6.5] - 2026-11-04
 
 ### Corrigido & Aprimorado

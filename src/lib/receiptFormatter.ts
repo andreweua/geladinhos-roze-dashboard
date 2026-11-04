@@ -5,6 +5,7 @@ import { getPassaporteGrid } from "@/services/customerService";
 import { getLocalCompanies, getActiveCompany } from "@/services/companyService";
 
 export interface FiscalReceiptOptions {
+  tipoCupom?: "tematico_embarque" | "padrao_comercial";
   empresaNome?: string;
   empresaSubtitulo?: string;
   empresaCnpj?: string;
@@ -13,10 +14,14 @@ export interface FiscalReceiptOptions {
   pixKey?: string;
   instagram?: string;
   receiptUrl?: string;
+  linha?: string;
   origem?: string;
   paradaNome?: string;
   proximaParada?: string;
   destino?: string;
+  tipoEntrega?: "NA_ESTACAO" | "DELIVERY";
+  plataformaDelivery?: string;
+  enderecoEntrega?: string;
   selosAtuais?: number;
   viagemGratisDisponivel?: boolean;
 }
@@ -45,33 +50,49 @@ export function getReceiptPaymentLabel(method: string): string {
 }
 
 export interface ResolvedReceiptTexts {
+  tipoCupom: "tematico_embarque" | "padrao_comercial";
   companyName: string;
   companyTagline: string;
+  linha: string;
   origem: string;
   parada: string;
   proximaParada: string;
   destino: string;
+  tipoEntregaLabel: string;
 }
 
 /**
- * Resolve os textos temáticos do cupom a partir das configurações da empresa
- * (Configurações > Dados da Empresa > Cupom / Bilhete de Embarque).
- * Opções passadas explicitamente têm prioridade.
+ * Resolve os textos temáticos ou comerciais do cupom a partir das configurações da empresa
+ * e dos dados preenchidos no PDV (Entrega na Estação / Delivery e Endereço).
  */
 export function resolveReceiptTexts(
-  venda: Pick<VendaDetalhada, "empresaId"> & Partial<Pick<VendaDetalhada, "cupom_textos">>,
+  venda: Pick<VendaDetalhada, "empresaId"> &
+    Partial<
+      Pick<
+        VendaDetalhada,
+        | "cupom_textos"
+        | "tipo_entrega"
+        | "plataforma_delivery"
+        | "endereco_entrega"
+        | "linha_rota"
+      >
+    >,
   options: FiscalReceiptOptions = {}
 ): ResolvedReceiptTexts {
   // Link permanente: usa o snapshot gravado no momento da venda (funciona em qualquer aparelho)
   if (venda.cupom_textos) {
     const s = venda.cupom_textos;
+    const tipoCupom = options.tipoCupom || s.tipoCupom || "tematico_embarque";
     return {
+      tipoCupom,
       companyName: (options.empresaNome || s.companyName || "").trim(),
       companyTagline: (options.empresaSubtitulo || s.companyTagline || "").trim(),
+      linha: (options.linha || s.linha || "").trim(),
       origem: (options.origem || s.origem || "").trim(),
       parada: (options.paradaNome || s.parada || "").trim(),
       proximaParada: (options.proximaParada || s.proximaParada || "").trim() || DEFAULT_RECEIPT_NEXT_STOP,
       destino: (options.destino || s.destino || "").trim() || DEFAULT_RECEIPT_DESTINATION,
+      tipoEntregaLabel: s.tipoEntrega || "Retirada na Estação",
     };
   }
 
@@ -82,20 +103,47 @@ export function resolveReceiptTexts(
   } catch {
     // mantém empresa ativa
   }
+
   const cfg = company.cupomConfig || {};
-  const cidade = (company.cidade || "").trim();
-  const shortName = (company.nome || "").split(" - ")[0].trim();
-  const paradaBase =
-    (options.paradaNome || cfg.paradaNome || "").trim() ||
-    (company.id === "emp-estacao-da-ro" ? "Estação da Rô" : shortName);
+  const cidadePDV = (options.origem || cfg.origem || company.cidade || "Conselheiro Lafaiete - MG").trim();
+  const matrizLinha = (cfg.linhaOrigemMatriz || "Conselheiro Lafaiete - MG").trim();
+  const linha = options.linha || venda.linha_rota || `${matrizLinha} x ${cidadePDV}`;
+
+  const tipoEntrega = options.tipoEntrega || venda.tipo_entrega || "NA_ESTACAO";
+  const plataforma = options.plataformaDelivery || venda.plataforma_delivery || "Delivery Próprio";
+  const enderecoEntrega = options.enderecoEntrega || venda.endereco_entrega;
+
+  let proximaParada = "";
+  let tipoEntregaLabel = "";
+
+  if (tipoEntrega === "DELIVERY") {
+    tipoEntregaLabel = `Delivery (${plataforma})`;
+    proximaParada = enderecoEntrega?.trim() || options.proximaParada || cfg.proximaParada || "Casa do Cliente (Delivery)";
+  } else {
+    tipoEntregaLabel = "Na Estação (Retirada / Balcão)";
+    proximaParada = "Retirada na Estação";
+  }
+
+  const paradaBase = (options.paradaNome || cfg.paradaNome || company.nome || "Estação da Rô").trim();
+
+  // Se não foi explicitamente definido, Estação da Rô usa temático; outras usam padrão comercial
+  const isEstacaoDaRo =
+    company.id === "emp-estacao-da-ro" ||
+    company.nome.toLowerCase().includes("estação") ||
+    company.nome.toLowerCase().includes("estacao");
+
+  const tipoCupom = options.tipoCupom || cfg.tipoCupom || (isEstacaoDaRo ? "tematico_embarque" : "padrao_comercial");
 
   return {
+    tipoCupom,
     companyName: (options.empresaNome || company.nome || "").trim(),
     companyTagline: (options.empresaSubtitulo || company.nicho || "").trim(),
-    origem: (options.origem || cfg.origem || "").trim() || cidade,
-    parada: [paradaBase, cidade].filter(Boolean).join(", "),
-    proximaParada: (options.proximaParada || cfg.proximaParada || "").trim() || DEFAULT_RECEIPT_NEXT_STOP,
+    linha,
+    origem: cidadePDV,
+    parada: paradaBase,
+    proximaParada,
     destino: (options.destino || cfg.destino || "").trim() || DEFAULT_RECEIPT_DESTINATION,
+    tipoEntregaLabel,
   };
 }
 
@@ -170,12 +218,41 @@ export function formatFiscalReceiptText(
     paymentDetails += `\n💵 Pagamento em Espécie: *Recebido no Caixa ✅*`;
   }
 
-  const receipt = `🚂 *${companyName.toUpperCase()}*
+  const receipt = texts.tipoCupom === "padrao_comercial"
+    ? `🧾 *${companyName.toUpperCase()}*
+_${companyTagline}_
+${doubleDivider}
+*CUPOM DE VENDA (NÃO FISCAL)*
+*Pedido Nº:* ${ticketNumber}
+*Cliente:* ${customerName}
+*Atendimento:* ${texts.tipoEntregaLabel}
+${venda.tipo_entrega === "DELIVERY" && texts.proximaParada ? `*Endereço:* ${texts.proximaParada}\n` : ""}*Data:* ${dateFormatted}
+${divider}
+🛒 *ITENS DO PEDIDO:*
+${itemsText}
+${divider}
+Qtd. Total de Itens: *${totalQuantity} unidade(s)*
+*TOTAL A PAGAR:* *${formatCurrency(venda.valor_total)}*
+${divider}
+*DETALHES DO PAGAMENTO:*
+${paymentDetails}
+${options.receiptUrl ? `\n📥 *Comprovante Digital Permanente:*\n${options.receiptUrl}\n` : ""}
+${doubleDivider}
+Agradecemos a sua preferência! Volte sempre!
+📱 Contato: ${options.empresaTelefone || "(14) 98818-3327"}
+${options.instagram ? `📸 Instagram: ${options.instagram}\n` : ""}${divider}
+_Desenvolvido por:_
+*PereiraLabs*
+_Divisão de Tecnologia e IA_
+_Louzada & Pereira - Soluções Digitais_`.trim()
+    : `🚂 *${companyName.toUpperCase()}*
 _${companyTagline}_
 ${doubleDivider}
 🎫 *BILHETE DE EMBARQUE GOURMET*
 *Bilhete Nº:* ${ticketNumber}
+*Linha:* ${texts.linha}
 *Passageiro(a):* ${customerName}
+*Embarque:* ${texts.tipoEntregaLabel}
 *Origem:* ${origin}
 *Parada:* ${currentStop}
 *Próxima Parada:* ${nextStop}
