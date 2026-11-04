@@ -7,6 +7,14 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.6.4] - 2026-11-04
+
+### Adicionado
+- **Sincronização do Cupom com o Supabase**: nova coluna `empresas.cupom_config` (jsonb) com a migração `20261104_empresas_cupom_config.sql`. A configuração é enviada ao salvar e lida na sincronização; se a coluna ainda não existir, o app reenvia sem ela e mantém tudo funcionando.
+- Versão `v3.6.4` (Build `2026110404`, Android `versionCode 58`).
+
+---
+
 ## [3.6.3] - 2026-11-04
 
 ### Adicionado & Corrigido

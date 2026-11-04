@@ -195,6 +195,32 @@ export async function createCompany(
 /**
  * Atualiza dados de uma empresa existente
  */
+/**
+ * Envia a empresa ao Supabase. Se a coluna cupom_config ainda não existir no banco
+ * (migração 20261104 não executada), reenvia sem ela para não quebrar a sincronização.
+ */
+function upsertEmpresaRow(row: Record<string, unknown>): void {
+  if (!supabase) return;
+  supabase
+    .from("empresas")
+    .upsert(row)
+    .then(
+      ({ error }) => {
+        if (!error) return;
+        if ("cupom_config" in row && /cupom_config/i.test(error.message || "")) {
+          const { cupom_config: _ignored, ...legacyRow } = row;
+          console.warn("Coluna empresas.cupom_config ausente no Supabase; execute a migração 20261104.");
+          supabase!.from("empresas").upsert(legacyRow).then(() => undefined, () => undefined);
+          return;
+        }
+        console.warn("Aviso ao sincronizar empresa no Supabase:", error.message);
+      },
+      (err: unknown) => {
+        console.warn("Falha de rede ao sincronizar empresa:", err);
+      }
+    );
+}
+
 export function updateCompany(id: string, updates: Partial<Company>): Company | null {
   const list = getLocalCompanies();
   const idx = list.findIndex((c) => c.id === id);
@@ -209,9 +235,7 @@ export function updateCompany(id: string, updates: Partial<Company>): Company | 
 
   // Sincroniza atualização com Supabase se disponível
   if (checkIsSupabaseConfigured() && supabase) {
-    supabase
-      .from("empresas")
-      .upsert({
+    const empresaRow: Record<string, unknown> = {
         id: updated.id,
         nome: updated.nome,
         slug: updated.slug,
@@ -231,15 +255,10 @@ export function updateCompany(id: string, updates: Partial<Company>): Company | 
         valor_mensalidade: updated.valorMensalidade,
         observacoes: updated.observacoes || "",
         criado_em: updated.criadoEm,
-      })
-      .then(
-        ({ error }) => {
-          if (error) console.warn("Aviso ao sincronizar empresa no Supabase:", error.message);
-        },
-        (err: unknown) => {
-          console.warn("Falha de rede ao sincronizar empresa:", err);
-        }
-      );
+    };
+    // Textos do Cupom / Bilhete de Embarque (coluna jsonb cupom_config)
+    empresaRow.cupom_config = updated.cupomConfig || {};
+    upsertEmpresaRow(empresaRow);
   }
 
   return updated;
@@ -541,6 +560,10 @@ export async function syncCompaniesWithSupabase(): Promise<{
           valorMensalidade: Number(row.valor_mensalidade) || 79.9,
           criadoEm: row.criado_em || new Date().toISOString(),
           observacoes: row.observacoes || "",
+          cupomConfig:
+            row.cupom_config && typeof row.cupom_config === "object" && Object.keys(row.cupom_config).length > 0
+              ? row.cupom_config
+              : undefined,
         };
 
         const existingIdx = updatedList.findIndex((c) => c.id === remoteComp.id);
@@ -549,6 +572,8 @@ export async function syncCompaniesWithSupabase(): Promise<{
           updatedList[existingIdx] = {
             ...updatedList[existingIdx],
             ...remoteComp,
+            // Preserva a configuração local do cupom se a nuvem ainda não tiver
+            cupomConfig: remoteComp.cupomConfig ?? updatedList[existingIdx].cupomConfig,
           };
           changed = true;
         } else {

@@ -149,7 +149,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
             </div>
           </div>
 
-          {/* Active Version Highlight: v3.6.3 */}
+          {/* Active Version Highlight: v3.6.4 */}
           <div className="rounded-2xl border-2 border-primary/50 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-4 sm:p-5 shadow-md">
             <div className="flex items-center justify-between gap-2 border-b border-primary/25 pb-3">
               <div className="flex items-center gap-2">
@@ -169,6 +169,10 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
+                  <strong className="text-foreground">Cupom Sincronizado com o Supabase (v3.6.4):</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
+                    A configuração do Bilhete de Embarque passa a ser salva na nuvem (empresas.cupom_config) e fica igual em todos os aparelhos.
+                  </p>
                   <strong className="text-foreground">Cupom Configurável, PIX e Nº do Bilhete (v3.6.3):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
                     Origem, Parada, Próxima Parada e Destino do Bilhete de Embarque agora são definidos nas Configurações da Empresa; PIX em maiúsculas e número do bilhete corrigido.
