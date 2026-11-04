@@ -7,6 +7,16 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.6.5] - 2026-11-04
+
+### Corrigido & Aprimorado
+- **Auto-Sincronização de Produtos com o Supabase (`syncPendingLocalProductsToSupabase`)**: produtos criados pelo usuário no app que constavam apenas no armazenamento local do navegador agora são reconciliados e enviados automaticamente ao Supabase no carregamento do painel.
+- **Correção no `createNewProduct`**: inclusão do identificador de chave primária (`id`) e campos completos (categoria, unidade, GTIN, preço iFood) no payload de gravação do Supabase, prevenindo erro de restrição NOT NULL na chave primária da tabela de produtos.
+- **Migração SQL para Permissões RLS de Produtos**: criado `20261104_produtos_sync_and_permissions.sql` adicionando colunas necessárias e políticas de acesso anônimo para as tabelas `produtos` e `estoque_lotes`.
+- Versão `v3.6.5` (Build `2026110405`, Android `versionCode 59`).
+
+---
+
 ## [3.6.4] - 2026-11-04
 
 ### Adicionado

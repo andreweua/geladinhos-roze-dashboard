@@ -1,9 +1,10 @@
 {
-  "version": "3.6.4",
-  "build": 2026110404,
-  "releaseDate": "2026-11-04T05:55:00.000Z",
+  "version": "3.6.5",
+  "build": 2026110405,
+  "releaseDate": "2026-11-04T06:10:00.000Z",
   "features": [
-    "Configuracao do cupom sincronizada com o Supabase (coluna empresas.cupom_config)",
-    "Migracao SQL 20261104_empresas_cupom_config.sql com fallback seguro se a coluna ainda nao existir"
+    "Sincronizacao automatica de produtos cadastrados no app com o Supabase (syncPendingLocalProductsToSupabase)",
+    "Correcao de ID e permissoes RLS para novos produtos e lotes de estoque na nuvem",
+    "Script SQL 20261104_produtos_sync_and_permissions.sql para liberar acesso na tabela produtos"
   ]
 }
