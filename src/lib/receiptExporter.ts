@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { VendaDetalhada } from "@/types/dashboard";
-import { formatFiscalReceiptText, FiscalReceiptOptions } from "@/lib/receiptFormatter";
+import { formatFiscalReceiptText, FiscalReceiptOptions, resolveReceiptTexts, getTicketNumber, getReceiptPaymentLabel } from "@/lib/receiptFormatter";
 
 // Helper para acionar download no navegador / celular
 function triggerDownload(content: BlobPart, filename: string, mimeType: string) {
@@ -188,17 +188,20 @@ export function downloadReceiptPdf(
   options: FiscalReceiptOptions = {}
 ): void {
   const shortId = (venda.id.length > 8 ? venda.id.slice(-6) : venda.id).toUpperCase();
-  const companyName = options.empresaNome || "ESTAÇÃO DA RÔ - GELADINHOS GOURMET";
-  const companyTagline = options.empresaSubtitulo || "Sabores da Estrada Real - Conselheiro Lafaiete/MG";
+  const texts = resolveReceiptTexts(venda, options);
+  const ticketNumber = getTicketNumber(venda);
+  const companyName = texts.companyName;
+  const companyTagline = texts.companyTagline;
   const customerName = venda.cliente_nome ? venda.cliente_nome.trim() : "Passageiro(a) Gourmet";
   const dateFormatted = formatDateTime(venda.data_venda);
-  const paymentMethodLabel =
-    PAYMENT_METHOD_LABELS[venda.forma_pagamento] || venda.forma_pagamento;
-  const origin = options.origem || "Estação da Rô";
-  const destination = options.destino || "Cremosidade sem escalas e felicidade imediata!";
+  const paymentMethodLabel = getReceiptPaymentLabel(venda.forma_pagamento);
+  const origin = texts.origem;
+  const currentStop = texts.parada;
+  const nextStop = texts.proximaParada;
+  const destination = texts.destino;
 
   // Altura dinâmica para acomodar todos os itens e a seção do Passaporte da Estrada Real
-  const estimatedHeight = Math.max(210, 185 + venda.itens.length * 5);
+  const estimatedHeight = Math.max(210, 195 + venda.itens.length * 5);
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -236,13 +239,19 @@ export function downloadReceiptPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.text(`Passageiro(a): ${customerName}`, 6, y);
-  doc.text(`Bilhete: #${shortId}`, pageWidth - 6, y, { align: "right" });
-  y += 3.5;
-
-  doc.text(`Origem: ${origin}`, 6, y);
+  doc.text(`Bilhete: ${ticketNumber}`, pageWidth - 6, y, { align: "right" });
   y += 3.5;
 
   doc.setFontSize(6.5);
+  doc.text(`Origem: ${origin}`, 6, y);
+  y += 3.5;
+
+  doc.text(`Parada: ${currentStop}`, 6, y);
+  y += 3.5;
+
+  doc.text(`Proxima Parada: ${nextStop}`, 6, y);
+  y += 3.5;
+
   doc.text(`Destino: ${destination}`, 6, y);
   y += 3.5;
 
@@ -320,7 +329,7 @@ export function downloadReceiptPdf(
   doc.setFontSize(6.5);
 
   if (venda.forma_pagamento === "Pix") {
-    doc.text("Pix Stone OpenBank Confirmado [OK]", 6, y);
+    doc.text("PIX Stone OpenBank Confirmado [OK]", 6, y);
     y += 3;
     if (venda.pix_txid) {
       doc.text(`ID: ${venda.pix_txid}`, 6, y);
@@ -420,7 +429,7 @@ export function downloadReceiptPdf(
   doc.text("Desenvolvido por: PereiraLabs - Divisao de Tecnologia e IA", pageWidth / 2, y, { align: "center" });
 
   // Salva o PDF no dispositivo
-  doc.save(`bilhete-embarque-${shortId}.pdf`);
+  doc.save(`bilhete-embarque-${ticketNumber}.pdf`);
 }
 
 /**
@@ -433,6 +442,9 @@ export function downloadReceiptPdf(
 export function generatePermanentReceiptUrl(venda: VendaDetalhada): string {
   const payload = {
     i: venda.id,
+    e: venda.empresaId,
+    // Snapshot dos textos do cupom: o link abre corretamente em qualquer aparelho
+    r: resolveReceiptTexts(venda),
     d: venda.data_venda,
     c: venda.cliente_nome || "",
     t: venda.cliente_telefone || "",
@@ -483,6 +495,7 @@ export function parsePermanentReceiptFromUrl(): VendaDetalhada | null {
       valor_total: Number(p.v) || 0,
       status: "concluida",
       pix_txid: p.x || undefined,
+      cupom_textos: p.r && typeof p.r === "object" ? p.r : undefined,
       itens: Array.isArray(p.it)
         ? p.it.map((item: [string, string, number, number, number], idx: number) => ({
             id: `item-${idx}`,

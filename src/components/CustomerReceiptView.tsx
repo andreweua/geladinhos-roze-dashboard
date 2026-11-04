@@ -20,14 +20,14 @@ import {
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
 import { getActiveCompany } from "@/services/companyService";
 import { VendaDetalhada } from "@/types/dashboard";
-import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS } from "@/lib/utils";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 import {
   downloadReceiptPdf,
   downloadReceiptTxt,
   downloadReceiptCsv,
   downloadReceiptOfx,
 } from "@/lib/receiptExporter";
-import { formatFiscalReceiptText } from "@/lib/receiptFormatter";
+import { formatFiscalReceiptText, resolveReceiptTexts, getTicketNumber, getReceiptPaymentLabel } from "@/lib/receiptFormatter";
 import { buscarCliente, getPassaporteGrid } from "@/services/customerService";
 import { Badge, Button } from "@/components/ui/primitives";
 
@@ -45,7 +45,8 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
   const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const shortId = (venda.id.length > 8 ? venda.id.slice(-6) : venda.id).toUpperCase();
+  const shortId = getTicketNumber(venda);
+  const receiptTexts = useMemo(() => resolveReceiptTexts(venda), [venda]);
   const rawText = formatFiscalReceiptText(venda);
 
   const notifySuccess = (msg: string) => {
@@ -105,8 +106,11 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
   }, [venda, totalQuantity]);
 
   const passengerName = venda.cliente_nome ? venda.cliente_nome.trim() : "Passageiro(a) Gourmet";
-  const originStation = "Estação da Rô";
-  const destinationStation = "Cremosidade sem escalas e felicidade imediata!";
+  const originStation = receiptTexts.origem;
+  const currentStopStation = receiptTexts.parada;
+  const nextStopStation = receiptTexts.proximaParada;
+  const destinationStation = receiptTexts.destino;
+  const paymentLabel = getReceiptPaymentLabel(venda.forma_pagamento);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-500/10 via-background to-secondary/30 p-3 sm:p-6 flex flex-col items-center justify-center">
@@ -157,9 +161,9 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
       {/* BILHETE TÉRMICO OCULTO (Renderizado exclusivamente na Impressão 80mm) */}
       <div id="thermal-print-slip" className="hidden">
         <div style={{ textAlign: "center", marginBottom: "4px" }}>
-          <strong style={{ fontSize: "13px", display: "block" }}>ESTAÇÃO DA RÔ - GELADINHOS GOURMET</strong>
+          <strong style={{ fontSize: "13px", display: "block" }}>{receiptTexts.companyName.toUpperCase()}</strong>
           <span style={{ fontSize: "9px", fontStyle: "italic", display: "block" }}>
-            Sabores da Estrada Real - Conselheiro Lafaiete/MG
+            {receiptTexts.companyTagline}
           </span>
           <div style={{ borderBottom: "1px dashed #000", margin: "4px 0" }} />
           <strong style={{ fontSize: "11px", display: "block" }}>BILHETE DE EMBARQUE GOURMET</strong>
@@ -168,8 +172,10 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
 
         <div style={{ fontSize: "10px", marginBottom: "4px" }}>
           <div><strong>Passageiro(a):</strong> {passengerName}</div>
-          <div><strong>Bilhete:</strong> #{shortId}</div>
+          <div><strong>Bilhete:</strong> {shortId}</div>
           <div><strong>Origem:</strong> {originStation}</div>
+          <div><strong>Parada:</strong> {currentStopStation}</div>
+          <div><strong>Próxima Parada:</strong> {nextStopStation}</div>
           <div><strong>Destino:</strong> {destinationStation}</div>
           <div><strong>Embarque:</strong> {formatDateTime(venda.data_venda)}</div>
         </div>
@@ -196,7 +202,7 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
           <span>{formatCurrency(venda.valor_total)}</span>
         </div>
         <div style={{ fontSize: "9.5px", marginTop: "2px" }}>
-          Pagamento: <strong>{PAYMENT_METHOD_LABELS[venda.forma_pagamento] || venda.forma_pagamento}</strong>
+          Pagamento: <strong>{paymentLabel}</strong>
           {venda.pix_txid && <span> • ID: {venda.pix_txid.slice(0, 12)}</span>}
         </div>
 
@@ -263,15 +269,15 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
           </div>
 
           <h2 className="text-xl font-black tracking-tight text-foreground">
-            ESTAÇÃO DA RÔ - GELADINHOS GOURMET
+            {receiptTexts.companyName.toUpperCase()}
           </h2>
           <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold mt-0.5">
-            Sabores da Estrada Real - Conselheiro Lafaiete/MG
+            {receiptTexts.companyTagline}
           </p>
 
           <div className="mt-3 flex items-center justify-center gap-2">
             <Badge variant="outline" className="text-xs font-mono font-bold border-amber-500/40 text-amber-700 dark:text-amber-400">
-              BILHETE #{shortId}
+              BILHETE {shortId}
             </Badge>
             <Badge variant="secondary" className="text-xs">
               {formatDateTime(venda.data_venda)}
@@ -300,6 +306,14 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
               <strong className="text-foreground">{originStation}</strong>
             </div>
             <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Parada:</span>
+              <strong className="text-foreground text-right">{currentStopStation}</strong>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Próxima Parada:</span>
+              <strong className="text-foreground text-right">{nextStopStation}</strong>
+            </div>
+            <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Destino:</span>
               <strong className="text-foreground text-right">{destinationStation}</strong>
             </div>
@@ -314,7 +328,7 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
               {formatCurrency(venda.valor_total)}
             </p>
             <p className="text-xs text-muted-foreground">
-              Recebido via <strong>{PAYMENT_METHOD_LABELS[venda.forma_pagamento] || venda.forma_pagamento}</strong>
+              Recebido via <strong>{paymentLabel}</strong>
               {venda.pix_txid && ` • ID: ${venda.pix_txid.slice(0, 14)}...`}
             </p>
           </div>

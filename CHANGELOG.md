@@ -7,6 +7,17 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.6.3] - 2026-11-04
+
+### Adicionado & Corrigido
+- **Cupom / Bilhete de Embarque configurável por empresa**: novos campos em Configurações > Dados da Empresa (`cupomConfig`): **Origem**, **Parada** (nome + cidade cadastrada), **Próxima Parada** (padrão *Casa do Cliente* ou cidade atual) e **Destino**. Nome e slogan do cupom passam a vir dos dados da empresa.
+- Aplicado ao PDF 80mm, texto/WhatsApp, impressão térmica e tela do cliente; links permanentes carregam um snapshot dos textos.
+- **PIX** sempre em maiúsculas no cupom.
+- **Número do bilhete** corrigido para o formato legível `AAMMDD-XXXX` (antes exibia fragmentos do ID, ex.: `#4-0042`).
+- Versão `v3.6.3` (Build `2026110403`, Android `versionCode 57`).
+
+---
+
 ## [3.6.2] - 2026-11-04
 
 ### Corrigido & Aprimorado

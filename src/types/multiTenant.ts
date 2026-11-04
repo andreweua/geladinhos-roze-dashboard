@@ -90,4 +90,12 @@ export interface Company {
   permitirEstoqueNegativo?: boolean; // Permite vender produtos mesmo se o estoque for <= 0
   geminiApiKey?: string; // Chave de API Google Gemini privativa da empresa assinante
   geminiModel?: string; // Modelo de IA preferencial (ex: gemini-2.5-flash, gemini-3-flash-preview)
+  cupomConfig?: CompanyReceiptConfig; // Textos temáticos do Cupom / Bilhete de Embarque
+}
+
+export interface CompanyReceiptConfig {
+  origem?: string; // Ex: "Conselheiro Lafaiete - MG" (padrão: cidade da empresa)
+  paradaNome?: string; // Ex: "Estação da Rô" (a cidade da empresa é acrescentada automaticamente)
+  proximaParada?: string; // Ex: "Casa do Cliente" ou a cidade atual
+  destino?: string; // Ex: "Cremosidade sem escalas e felicidade imediata!"
 }

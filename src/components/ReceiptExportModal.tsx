@@ -14,14 +14,14 @@ import {
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui/primitives";
 import { VendaDetalhada } from "@/types/dashboard";
-import { formatFiscalReceiptText } from "@/lib/receiptFormatter";
+import { formatFiscalReceiptText, getTicketNumber, getReceiptPaymentLabel } from "@/lib/receiptFormatter";
 import {
   downloadReceiptPdf,
   downloadReceiptTxt,
   downloadReceiptCsv,
   downloadReceiptOfx,
 } from "@/lib/receiptExporter";
-import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS } from "@/lib/utils";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 interface ReceiptExportModalProps {
   isOpen: boolean;
@@ -39,7 +39,7 @@ export const ReceiptExportModal: React.FC<ReceiptExportModalProps> = ({
 
   if (!isOpen || !venda) return null;
 
-  const shortId = (venda.id.length > 8 ? venda.id.slice(-6) : venda.id).toUpperCase();
+  const shortId = getTicketNumber(venda);
   const rawReceiptText = formatFiscalReceiptText(venda);
 
   const handleCopyText = () => {
@@ -100,7 +100,7 @@ export const ReceiptExportModal: React.FC<ReceiptExportModalProps> = ({
                   Comprovante & Cupom do Pedido
                 </h3>
                 <Badge variant="outline" className="text-[10px] font-mono font-bold">
-                  #{shortId}
+                  {shortId}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -290,7 +290,7 @@ export const ReceiptExportModal: React.FC<ReceiptExportModalProps> = ({
         {/* Footer */}
         <div className="border-t border-border px-6 py-3.5 bg-secondary/20 flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground">
-            Total do Pedido: <strong className="text-foreground">{formatCurrency(venda.valor_total)}</strong> • {PAYMENT_METHOD_LABELS[venda.forma_pagamento]}
+            Total do Pedido: <strong className="text-foreground">{formatCurrency(venda.valor_total)}</strong> • {getReceiptPaymentLabel(venda.forma_pagamento)}
           </span>
           <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
             Fechar

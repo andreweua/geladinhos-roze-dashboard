@@ -2,6 +2,7 @@ import { BRAND_CONFIG } from "@/config/brand.config";
 import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { VendaDetalhada } from "@/types/dashboard";
 import { getPassaporteGrid } from "@/services/customerService";
+import { getLocalCompanies, getActiveCompany } from "@/services/companyService";
 
 export interface FiscalReceiptOptions {
   empresaNome?: string;
@@ -13,9 +14,89 @@ export interface FiscalReceiptOptions {
   instagram?: string;
   receiptUrl?: string;
   origem?: string;
+  paradaNome?: string;
+  proximaParada?: string;
   destino?: string;
   selosAtuais?: number;
   viagemGratisDisponivel?: boolean;
+}
+
+export const DEFAULT_RECEIPT_DESTINATION = "Cremosidade sem escalas e felicidade imediata!";
+export const DEFAULT_RECEIPT_NEXT_STOP = "Casa do Cliente";
+
+/**
+ * Número do bilhete legível e estável: AAMMDD-XXXX
+ * (data da venda + 4 últimos caracteres alfanuméricos do ID da venda).
+ */
+export function getTicketNumber(venda: Pick<VendaDetalhada, "id" | "data_venda">): string {
+  const d = new Date(venda.data_venda);
+  const datePart = Number.isNaN(d.getTime())
+    ? "000000"
+    : `${String(d.getFullYear()).slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  const alnum = String(venda.id || "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  const idPart = alnum.slice(-4).padStart(4, "0");
+  return `${datePart}-${idPart}`;
+}
+
+/** Forma de pagamento no cupom (PIX sempre em maiúsculas). */
+export function getReceiptPaymentLabel(method: string): string {
+  const label = (PAYMENT_METHOD_LABELS as Record<string, string>)[method] || method;
+  return label.trim().toLowerCase() === "pix" ? "PIX" : label;
+}
+
+export interface ResolvedReceiptTexts {
+  companyName: string;
+  companyTagline: string;
+  origem: string;
+  parada: string;
+  proximaParada: string;
+  destino: string;
+}
+
+/**
+ * Resolve os textos temáticos do cupom a partir das configurações da empresa
+ * (Configurações > Dados da Empresa > Cupom / Bilhete de Embarque).
+ * Opções passadas explicitamente têm prioridade.
+ */
+export function resolveReceiptTexts(
+  venda: Pick<VendaDetalhada, "empresaId"> & Partial<Pick<VendaDetalhada, "cupom_textos">>,
+  options: FiscalReceiptOptions = {}
+): ResolvedReceiptTexts {
+  // Link permanente: usa o snapshot gravado no momento da venda (funciona em qualquer aparelho)
+  if (venda.cupom_textos) {
+    const s = venda.cupom_textos;
+    return {
+      companyName: (options.empresaNome || s.companyName || "").trim(),
+      companyTagline: (options.empresaSubtitulo || s.companyTagline || "").trim(),
+      origem: (options.origem || s.origem || "").trim(),
+      parada: (options.paradaNome || s.parada || "").trim(),
+      proximaParada: (options.proximaParada || s.proximaParada || "").trim() || DEFAULT_RECEIPT_NEXT_STOP,
+      destino: (options.destino || s.destino || "").trim() || DEFAULT_RECEIPT_DESTINATION,
+    };
+  }
+
+  let company = getActiveCompany();
+  try {
+    const own = getLocalCompanies().find((c) => c.id === venda.empresaId);
+    if (own) company = own;
+  } catch {
+    // mantém empresa ativa
+  }
+  const cfg = company.cupomConfig || {};
+  const cidade = (company.cidade || "").trim();
+  const shortName = (company.nome || "").split(" - ")[0].trim();
+  const paradaBase =
+    (options.paradaNome || cfg.paradaNome || "").trim() ||
+    (company.id === "emp-estacao-da-ro" ? "Estação da Rô" : shortName);
+
+  return {
+    companyName: (options.empresaNome || company.nome || "").trim(),
+    companyTagline: (options.empresaSubtitulo || company.nicho || "").trim(),
+    origem: (options.origem || cfg.origem || "").trim() || cidade,
+    parada: [paradaBase, cidade].filter(Boolean).join(", "),
+    proximaParada: (options.proximaParada || cfg.proximaParada || "").trim() || DEFAULT_RECEIPT_NEXT_STOP,
+    destino: (options.destino || cfg.destino || "").trim() || DEFAULT_RECEIPT_DESTINATION,
+  };
 }
 
 /**
@@ -26,14 +107,18 @@ export function formatFiscalReceiptText(
   venda: VendaDetalhada,
   options: FiscalReceiptOptions = {}
 ): string {
-  const companyName = options.empresaNome || "ESTAÇÃO DA RÔ - GELADINHOS GOURMET";
-  const companyTagline = options.empresaSubtitulo || "Sabores da Estrada Real - Conselheiro Lafaiete/MG";
+  const texts = resolveReceiptTexts(venda, options);
+  const companyName = texts.companyName;
+  const companyTagline = texts.companyTagline;
   const customerName = venda.cliente_nome ? venda.cliente_nome.trim() : "Passageiro(a) Gourmet";
   const dateFormatted = formatDateTime(venda.data_venda);
-  const paymentMethodLabel = PAYMENT_METHOD_LABELS[venda.forma_pagamento] || venda.forma_pagamento;
+  const paymentMethodLabel = getReceiptPaymentLabel(venda.forma_pagamento);
   const shortId = venda.id.length > 8 ? venda.id.slice(-6).toUpperCase() : venda.id.toUpperCase();
-  const origin = options.origem || "Estação da Rô";
-  const destination = options.destino || "Cremosidade sem escalas e felicidade imediata!";
+  const ticketNumber = getTicketNumber(venda);
+  const origin = texts.origem;
+  const currentStop = texts.parada;
+  const nextStop = texts.proximaParada;
+  const destination = texts.destino;
 
   const divider = "------------------------------------------------";
   const doubleDivider = "================================";
@@ -70,13 +155,13 @@ export function formatFiscalReceiptText(
   // Informações específicas do meio de pagamento
   let paymentDetails = `💳 Forma de Pagamento: *${paymentMethodLabel}*`;
   if (venda.forma_pagamento === "Pix") {
-    paymentDetails += `\n⚡ Pix Stone OpenBank: *Confirmado ✅*`;
+    paymentDetails += `\n⚡ PIX Stone OpenBank: *Confirmado ✅*`;
     if (venda.pix_txid) {
       paymentDetails += `\n🔑 ID Transação (txid): \`${venda.pix_txid}\``;
     }
     const pixKey = options.pixKey || BRAND_CONFIG.tonConfig.pixKey;
     if (pixKey) {
-      paymentDetails += `\n📱 Chave Pix: \`${pixKey}\``;
+      paymentDetails += `\n📱 Chave PIX: \`${pixKey}\``;
     }
   } else if (venda.forma_pagamento === "Cartao_Credito" || venda.forma_pagamento === "Cartao_Debito") {
     paymentDetails += `\n📠 Maquininha Stone / Ton: *Autorizado ✅*`;
@@ -89,9 +174,11 @@ export function formatFiscalReceiptText(
 _${companyTagline}_
 ${doubleDivider}
 🎫 *BILHETE DE EMBARQUE GOURMET*
-*Bilhete Nº:* #${shortId}
+*Bilhete Nº:* ${ticketNumber}
 *Passageiro(a):* ${customerName}
 *Origem:* ${origin}
+*Parada:* ${currentStop}
+*Próxima Parada:* ${nextStop}
 *Destino:* ${destination}
 *Data/Embarque:* ${dateFormatted}
 ${divider}

@@ -100,6 +100,14 @@ export interface Venda {
   data_cancelamento?: string;
   estornou_estoque?: boolean;
   selos_fidelidade?: number; // Selos acumulados no Passaporte da Estrada Real (0 a 10)
+  cupom_textos?: {
+    companyName: string;
+    companyTagline: string;
+    origem: string;
+    parada: string;
+    proximaParada: string;
+    destino: string;
+  }; // Snapshot dos textos do cupom (links permanentes)
   recompensas_fidelidade?: number; // Viagens doces gratuitas disponíveis
 }
 
