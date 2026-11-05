@@ -43,6 +43,7 @@ import {
   saveShoppingLists,
   addOrUpdateShoppingList,
   deleteShoppingList,
+  syncShoppingListsWithSupabase,
   SHOPPING_LIST_TEMPLATES,
   parseShoppingListFromText,
   parseShoppingListFromJson,
@@ -107,6 +108,12 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
   const [, setGovernanceTick] = useState(0);
 
   useEffect(() => {
+    syncShoppingListsWithSupabase().then((merged) => {
+      if (Array.isArray(merged) && merged.length > 0) {
+        setLists(merged);
+      }
+    });
+
     const unsub = subscribeProductGovernanceChanges(() => {
       setLists(loadShoppingLists());
       setGovernanceTick((t) => t + 1);

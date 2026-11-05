@@ -1,11 +1,11 @@
 {
-  "version": "3.6.7",
-  "build": 2026110407,
-  "releaseDate": "2026-11-04T09:17:00.000Z",
+  "version": "3.6.8",
+  "build": 2026110501,
+  "releaseDate": "2026-11-05T02:20:00.000Z",
   "features": [
-    "Novo modulo de CRM & Fidelidade Multi-Tenant (Passageiros & Passaporte da Estrada Real vs Clientes & Fidelidade)",
-    "Filtros de conversao rapida: Quase Ganhando (7 a 9 selos), Cortesia Disponivel e Passageiros Sumidos",
-    "Disparo de mensagens personalizadas no WhatsApp em 1 clique com gatilhos de vendas",
-    "Exibicao visual do Passaporte de 10 carimbos, historico de consumo e sabor favorito"
+    "Sincronização em Nuvem (Supabase) do módulo 'Pesquisa de Mercados & Preços Pagos Reais' entre múltiplos dispositivos",
+    "Compartilhamento em tempo real de estabelecimentos, cotações de insumos, histórico de inflação e cupons/notas fiscais (NFC-e)",
+    "Sincronização em nuvem e persistência das Listas de Compras entre celulares e computadores",
+    "Botão de sincronização com a nuvem e reconexão automática com cache offline resiliente"
   ]
 }

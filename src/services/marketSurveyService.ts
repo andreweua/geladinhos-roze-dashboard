@@ -1,5 +1,6 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { getActiveCompanyId } from "@/services/companyService";
+import { checkIsSupabaseConfigured, supabase } from "@/lib/supabase";
 import {
   CompraNotaFiscalReal,
   EstabelecimentoLocal,
@@ -598,6 +599,295 @@ const DEFAULT_COMPRAS: CompraNotaFiscalReal[] = [
   },
 ];
 
+function safeCloudCall(fn: () => PromiseLike<any>, desc: string): void {
+  Promise.resolve()
+    .then(() => fn())
+    .then((res: any) => {
+      if (res && res.error) {
+        console.warn(`Aviso no Supabase (${desc}):`, res.error.message);
+      }
+    })
+    .catch((err: unknown) => {
+      console.warn(`Falha no Supabase (${desc}):`, err);
+    });
+}
+
+export interface MarketSurveySyncResult {
+  syncedEstabelecimentos: number;
+  syncedPesquisas: number;
+  syncedCompras: number;
+  status: "success" | "offline" | "error";
+  error?: string;
+  lastSyncedAt?: string;
+}
+
+/**
+ * Sincroniza em segundo plano ou sob demanda todo o banco de Estabelecimentos,
+ * Cotações de Pesquisas de Mercado e Compras Reais com o Supabase.
+ * Garante que celulares, notebooks e PCs compartilhem os mesmos dados em tempo real.
+ */
+export async function syncMarketSurveyWithSupabase(companyId?: string): Promise<MarketSurveySyncResult> {
+  if (!checkIsSupabaseConfigured() || !supabase) {
+    return {
+      syncedEstabelecimentos: 0,
+      syncedPesquisas: 0,
+      syncedCompras: 0,
+      status: "offline",
+    };
+  }
+
+  const currentId = companyId || getActiveCompanyId();
+
+  try {
+    // 1. SINCRONIZA ESTABELECIMENTOS
+    let remoteEstabsQuery = supabase.from("estabelecimentos_pesquisa").select("*");
+    if (currentId !== "emp-roze-gourmet") {
+      remoteEstabsQuery = remoteEstabsQuery.eq("empresa_id", currentId);
+    }
+    const { data: remoteEstabs, error: estabErr } = await remoteEstabsQuery;
+
+    let localEstabs = loadEstabelecimentos(currentId);
+    let estabCount = 0;
+
+    if (!estabErr && Array.isArray(remoteEstabs)) {
+      const remoteMap = new Map<string, EstabelecimentoLocal>();
+      for (const r of remoteEstabs) {
+        remoteMap.set(r.id, {
+          id: r.id,
+          nome: r.nome,
+          tipo: r.tipo,
+          cidade: r.cidade,
+          bairro: r.bairro || undefined,
+          endereco_fisico: r.endereco_fisico || undefined,
+          endereco_eletronico: r.endereco_eletronico || undefined,
+          telefone: r.telefone || undefined,
+          contato_responsavel: r.contato_responsavel || undefined,
+          observacoes: r.observacoes || undefined,
+          ativo: r.ativo ?? true,
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+        });
+      }
+
+      // Detecta itens locais pendentes de envio para nuvem
+      const toPushEstabs: Record<string, unknown>[] = [];
+      for (const local of localEstabs) {
+        if (!remoteMap.has(local.id)) {
+          toPushEstabs.push({
+            id: local.id,
+            empresa_id: currentId,
+            nome: local.nome,
+            tipo: local.tipo,
+            cidade: local.cidade,
+            bairro: local.bairro || null,
+            endereco_fisico: local.endereco_fisico || null,
+            endereco_eletronico: local.endereco_eletronico || null,
+            telefone: local.telefone || null,
+            contato_responsavel: local.contato_responsavel || null,
+            observacoes: local.observacoes || null,
+            ativo: local.ativo ?? true,
+            created_at: local.created_at || new Date().toISOString(),
+            updated_at: local.updated_at || new Date().toISOString(),
+          });
+        }
+      }
+
+      if (toPushEstabs.length > 0) {
+        try {
+          await supabase.from("estabelecimentos_pesquisa").upsert(toPushEstabs);
+        } catch {
+          // ignore error if table does not exist yet
+        }
+      }
+
+      // Mescla remote + local (remoto prevalece em caso de atualização)
+      for (const local of localEstabs) {
+        if (!remoteMap.has(local.id)) {
+          remoteMap.set(local.id, local);
+        }
+      }
+
+      localEstabs = Array.from(remoteMap.values());
+      saveEstabelecimentos(localEstabs, currentId);
+      estabCount = localEstabs.length;
+    }
+
+    // 2. SINCRONIZA PESQUISAS DE PREÇO
+    let remotePesqQuery = supabase.from("pesquisas_precos").select("*");
+    if (currentId !== "emp-roze-gourmet") {
+      remotePesqQuery = remotePesqQuery.eq("empresa_id", currentId);
+    }
+    const { data: remotePesquisas, error: pesqErr } = await remotePesqQuery;
+
+    let localPesquisas = loadPesquisasPreco(currentId);
+    let pesqCount = 0;
+
+    if (!pesqErr && Array.isArray(remotePesquisas)) {
+      const pesqMap = new Map<string, PesquisaPrecoLocal>();
+      for (const r of remotePesquisas) {
+        pesqMap.set(r.id, {
+          id: r.id,
+          estabelecimento_id: r.estabelecimento_id,
+          estabelecimento_nome: r.estabelecimento_nome,
+          cidade: r.cidade,
+          insumo_nome: r.insumo_nome,
+          marca: r.marca || undefined,
+          gtin: r.gtin || undefined,
+          quantidade_embalagem: Number(r.quantidade_embalagem) || 1,
+          unidade_medida: r.unidade_medida || "un",
+          preco_pesquisado: Number(r.preco_pesquisado) || 0,
+          preco_varejo: r.preco_varejo != null ? Number(r.preco_varejo) : undefined,
+          preco_atacado: r.preco_atacado != null ? Number(r.preco_atacado) : undefined,
+          qtd_minima_atacado: r.qtd_minima_atacado != null ? Number(r.qtd_minima_atacado) : undefined,
+          preco_por_kg_ou_l: Number(r.preco_por_kg_ou_l) || 0,
+          preco_atacado_por_kg_ou_l: r.preco_atacado_por_kg_ou_l != null ? Number(r.preco_atacado_por_kg_ou_l) : undefined,
+          data_pesquisa: r.data_pesquisa ? String(r.data_pesquisa).split("T")[0] : new Date().toISOString().split("T")[0],
+          data_validade: r.data_validade ? String(r.data_validade).split("T")[0] : undefined,
+          em_promocao: Boolean(r.em_promocao),
+          observacoes: r.observacoes || undefined,
+          foto_comprovante: r.foto_comprovante || undefined,
+        });
+      }
+
+      // Envia cotações locais pendentes para a nuvem
+      const toPushPesquisas: Record<string, unknown>[] = [];
+      for (const local of localPesquisas) {
+        if (!pesqMap.has(local.id)) {
+          toPushPesquisas.push({
+            id: local.id,
+            empresa_id: currentId,
+            estabelecimento_id: local.estabelecimento_id,
+            estabelecimento_nome: local.estabelecimento_nome,
+            cidade: local.cidade,
+            insumo_nome: local.insumo_nome,
+            marca: local.marca || null,
+            gtin: local.gtin || null,
+            quantidade_embalagem: local.quantidade_embalagem,
+            unidade_medida: local.unidade_medida,
+            preco_pesquisado: local.preco_pesquisado,
+            preco_varejo: local.preco_varejo || null,
+            preco_atacado: local.preco_atacado || null,
+            qtd_minima_atacado: local.qtd_minima_atacado || null,
+            preco_por_kg_ou_l: local.preco_por_kg_ou_l,
+            preco_atacado_por_kg_ou_l: local.preco_atacado_por_kg_ou_l || null,
+            data_pesquisa: local.data_pesquisa,
+            data_validade: local.data_validade || null,
+            em_promocao: local.em_promocao ?? false,
+            observacoes: local.observacoes || null,
+            foto_comprovante: local.foto_comprovante || null,
+            created_at: new Date().toISOString(),
+          });
+        }
+      }
+
+      if (toPushPesquisas.length > 0) {
+        try {
+          await supabase.from("pesquisas_precos").upsert(toPushPesquisas);
+        } catch {
+          // ignore table missing
+        }
+      }
+
+      for (const local of localPesquisas) {
+        if (!pesqMap.has(local.id)) {
+          pesqMap.set(local.id, local);
+        }
+      }
+
+      localPesquisas = Array.from(pesqMap.values());
+      savePesquisasPreco(localPesquisas, currentId);
+      pesqCount = localPesquisas.length;
+    }
+
+    // 3. SINCRONIZA COMPRAS E NOTAS FISCAIS
+    let remoteComprasQuery = supabase.from("compras_notas_fiscais").select("*");
+    if (currentId !== "emp-roze-gourmet") {
+      remoteComprasQuery = remoteComprasQuery.eq("empresa_id", currentId);
+    }
+    const { data: remoteCompras, error: compErr } = await remoteComprasQuery;
+
+    let localCompras = loadComprasNotasFiscais(currentId);
+    let compCount = 0;
+
+    if (!compErr && Array.isArray(remoteCompras)) {
+      const compMap = new Map<string, CompraNotaFiscalReal>();
+      for (const r of remoteCompras) {
+        compMap.set(r.id, {
+          id: r.id,
+          estabelecimento_id: r.estabelecimento_id || undefined,
+          estabelecimento_nome: r.estabelecimento_nome,
+          data_compra: r.data_compra ? String(r.data_compra).split("T")[0] : new Date().toISOString().split("T")[0],
+          numero_cupom_ou_nfe: r.numero_cupom_ou_nfe || undefined,
+          chave_acesso: r.chave_acesso || undefined,
+          valor_total: Number(r.valor_total) || 0,
+          origem: r.origem || "manual",
+          itens: Array.isArray(r.itens) ? r.itens : [],
+          observacoes: r.observacoes || undefined,
+          created_at: r.created_at,
+        });
+      }
+
+      // Envia compras locais pendentes para a nuvem
+      const toPushCompras: Record<string, unknown>[] = [];
+      for (const local of localCompras) {
+        if (!compMap.has(local.id)) {
+          toPushCompras.push({
+            id: local.id,
+            empresa_id: currentId,
+            estabelecimento_id: local.estabelecimento_id || null,
+            estabelecimento_nome: local.estabelecimento_nome,
+            data_compra: local.data_compra,
+            numero_cupom_ou_nfe: local.numero_cupom_ou_nfe || null,
+            chave_acesso: local.chave_acesso || null,
+            valor_total: local.valor_total,
+            origem: local.origem,
+            itens: local.itens || [],
+            observacoes: local.observacoes || null,
+            created_at: local.created_at || new Date().toISOString(),
+          });
+        }
+      }
+
+      if (toPushCompras.length > 0) {
+        try {
+          await supabase.from("compras_notas_fiscais").upsert(toPushCompras);
+        } catch {
+          // ignore table missing
+        }
+      }
+
+      for (const local of localCompras) {
+        if (!compMap.has(local.id)) {
+          compMap.set(local.id, local);
+        }
+      }
+
+      localCompras = Array.from(compMap.values());
+      saveComprasNotasFiscais(localCompras, currentId);
+      compCount = localCompras.length;
+    }
+
+    const hasError = estabErr || pesqErr || compErr;
+    return {
+      syncedEstabelecimentos: estabCount,
+      syncedPesquisas: pesqCount,
+      syncedCompras: compCount,
+      status: hasError ? "error" : "success",
+      error: hasError ? (estabErr?.message || pesqErr?.message || compErr?.message) : undefined,
+      lastSyncedAt: new Date().toISOString(),
+    };
+  } catch (err: any) {
+    console.warn("Falha ao sincronizar Pesquisa de Mercados com Supabase:", err);
+    return {
+      syncedEstabelecimentos: 0,
+      syncedPesquisas: 0,
+      syncedCompras: 0,
+      status: "error",
+      error: err?.message,
+    };
+  }
+}
+
 export function loadEstabelecimentos(companyId?: string): EstabelecimentoLocal[] {
   const currentId = companyId || getActiveCompanyId();
   try {
@@ -632,6 +922,8 @@ export function addOrUpdateEstabelecimento(
   const all = loadEstabelecimentos(currentId);
   const now = new Date().toISOString();
 
+  let targetEstab: EstabelecimentoLocal;
+
   if (estab.id) {
     const idx = all.findIndex((e) => e.id === estab.id);
     if (idx >= 0) {
@@ -641,25 +933,68 @@ export function addOrUpdateEstabelecimento(
         updated_at: now,
       };
       saveEstabelecimentos(all, currentId);
-      return all[idx];
+      targetEstab = all[idx];
+    } else {
+      targetEstab = {
+        ...estab,
+        id: estab.id,
+        created_at: now,
+        updated_at: now,
+      };
+      all.unshift(targetEstab);
+      saveEstabelecimentos(all, currentId);
     }
+  } else {
+    targetEstab = {
+      ...estab,
+      id: `est-${Date.now()}`,
+      created_at: now,
+      updated_at: now,
+    };
+    all.unshift(targetEstab);
+    saveEstabelecimentos(all, currentId);
   }
 
-  const newEstab: EstabelecimentoLocal = {
-    ...estab,
-    id: `est-${Date.now()}`,
-    created_at: now,
-    updated_at: now,
-  };
-  all.unshift(newEstab);
-  saveEstabelecimentos(all, currentId);
-  return newEstab;
+  // Envio imediato em background para nuvem Supabase
+  const client = supabase;
+  if (checkIsSupabaseConfigured() && client) {
+    safeCloudCall(
+      () =>
+        client.from("estabelecimentos_pesquisa").upsert({
+          id: targetEstab.id,
+          empresa_id: currentId,
+          nome: targetEstab.nome,
+          tipo: targetEstab.tipo,
+          cidade: targetEstab.cidade,
+          bairro: targetEstab.bairro || null,
+          endereco_fisico: targetEstab.endereco_fisico || null,
+          endereco_eletronico: targetEstab.endereco_eletronico || null,
+          telefone: targetEstab.telefone || null,
+          contato_responsavel: targetEstab.contato_responsavel || null,
+          observacoes: targetEstab.observacoes || null,
+          ativo: targetEstab.ativo ?? true,
+          created_at: targetEstab.created_at || now,
+          updated_at: targetEstab.updated_at || now,
+        }),
+      "salvar estabelecimento"
+    );
+  }
+
+  return targetEstab;
 }
 
 export function deleteEstabelecimento(id: string, companyId?: string): void {
   const currentId = companyId || getActiveCompanyId();
   const all = loadEstabelecimentos(currentId).filter((e) => e.id !== id);
   saveEstabelecimentos(all, currentId);
+
+  const client = supabase;
+  if (checkIsSupabaseConfigured() && client) {
+    safeCloudCall(
+      () => client.from("estabelecimentos_pesquisa").delete().eq("id", id),
+      "excluir estabelecimento"
+    );
+  }
 }
 
 export function loadPesquisasPreco(companyId?: string): PesquisaPrecoLocal[] {
@@ -721,6 +1056,40 @@ export function addPesquisaPreco(
   };
   all.unshift(newPesquisa);
   savePesquisasPreco(all, currentId);
+
+  // Envio imediato em background para nuvem Supabase
+  const client = supabase;
+  if (checkIsSupabaseConfigured() && client) {
+    safeCloudCall(
+      () =>
+        client.from("pesquisas_precos").upsert({
+          id: newPesquisa.id,
+          empresa_id: currentId,
+          estabelecimento_id: newPesquisa.estabelecimento_id,
+          estabelecimento_nome: newPesquisa.estabelecimento_nome,
+          cidade: newPesquisa.cidade,
+          insumo_nome: newPesquisa.insumo_nome,
+          marca: newPesquisa.marca || null,
+          gtin: newPesquisa.gtin || null,
+          quantidade_embalagem: newPesquisa.quantidade_embalagem,
+          unidade_medida: newPesquisa.unidade_medida,
+          preco_pesquisado: newPesquisa.preco_pesquisado,
+          preco_varejo: newPesquisa.preco_varejo || null,
+          preco_atacado: newPesquisa.preco_atacado || null,
+          qtd_minima_atacado: newPesquisa.qtd_minima_atacado || null,
+          preco_por_kg_ou_l: newPesquisa.preco_por_kg_ou_l,
+          preco_atacado_por_kg_ou_l: newPesquisa.preco_atacado_por_kg_ou_l || null,
+          data_pesquisa: newPesquisa.data_pesquisa,
+          data_validade: newPesquisa.data_validade || null,
+          em_promocao: newPesquisa.em_promocao ?? false,
+          observacoes: newPesquisa.observacoes || null,
+          foto_comprovante: newPesquisa.foto_comprovante || null,
+          created_at: new Date().toISOString(),
+        }),
+      "salvar pesquisa de preço"
+    );
+  }
+
   return newPesquisa;
 }
 
@@ -728,6 +1097,14 @@ export function deletePesquisaPreco(id: string, companyId?: string): void {
   const currentId = companyId || getActiveCompanyId();
   const all = loadPesquisasPreco(currentId).filter((p) => p.id !== id);
   savePesquisasPreco(all, currentId);
+
+  const client = supabase;
+  if (checkIsSupabaseConfigured() && client) {
+    safeCloudCall(
+      () => client.from("pesquisas_precos").delete().eq("id", id),
+      "excluir pesquisa de preço"
+    );
+  }
 }
 
 export function loadComprasNotasFiscais(companyId?: string): CompraNotaFiscalReal[] {
@@ -769,6 +1146,30 @@ export function addCompraNotaFiscal(
   };
   all.unshift(newCompra);
   saveComprasNotasFiscais(all, currentId);
+
+  // Envio imediato em background para nuvem Supabase
+  const client = supabase;
+  if (checkIsSupabaseConfigured() && client) {
+    safeCloudCall(
+      () =>
+        client.from("compras_notas_fiscais").upsert({
+          id: newCompra.id,
+          empresa_id: currentId,
+          estabelecimento_id: newCompra.estabelecimento_id || null,
+          estabelecimento_nome: newCompra.estabelecimento_nome,
+          data_compra: newCompra.data_compra,
+          numero_cupom_ou_nfe: newCompra.numero_cupom_ou_nfe || null,
+          chave_acesso: newCompra.chave_acesso || null,
+          valor_total: newCompra.valor_total,
+          origem: newCompra.origem,
+          itens: newCompra.itens || [],
+          observacoes: newCompra.observacoes || null,
+          created_at: newCompra.created_at,
+        }),
+      "salvar compra de nota fiscal"
+    );
+  }
+
   return newCompra;
 }
 
@@ -776,4 +1177,12 @@ export function deleteCompraNotaFiscal(id: string, companyId?: string): void {
   const currentId = companyId || getActiveCompanyId();
   const all = loadComprasNotasFiscais(currentId).filter((c) => c.id !== id);
   saveComprasNotasFiscais(all, currentId);
+
+  const client = supabase;
+  if (checkIsSupabaseConfigured() && client) {
+    safeCloudCall(
+      () => client.from("compras_notas_fiscais").delete().eq("id", id),
+      "excluir compra de nota fiscal"
+    );
+  }
 }

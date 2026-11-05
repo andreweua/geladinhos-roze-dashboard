@@ -169,6 +169,10 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
+                  <strong className="text-foreground">Sincronização em Nuvem de Pesquisas de Mercado & Preços Pagos (v3.6.8):</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
+                    Sincronização bidirecional em tempo real entre celulares e computadores via Supabase para Estabelecimentos Comerciais, Pesquisas de Preços, Histórico de Inflação, Compras/Cupons Fiscais (NFC-e) e Listas de Compras, com suporte offline resiliente e botão manual de atualização na nuvem.
+                  </p>
                   <strong className="text-foreground">Painel de CRM & Fidelidade Multi-Empresa (v3.6.7):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
                     Nova tela dedicada para gestão de passageiros e clientes com isolamento estrito de dados (multi-tenant), passaporte visual com 10 carimbos, filtros inteligentes ("Quase Ganhando 7-9 selos", "Cortesia Disponível", "Sumidos +20d") e disparo de mensagens personalizadas no WhatsApp com 1 clique.

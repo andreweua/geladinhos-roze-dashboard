@@ -255,11 +255,13 @@ export interface EstabelecimentoLocal {
   nome: string;
   tipo: "Atacado" | "Atacado e Varejo" | "Supermercado" | "Distribuidora" | "Empório" | "Internet" | "Outro";
   cidade?: string; // ex: "Jaú - SP" | "Três Pontas - MG"
+  bairro?: string;
   endereco_fisico: string; // Rua, número, bairro, cidade, CEP
   endereco_eletronico: string; // Site, e-commerce, Google Maps, WhatsApp ou Instagram
   telefone?: string;
   contato_responsavel?: string;
   observacoes?: string;
+  ativo?: boolean;
   created_at: string;
   updated_at?: string;
 }
@@ -287,6 +289,7 @@ export interface PesquisaPrecoLocal {
   em_promocao: boolean;
   gtin?: string; // Código de barras GTIN / EAN-13
   foto_url?: string; // Foto oficial do produto (API RSC Sistemas / GTIN)
+  foto_comprovante?: string;
   dados_oficiais?: boolean; // Indica se os dados do produto vieram da RSC Sistemas ou banco oficial (não editáveis diretamente pelo usuário)
   fonte_dados?: "rsc_sistemas" | "catalogo_local" | "manual";
   observacoes?: string;
@@ -335,6 +338,11 @@ export interface ListaCompras {
   itens: ListaComprasItem[];
   created_at: string;
   updated_at: string;
+  data_criacao?: string;
+  data_alvo?: string;
+  status?: "aberta" | "em_andamento" | "concluida" | "arquivada";
+  observacoes?: string;
+  valor_total_estimado?: number;
 }
 
 /**
@@ -360,6 +368,7 @@ export interface CompraNotaFiscalReal {
   chave_acesso?: string;
   valor_total: number;
   itens: CompraItemReal[];
-  origem: "nfc_chave" | "xml" | "cupom_foto" | "manual";
+  origem: "nfc_chave" | "xml" | "cupom_foto" | "manual" | "foto" | "csv";
+  observacoes?: string;
   created_at: string;
 }

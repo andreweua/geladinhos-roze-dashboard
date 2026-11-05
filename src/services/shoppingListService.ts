@@ -1,4 +1,6 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
+import { getActiveCompanyId } from "@/services/companyService";
+import { checkIsSupabaseConfigured, supabase } from "@/lib/supabase";
 import {
   ListaCompras,
   ListaComprasItem,
@@ -475,11 +477,125 @@ export function loadShoppingLists(): ListaCompras[] {
   return [defaultList];
 }
 
+function safeCloudCall(fn: () => PromiseLike<any>, desc: string): void {
+  Promise.resolve()
+    .then(() => fn())
+    .then((res: any) => {
+      if (res && res.error) {
+        console.warn(`Aviso no Supabase (${desc}):`, res.error.message);
+      }
+    })
+    .catch((err: unknown) => {
+      console.warn(`Falha no Supabase (${desc}):`, err);
+    });
+}
+
+export async function syncShoppingListsWithSupabase(companyId?: string): Promise<ListaCompras[]> {
+  const currentId = companyId || getActiveCompanyId();
+  const local = loadShoppingLists();
+
+  if (!checkIsSupabaseConfigured() || !supabase) {
+    return local;
+  }
+
+  try {
+    let query = supabase.from("listas_compras").select("*");
+    if (currentId !== "emp-roze-gourmet") {
+      query = query.eq("empresa_id", currentId);
+    }
+    const { data: remoteLists, error } = await query;
+    if (error || !Array.isArray(remoteLists)) {
+      return local;
+    }
+
+    const listMap = new Map<string, ListaCompras>();
+    for (const r of remoteLists) {
+      listMap.set(r.id, {
+        id: r.id,
+        titulo: r.titulo,
+        created_at: r.created_at || (r.data_criacao ? String(r.data_criacao).split("T")[0] : new Date().toISOString().split("T")[0]),
+        updated_at: r.updated_at || new Date().toISOString(),
+        data_criacao: r.data_criacao ? String(r.data_criacao).split("T")[0] : new Date().toISOString().split("T")[0],
+        data_alvo: r.data_alvo ? String(r.data_alvo).split("T")[0] : undefined,
+        status: r.status || "aberta",
+        itens: Array.isArray(r.itens) ? r.itens : [],
+        observacoes: r.observacoes || undefined,
+        valor_total_estimado: Number(r.valor_total_estimado) || 0,
+      });
+    }
+
+    // Se temos listas locais que ainda não estão na nuvem, faz o upload
+    const toUpload: Record<string, unknown>[] = [];
+    for (const l of local) {
+      if (!listMap.has(l.id)) {
+        toUpload.push({
+          id: l.id,
+          empresa_id: currentId,
+          titulo: l.titulo,
+          data_criacao: l.data_criacao || new Date().toISOString(),
+          data_alvo: l.data_alvo || null,
+          status: l.status || "aberta",
+          itens: l.itens || [],
+          observacoes: l.observacoes || null,
+          valor_total_estimado: l.valor_total_estimado || 0,
+          updated_at: l.updated_at || new Date().toISOString(),
+        });
+      }
+    }
+
+    if (toUpload.length > 0) {
+      try {
+        await supabase.from("listas_compras").upsert(toUpload);
+      } catch {
+        // ignore if table pending migration
+      }
+    }
+
+    for (const l of local) {
+      if (!listMap.has(l.id)) {
+        listMap.set(l.id, l);
+      }
+    }
+
+    const merged = Array.from(listMap.values());
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    return merged;
+  } catch (err) {
+    console.warn("Erro ao sincronizar listas de compras com Supabase:", err);
+    return local;
+  }
+}
+
 export function saveShoppingLists(lists: ListaCompras[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
   } catch (err) {
     console.warn("Erro ao salvar listas de compras no LocalStorage:", err);
+  }
+
+  // Backup e sincronização em segundo plano na nuvem Supabase
+  const client = supabase;
+  if (checkIsSupabaseConfigured() && client) {
+    const currentId = getActiveCompanyId();
+    const rows = lists.map((l) => ({
+      id: l.id,
+      empresa_id: currentId,
+      titulo: l.titulo,
+      data_criacao: l.data_criacao || l.created_at || new Date().toISOString(),
+      data_alvo: l.data_alvo || null,
+      status: l.status || "aberta",
+      itens: l.itens || [],
+      observacoes: l.observacoes || l.descricao || null,
+      valor_total_estimado: l.valor_total_estimado || 0,
+      updated_at: l.updated_at || new Date().toISOString(),
+    }));
+
+    if (rows.length > 0) {
+      safeCloudCall(
+        () => client.from("listas_compras").upsert(rows),
+        "sincronizar listas de compras"
+      );
+    }
   }
 }
 
@@ -509,6 +625,15 @@ export function deleteShoppingList(listId: string): ListaCompras[] {
   const all = loadShoppingLists();
   const updated = all.filter((l) => l.id !== listId);
   saveShoppingLists(updated);
+
+  const client = supabase;
+  if (checkIsSupabaseConfigured() && client) {
+    safeCloudCall(
+      () => client.from("listas_compras").delete().eq("id", listId),
+      "remover lista de compras"
+    );
+  }
+
   return updated;
 }
 

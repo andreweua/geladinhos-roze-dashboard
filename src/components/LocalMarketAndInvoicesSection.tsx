@@ -29,6 +29,7 @@ import {
   Upload,
   Key,
   Lock,
+  RefreshCw,
 } from "lucide-react";
 import {
   Card,
@@ -61,6 +62,7 @@ import {
   isQuotationValid,
   analyzeHistoricalPrices,
   calculateWeightedAverageCost,
+  syncMarketSurveyWithSupabase,
 } from "@/services/marketSurveyService";
 import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
 import { ProductEditRequestModal, OfficialProductTarget } from "@/components/ProductEditRequestModal";
@@ -102,6 +104,43 @@ export const LocalMarketAndInvoicesSection: React.FC<
   const [compras, setCompras] = useState<CompraNotaFiscalReal[]>(() =>
     loadComprasNotasFiscais()
   );
+
+  // Sincronização em Nuvem (Supabase) entre Dispositivos (Celulares & PCs)
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle");
+  const [lastSyncText, setLastSyncText] = useState<string | null>(null);
+
+  const handleSyncWithCloud = async () => {
+    setIsSyncing(true);
+    setSyncStatus("syncing");
+    try {
+      const res = await syncMarketSurveyWithSupabase();
+      setEstabelecimentos(loadEstabelecimentos());
+      setPesquisas(loadPesquisasPreco());
+      setCompras(loadComprasNotasFiscais());
+      if (res.status === "success") {
+        setSyncStatus("success");
+        setLastSyncText(`Nuvem OK (${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`);
+      } else if (res.status === "offline") {
+        setSyncStatus("idle");
+      } else {
+        setSyncStatus("error");
+      }
+    } catch {
+      setSyncStatus("error");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    handleSyncWithCloud();
+    const onFocus = () => {
+      handleSyncWithCloud();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
 
   // Search & Filters
   const [filterText, setFilterText] = useState("");
@@ -566,6 +605,18 @@ export const LocalMarketAndInvoicesSection: React.FC<
               >
                 <Receipt className="h-4 w-4" />
                 <span>Importar Cupom / NF-e</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncWithCloud}
+                disabled={isSyncing}
+                className="gap-1.5 border-primary/40 text-primary hover:bg-primary/10 text-xs font-semibold"
+                title="Sincronizar dados entre celulares e computadores via Supabase"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin text-primary" : ""}`} />
+                <span>{isSyncing ? "Sincronizando..." : lastSyncText || "Sincronizar Nuvem"}</span>
               </Button>
 
               {activeTab === "estabelecimentos" && (

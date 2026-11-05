@@ -7,6 +7,22 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.6.8] - 2026-11-05
+
+### Adicionado & Aprimorado
+- **Sincronização em Nuvem (Supabase) do Módulo "Pesquisa de Mercados & Preços Pagos Reais"**:
+  - Implementada sincronização bidirecional em tempo real entre todos os dispositivos (celulares, tablets e computadores) para:
+    - **Estabelecimentos Cadastrados** (`estabelecimentos_pesquisa`): Supermercados, atacarejos e distribuidoras.
+    - **Cotações & Pesquisas de Preços** (`pesquisas_precos`): Histórico de preços, validades de ofertas e comparativos por kg/litro.
+    - **Compras e Notas Fiscais Reais** (`compras_notas_fiscais`): Compras comprovadas via NFC-e, QR Code, XML e cupom fiscal.
+    - **Listas de Compras** (`listas_compras`): Listas de abastecimento e checagem de carrinho compartilhadas.
+  - **Botão de Sincronização & Indicador em Tempo Real**: Adicionado botão de atualização e status de sincronização no cabeçalho do módulo.
+  - **Sincronização ao Trocar de Janela**: Atualização automática dos preços assim que o app ganha foco.
+  - **Migração SQL Supabase Criada**: `supabase/migrations/20261105_pesquisas_mercado_sync.sql` com RLS e políticas de acesso ativas.
+  - Versão `v3.6.8` (Build `2026110501`, Android `versionCode 62`).
+
+---
+
 ## [3.6.7] - 2026-11-04
 
 ### Adicionado & Aprimorado
