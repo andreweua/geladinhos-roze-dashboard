@@ -7,6 +7,19 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.7.1] - 2026-11-06
+
+### Adicionado & Aprimorado
+- **Sincronização em Nuvem Supabase de Passageiros & Clientes Fidelidade (CRM)**:
+  - Criação da tabela multi-tenant `clientes_fidelidade` no Supabase com chave única `(empresa_id, telefone)`.
+  - Persistência bidirecional contínua entre PWA, aplicativo Android nativo (Google Play Store) e Desktop.
+  - Sincronização automática em segundo plano ao abrir o aplicativo ou trocar de empresa ativa.
+  - Botão manual `[Sincronizar Nuvem 🔄]` na tela de Passageiros / Fidelidade com feedback visual em tempo real.
+  - Isolamento estrito de Multi-Tenancy preservado em todas as operações de leitura, escrita, atualização e exclusão (LGPD).
+- Versão `v3.7.1` (Build `2026110601`, Android `versionCode 65`).
+
+---
+
 ## [3.7.0] - 2026-11-06
 
 ### Adicionado & Aprimorado

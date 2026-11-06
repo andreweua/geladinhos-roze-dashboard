@@ -169,6 +169,10 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
+                  <strong className="text-foreground">Sincronização em Nuvem Supabase de Passageiros & Fidelidade (v3.7.1):</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
+                    Os passageiros e clientes do programa de fidelidade agora são sincronizados instantaneamente na nuvem via Supabase (tabela `clientes_fidelidade`). Clientes cadastrados no PWA web agora aparecem automaticamente no aplicativo Android do Google Play e em outros dispositivos. Botão manual "Sincronizar Nuvem 🔄" com feedback de status e sincronização automática em segundo plano na inicialização da empresa.
+                  </p>
                   <strong className="text-foreground">Levantamento Rápido de Preços & Bipagem Otimizada (v3.7.0):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
                     Pesquisa de campo ágil no mercado: modal ergonômico com rolagem interna (max-h 92vh), botões fixos visíveis no Android e PWA ("Salvar Preço" e "Salvar & Bipar Próximo 📷"). Itens bipados posicionados automaticamente no topo da lista (de cima para baixo). Detecção inteligente de itens já na lista: se ainda sem preço abre formulário rápido imediatamente; se já preenchido/bipado oferece opções de manter, editar preço ou adicionar +1 unidade. Botão "⚡ Cotar / Preço" direto nos cards e tabela.

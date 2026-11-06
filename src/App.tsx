@@ -66,6 +66,7 @@ import { CashShiftModal } from "@/components/cash/CashShiftModal";
 import { CashShift, getCurrentShift } from "@/services/cashShiftService";
 import { CustomerReceiptView } from "@/components/CustomerReceiptView";
 import { CustomersCrmView } from "@/components/CustomersCrmView";
+import { syncCustomersWithSupabase } from "@/services/customerService";
 import { parsePermanentReceiptFromUrl } from "@/lib/receiptExporter";
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import {
@@ -315,6 +316,13 @@ export function App() {
   useEffect(() => {
     syncCompaniesWithSupabase().catch(() => {});
   }, []);
+
+  // Sincroniza passageiros/clientes com a nuvem Supabase em segundo plano
+  useEffect(() => {
+    if (activeCompany.id) {
+      syncCustomersWithSupabase(activeCompany.id).catch(() => {});
+    }
+  }, [activeCompany.id]);
 
   useEffect(() => {
     loadData(false);

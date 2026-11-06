@@ -23,12 +23,16 @@ import {
   X,
   ExternalLink,
   Store,
+  RefreshCw,
 } from "lucide-react";
 import {
   ClienteRecorrente,
   getRegisteredCustomers,
   formatPhoneBr,
   getCustomerLoyaltySummary,
+  syncCustomersWithSupabase,
+  updateCustomer,
+  deleteCustomer,
 } from "@/services/customerService";
 import { Company } from "@/types/multiTenant";
 import { formatCurrency } from "@/lib/utils";
@@ -69,6 +73,10 @@ export const CustomersCrmView: React.FC<CustomersCrmViewProps> = ({
   const [editNome, setEditNome] = useState<string>("");
   const [editEndereco, setEditEndereco] = useState<string>("");
 
+  // Estados de Sincronização em Nuvem (Supabase)
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+
   // Carrega clientes da empresa ativa
   const loadCustomers = () => {
     if (!empresaId) return;
@@ -78,7 +86,34 @@ export const CustomersCrmView: React.FC<CustomersCrmViewProps> = ({
 
   useEffect(() => {
     loadCustomers();
+    if (empresaId) {
+      syncCustomersWithSupabase(empresaId).then((res) => {
+        if (res.success) {
+          loadCustomers();
+        }
+      });
+    }
   }, [empresaId]);
+
+  const handleManualSync = async () => {
+    if (!empresaId || isSyncing) return;
+    setIsSyncing(true);
+    setSyncFeedback(null);
+    try {
+      const res = await syncCustomersWithSupabase(empresaId);
+      if (res.success) {
+        loadCustomers();
+        setSyncFeedback(`✓ ${res.totalSynced} ${termoClientes.toLowerCase()} sincronizados!`);
+      } else {
+        setSyncFeedback(`⚠️ ${res.error || "Erro ao sincronizar"}`);
+      }
+    } catch (e: any) {
+      setSyncFeedback(`⚠️ Erro: ${e?.message || "Falha na sincronização"}`);
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setSyncFeedback(null), 4000);
+    }
+  };
 
   // KPIs e Métricas Rápidas
   const stats = useMemo(() => {
@@ -221,37 +256,30 @@ export const CustomersCrmView: React.FC<CustomersCrmViewProps> = ({
     setWhatsappModalCustomer(null);
   };
 
-  // Salva edições do cliente no localStorage
-  const handleSaveEdit = () => {
+  // Salva edições do cliente no localStorage e na nuvem
+  const handleSaveEdit = async () => {
     if (!editingCustomer) return;
-    const key = `pereiralabs_pwa_customers_crm_${empresaId}_v2`;
-    const updated = customers.map((c) => {
-      if (c.telefone === editingCustomer.telefone) {
-        return {
-          ...c,
-          nome: editNome.trim() || c.nome,
-          endereco: editEndereco.trim() || undefined,
-        };
-      }
-      return c;
-    });
-
-    localStorage.setItem(key, JSON.stringify(updated));
-    setCustomers(updated);
+    await updateCustomer(
+      editingCustomer.telefone,
+      {
+        nome: editNome.trim() || editingCustomer.nome,
+        endereco: editEndereco.trim() || undefined,
+      },
+      empresaId
+    );
+    loadCustomers();
     setEditingCustomer(null);
   };
 
-  // Exclusão do cliente (Conformidade com LGPD)
-  const handleDeleteCustomer = (telefone: string) => {
+  // Exclusão do cliente (Conformidade com LGPD e Nuvem)
+  const handleDeleteCustomer = async (telefone: string) => {
     const conf = window.confirm(
       `Excluir cadastro deste cliente do sistema em definitivo?\n(Esta ação remove o histórico e dados de fidelidade conforme a LGPD)`
     );
     if (!conf) return;
 
-    const key = `pereiralabs_pwa_customers_crm_${empresaId}_v2`;
-    const updated = customers.filter((c) => c.telefone !== telefone);
-    localStorage.setItem(key, JSON.stringify(updated));
-    setCustomers(updated);
+    await deleteCustomer(telefone, empresaId);
+    loadCustomers();
   };
 
   return (
@@ -277,6 +305,23 @@ export const CustomersCrmView: React.FC<CustomersCrmViewProps> = ({
                 : `Gestão de clientes cadastrados, histórico de consumo e fidelização na ${companyName}.`}
             </p>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto justify-end">
+          {syncFeedback && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 animate-in fade-in">
+              {syncFeedback}
+            </span>
+          )}
+          <button
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/80 hover:bg-secondary text-foreground text-xs font-bold border border-border shadow-2xs transition-all active:scale-95 disabled:opacity-50"
+            title="Sincronizar passageiros com a nuvem Supabase"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 text-primary ${isSyncing ? "animate-spin" : ""}`} />
+            <span>{isSyncing ? "Sincronizando..." : "Sincronizar Nuvem"}</span>
+          </button>
         </div>
       </div>
 

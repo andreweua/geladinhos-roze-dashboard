@@ -1,12 +1,13 @@
 {
-  "version": "3.7.0",
-  "build": 2026110503,
-  "releaseDate": "2026-11-06T02:50:00.000Z",
+  "version": "3.7.1",
+  "build": 2026110601,
+  "releaseDate": "2026-11-06T06:00:00.000Z",
   "features": [
+    "Sincronização em Nuvem Supabase para Passageiros & Fidelidade (CRM) entre PWA, App Android e Desktop",
+    "Persistência automática bidirecional e botão manual 'Sincronizar Nuvem' com feedback em tempo real",
+    "Compatibilidade e sincronização automática em segundo plano ao inicializar a empresa ativa",
     "Levantamento Rápido de Preços em Campo: modal ergonômico com rolagem interna (max-h 92vh), inputs visíveis e botões 'Salvar Preço' e 'Salvar & Bipar Próximo' sempre acessíveis no Android e PWA",
     "Bipagem Inteligente de Código de Barras (GTIN): itens escaneados posicionados no topo (de cima para baixo)",
-    "Detecção Inteligente de Itens já na Lista: se não preenchido abre levantamento imediato; se já cotado oferece opções 'Manter Dados', 'Editar Preço' ou '+1 Adicionar Unidade'",
-    "Botão '⚡ Cotar / Preço' direto nos cards e linhas da tabela da lista de compras",
-    "Blindagem de overflow em todos os modais de cotação, estabelecimentos, importação de planilhas e token RSC"
+    "Detecção Inteligente de Itens já na Lista: se não preenchido abre levantamento imediato; se já cotado oferece opções 'Manter Dados', 'Editar Preço' ou '+1 Adicionar Unidade'"
   ]
 }

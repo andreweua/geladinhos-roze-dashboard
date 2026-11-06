@@ -1,8 +1,8 @@
 # 🍧 Geladinhos Gourmet da Roze — Sistema de Gestão, PDV, Cotações & Inteligência Artificial
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-3.7.0-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-3.7.1-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v64%29-38bdf8)
+![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v65%29-38bdf8)
 ![RSC Sistemas](https://img.shields.io/badge/GTIN%20%2F%20EAN--13-RSC%20Sistemas%20%2B%20Fotos-f59e0b)
 ![Atacado e Varejo](https://img.shields.io/badge/Cota%C3%A7%C3%B5es-Atacado%20%26%20Varejo-8b5cf6)
 ![Segurança de Caixa](https://img.shields.io/badge/Caixa-Abertura%20Obrigat%C3%B3ria-10b981)
@@ -16,9 +16,13 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 
 ---
 
-## 🚀 Destaques da Versão 3.7.0 (Build 2026110503 • Android versionCode 64)
+## 🚀 Destaques da Versão 3.7.1 (Build 2026110601 • Android versionCode 65)
 
-- **Levantamento Rápido de Preços & Cotação em Campo**:
+- **Sincronização em Nuvem Supabase de Passageiros & CRM de Fidelidade**:
+  - Nova tabela multi-tenant `clientes_fidelidade` no Supabase com sincronização bidirecional entre PWA, aplicativo Android (Google Play Store) e Desktop.
+  - Sincronização automática em segundo plano ao abrir o sistema ou alternar empresas.
+  - Botão `[Sincronizar Nuvem 🔄]` na tela de passageiros com status imediato em tempo real.
+- **Levantamento Rápido de Preços & Cotação em Campo (v3.7.0)**:
   - Modal ergonômico e mobile-first para levantamento ágil de preços nos corredores do supermercado com rolagem interna (`max-h-[92vh]`).
   - Inputs otimizados: Preço Varejo destacado, Preço Atacado + Qtd Mínima, Quantidade a Comprar, Embalagem, Estabelecimento e Validade da Oferta.
   - Botões fixos visíveis mesmo com o teclado virtual aberto no Android nativo e PWA: `[Salvar Preço]` e `[Salvar & Bipar Próximo 📷]`, permitindo bipar em sequência contínua sem perder tempo.

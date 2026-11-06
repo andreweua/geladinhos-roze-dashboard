@@ -1,5 +1,6 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { getActiveCompanyId } from "@/services/companyService";
+import { checkIsSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export interface ClienteRecorrente {
   empresaId: string; // Isolamento estrito multi-tenant obrigatório
@@ -44,6 +45,11 @@ export function getRegisteredCustomers(empresaId?: string): ClienteRecorrente[] 
   try {
     const key = getCompanyCustomersStorageKey(compId);
     let raw = localStorage.getItem(key);
+
+    // Fallback: se não encontrou pela chave padrão, busca pela chave alternativa
+    if (!raw) {
+      raw = localStorage.getItem(`pereiralabs_pwa_customers_crm_${compId}_v2`);
+    }
 
     // Migração de dados legados exclusiva para a Matriz Roze Gourmet
     if (!raw && compId === "emp-roze-gourmet") {
@@ -416,5 +422,241 @@ export function saveOrUpdateCustomer(params: {
     console.warn(`Erro ao salvar cliente no CRM da empresa ${empresaId}:`, err);
   }
 
+  // Sincroniza em segundo plano com o Supabase na nuvem (se configurado)
+  if (checkIsSupabaseConfigured() && supabase) {
+    saveCustomerToSupabase(updatedCustomer).catch((err) => {
+      console.warn("Falha no upsert em segundo plano para o Supabase:", err);
+    });
+  }
+
   return updatedCustomer;
+}
+
+/**
+ * Envia ou atualiza um cliente individual no Supabase (Upsert).
+ */
+export async function saveCustomerToSupabase(customer: ClienteRecorrente): Promise<boolean> {
+  if (!checkIsSupabaseConfigured() || !supabase) return false;
+
+  try {
+    const payload = {
+      empresa_id: customer.empresaId,
+      telefone: customer.telefone,
+      telefone_formatado: customer.telefoneFormatado,
+      nome: customer.nome,
+      endereco: customer.endereco || null,
+      total_pedidos: customer.totalPedidos || 0,
+      total_gasto: customer.totalGasto || 0,
+      ticket_medio: customer.ticketMedio || 0,
+      primeira_compra: customer.primeiraCompra || null,
+      ultima_compra: customer.ultimaCompra || null,
+      sabores_favoritos: customer.saboresFavoritos || [],
+      selos_atuais: customer.selos_atuais || 0,
+      ciclos_completos: customer.ciclos_completos || 0,
+      total_selos_historico: customer.total_selos_historico || 0,
+      recompensas_disponiveis: customer.recompensas_disponiveis || 0,
+      atualizado_em: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("clientes_fidelidade")
+      .upsert(payload, { onConflict: "empresa_id,telefone" });
+
+    if (error) {
+      console.warn("Erro ao salvar cliente no Supabase:", error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn("Exceção ao salvar cliente no Supabase:", err);
+    return false;
+  }
+}
+
+/**
+ * Atualiza dados cadastrais de um cliente (Nome, Endereço, etc.) localmente e no Supabase.
+ */
+export async function updateCustomer(
+  telefone: string,
+  updates: Partial<ClienteRecorrente>,
+  empresaId?: string
+): Promise<boolean> {
+  const compId = empresaId || getActiveCompanyId();
+  const all = getRegisteredCustomers(compId);
+  const idx = all.findIndex((c) => c.telefone === telefone);
+
+  if (idx < 0) return false;
+
+  const updated: ClienteRecorrente = {
+    ...all[idx],
+    ...updates,
+    empresaId: compId,
+    telefone,
+  };
+
+  all[idx] = updated;
+
+  try {
+    const key = getCompanyCustomersStorageKey(compId);
+    localStorage.setItem(key, JSON.stringify(all));
+  } catch (err) {
+    console.warn("Erro ao salvar cliente atualizado no localStorage:", err);
+  }
+
+  if (checkIsSupabaseConfigured() && supabase) {
+    await saveCustomerToSupabase(updated);
+  }
+
+  return true;
+}
+
+/**
+ * Remove o cadastro de um cliente localmente e no Supabase (Conformidade LGPD).
+ */
+export async function deleteCustomer(telefone: string, empresaId?: string): Promise<boolean> {
+  const compId = empresaId || getActiveCompanyId();
+  const all = getRegisteredCustomers(compId);
+  const filtered = all.filter((c) => c.telefone !== telefone);
+
+  try {
+    const key = getCompanyCustomersStorageKey(compId);
+    localStorage.setItem(key, JSON.stringify(filtered));
+  } catch (err) {
+    console.warn("Erro ao remover cliente do localStorage:", err);
+  }
+
+  if (checkIsSupabaseConfigured() && supabase) {
+    try {
+      await supabase
+        .from("clientes_fidelidade")
+        .delete()
+        .eq("empresa_id", compId)
+        .eq("telefone", telefone);
+    } catch (err) {
+      console.warn("Erro ao remover cliente do Supabase:", err);
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Sincronização Bidirecional Completa de Clientes / Passageiros com o Supabase.
+ * - Puxa clientes da nuvem e mescla com a base local
+ * - Envia clientes cadastrados offline para o Supabase
+ */
+export async function syncCustomersWithSupabase(companyId?: string): Promise<{
+  success: boolean;
+  totalSynced: number;
+  error?: string;
+}> {
+  const compId = companyId || getActiveCompanyId();
+
+  if (!checkIsSupabaseConfigured() || !supabase) {
+    return {
+      success: false,
+      totalSynced: 0,
+      error: "Supabase não configurado neste dispositivo.",
+    };
+  }
+
+  try {
+    // 1. Busca todos os clientes remotos da empresa no Supabase
+    const { data: remoteRows, error: fetchErr } = await supabase
+      .from("clientes_fidelidade")
+      .select("*")
+      .eq("empresa_id", compId);
+
+    if (fetchErr) {
+      // Se a tabela ainda não existir no banco, avisa com elegância
+      console.warn("Aviso na sincronização de clientes com Supabase:", fetchErr.message);
+      return {
+        success: false,
+        totalSynced: 0,
+        error: fetchErr.message,
+      };
+    }
+
+    // 2. Carrega lista local atual
+    const localCustomers = getRegisteredCustomers(compId);
+    const localMap = new Map<string, ClienteRecorrente>();
+    localCustomers.forEach((c) => localMap.set(c.telefone, c));
+
+    const remoteCustomers: ClienteRecorrente[] = (remoteRows || []).map((row: any) => ({
+      empresaId: row.empresa_id,
+      telefone: row.telefone,
+      telefoneFormatado: row.telefone_formatado || formatPhoneBr(row.telefone),
+      nome: row.nome,
+      endereco: row.endereco || undefined,
+      totalPedidos: Number(row.total_pedidos) || 0,
+      totalGasto: Number(row.total_gasto) || 0,
+      ticketMedio: Number(row.ticket_medio) || 0,
+      primeiraCompra: row.primeira_compra || "",
+      ultimaCompra: row.ultima_compra || "",
+      saboresFavoritos: Array.isArray(row.sabores_favoritos) ? row.sabores_favoritos : [],
+      selos_atuais: Number(row.selos_atuais) || 0,
+      ciclos_completos: Number(row.ciclos_completos) || 0,
+      total_selos_historico: Number(row.total_selos_historico) || 0,
+      recompensas_disponiveis: Number(row.recompensas_disponiveis) || 0,
+    }));
+
+    // 3. Mescla: se o cliente existe localmente mas não no remoto, ou se o local tem mais pedidos, envia para a nuvem
+    const remoteMap = new Map<string, ClienteRecorrente>();
+    remoteCustomers.forEach((c) => remoteMap.set(c.telefone, c));
+
+    // Clientes locais que precisam subir para o Supabase
+    const toUpload: ClienteRecorrente[] = [];
+    localCustomers.forEach((local) => {
+      const remote = remoteMap.get(local.telefone);
+      if (!remote) {
+        toUpload.push(local);
+      } else {
+        const localTime = new Date(local.ultimaCompra || 0).getTime();
+        const remoteTime = new Date(remote.ultimaCompra || 0).getTime();
+        if (localTime > remoteTime || local.totalPedidos > remote.totalPedidos) {
+          toUpload.push(local);
+        }
+      }
+    });
+
+    if (toUpload.length > 0) {
+      for (const c of toUpload) {
+        await saveCustomerToSupabase(c);
+      }
+    }
+
+    // Clientes remotos que precisam entrar no local
+    remoteCustomers.forEach((remote) => {
+      const local = localMap.get(remote.telefone);
+      if (!local) {
+        localMap.set(remote.telefone, remote);
+      } else {
+        const remoteTime = new Date(remote.ultimaCompra || 0).getTime();
+        const localTime = new Date(local.ultimaCompra || 0).getTime();
+        if (remoteTime > localTime || remote.totalPedidos > local.totalPedidos) {
+          localMap.set(remote.telefone, remote);
+        }
+      }
+    });
+
+    // 4. Salva o resultado mesclado no localStorage
+    const mergedList = Array.from(localMap.values()).sort(
+      (a, b) => new Date(b.ultimaCompra || 0).getTime() - new Date(a.ultimaCompra || 0).getTime()
+    );
+
+    const key = getCompanyCustomersStorageKey(compId);
+    localStorage.setItem(key, JSON.stringify(mergedList.slice(0, 300)));
+
+    return {
+      success: true,
+      totalSynced: mergedList.length,
+    };
+  } catch (err: any) {
+    console.error("Erro na sincronização de clientes:", err);
+    return {
+      success: false,
+      totalSynced: 0,
+      error: err?.message || "Erro desconhecido na sincronização.",
+    };
+  }
 }
