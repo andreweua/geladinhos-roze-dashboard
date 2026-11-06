@@ -136,6 +136,104 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
   const [newListCity, setNewListCity] = useState("Jaú - SP");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
+  // Modal de Levantamento Rápido de Preço (Mobile First)
+  const [quickPriceModalItem, setQuickPriceModalItem] = useState<ListaComprasItem | null>(null);
+  const [quickPriceForm, setQuickPriceForm] = useState<{
+    preco_varejo: number | "";
+    preco_atacado: number | "";
+    qtd_minima_atacado: number | "";
+    quantidade_necessaria: number;
+    quantidade_embalagem: number;
+    unidade_embalagem: string;
+    unidade_compra: string;
+    estabelecimento_id: string;
+    data_validade: string;
+    em_promocao: boolean;
+    comprado: boolean;
+  }>({
+    preco_varejo: "",
+    preco_atacado: "",
+    qtd_minima_atacado: "",
+    quantidade_necessaria: 1,
+    quantidade_embalagem: 1,
+    unidade_embalagem: "g",
+    unidade_compra: "un",
+    estabelecimento_id: "",
+    data_validade: "",
+    em_promocao: false,
+    comprado: false,
+  });
+
+  useEffect(() => {
+    if (quickPriceModalItem) {
+      setQuickPriceForm({
+        preco_varejo:
+          quickPriceModalItem.preco_varejo !== undefined && quickPriceModalItem.preco_varejo > 0
+            ? quickPriceModalItem.preco_varejo
+            : quickPriceModalItem.preco_cotado !== undefined && quickPriceModalItem.preco_cotado > 0
+            ? quickPriceModalItem.preco_cotado
+            : quickPriceModalItem.preco_estimado !== undefined && quickPriceModalItem.preco_estimado > 0
+            ? quickPriceModalItem.preco_estimado
+            : "",
+        preco_atacado: quickPriceModalItem.preco_atacado ?? "",
+        qtd_minima_atacado: quickPriceModalItem.qtd_minima_atacado ?? "",
+        quantidade_necessaria: quickPriceModalItem.quantidade_necessaria || 1,
+        quantidade_embalagem: quickPriceModalItem.quantidade_embalagem || 1,
+        unidade_embalagem: quickPriceModalItem.unidade_embalagem || quickPriceModalItem.unidade_medida || "g",
+        unidade_compra: quickPriceModalItem.unidade_compra || "un",
+        estabelecimento_id: quickPriceModalItem.estabelecimento_id || estabelecimentos[0]?.id || "",
+        data_validade: quickPriceModalItem.data_validade || "",
+        em_promocao: Boolean(quickPriceModalItem.em_promocao),
+        comprado: Boolean(quickPriceModalItem.comprado),
+      });
+    }
+  }, [quickPriceModalItem, estabelecimentos]);
+
+  const handleSaveQuickPrice = (andScanNext: boolean = false) => {
+    if (!quickPriceModalItem || !activeList) return;
+    const item = quickPriceModalItem;
+    const varejoVal = Number(quickPriceForm.preco_varejo) || 0;
+    const atacadoVal = quickPriceForm.preco_atacado !== "" ? Number(quickPriceForm.preco_atacado) : undefined;
+    const qtdMinVal = quickPriceForm.qtd_minima_atacado !== "" ? Number(quickPriceForm.qtd_minima_atacado) : undefined;
+    const estabNome = estabelecimentos.find((e) => e.id === quickPriceForm.estabelecimento_id)?.nome;
+
+    const updates: Partial<ListaComprasItem> = {
+      preco_varejo: varejoVal,
+      preco_cotado: varejoVal,
+      preco_atacado: atacadoVal,
+      qtd_minima_atacado: qtdMinVal,
+      quantidade_necessaria: quickPriceForm.quantidade_necessaria || 1,
+      quantidade_embalagem: quickPriceForm.quantidade_embalagem || 1,
+      unidade_embalagem: quickPriceForm.unidade_embalagem || "g",
+      unidade_medida: quickPriceForm.unidade_embalagem || "g",
+      unidade_compra: quickPriceForm.unidade_compra || "un",
+      estabelecimento_id: quickPriceForm.estabelecimento_id || undefined,
+      estabelecimento_nome: estabNome,
+      data_validade: quickPriceForm.data_validade || undefined,
+      em_promocao: quickPriceForm.em_promocao,
+      comprado: quickPriceForm.comprado,
+    };
+
+    // Atualiza o item e garante que ele fique no TOPO da lista de compras (de cima para baixo os bipados)
+    const otherItens = activeList.itens.filter((i) => i.id !== item.id);
+    const updatedItem = { ...item, ...updates };
+    const updatedList = { ...activeList, itens: [updatedItem, ...otherItens] };
+    const saved = addOrUpdateShoppingList(updatedList);
+    setLists(saved);
+
+    setQuickPriceModalItem(null);
+    setGtinFeedback(`✓ Preço de ${updatedItem.insumo_nome} salvo: ${formatCurrency(varejoVal)}!`);
+    setTimeout(() => setGtinFeedback(null), 3500);
+
+    if (andScanNext) {
+      setTimeout(() => {
+        setScanningTargetItemId(null);
+        setScannerInitialMode("camera");
+        setIsScannerOpen(true);
+      }, 250);
+    }
+  };
+
   // Feedback states
   const [copiedFeedback, setCopiedFeedback] = useState(false);
   const [batchSaveFeedback, setBatchSaveFeedback] = useState<string | null>(null);
@@ -232,9 +330,10 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
       qtd_minima_atacado: undefined,
       comprado: false,
     };
-    const updatedList = { ...activeList, itens: [...activeList.itens, newItem] };
+    const updatedList = { ...activeList, itens: [newItem, ...activeList.itens] };
     const saved = addOrUpdateShoppingList(updatedList);
     setLists(saved);
+    setQuickPriceModalItem(newItem);
   };
 
   // Handle search GTIN for an item (typing or button)
@@ -312,22 +411,50 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
       const targetId = scanningTargetItemId;
       setScanningTargetItemId(null);
       await handleSearchGtinForItem(targetId, clean);
+      // Coloca o item no topo (ordem de cima para baixo dos bipados) e abre cotação rápida
+      const target = activeList.itens.find((i) => i.id === targetId);
+      if (target) {
+        const others = activeList.itens.filter((i) => i.id !== targetId);
+        const updatedTarget = { ...target, gtin: clean };
+        const updatedList = { ...activeList, itens: [updatedTarget, ...others] };
+        const saved = addOrUpdateShoppingList(updatedList);
+        setLists(saved);
+        setQuickPriceModalItem(updatedTarget);
+      }
       return;
     }
 
     // Caso 2: Escaneamento geral de produto com a câmera
-    // Verifica se já existe um item na lista de compras com este GTIN ou nome
-    const existing = activeList.itens.find((i) => i.gtin === clean);
-    if (existing) {
-      // Produto já existe na lista -> Pergunta se quer acrescentar +1 unidade
-      setDuplicateItemPrompt({
-        existingItem: existing,
-        scannedGtin: clean,
-      });
+    // Verifica se já existe um item na lista de compras com este GTIN
+    const existingIndex = activeList.itens.findIndex((i) => i.gtin === clean);
+    if (existingIndex !== -1) {
+      const existing = activeList.itens[existingIndex];
+      // Mover o item bipado para o TOPO da lista (ordem de cima para baixo dos bipados)
+      const others = activeList.itens.filter((_, idx) => idx !== existingIndex);
+      const reorderedList = { ...activeList, itens: [existing, ...others] };
+      const saved = addOrUpdateShoppingList(reorderedList);
+      setLists(saved);
+
+      const hasPrice = Boolean(
+        (existing.preco_varejo && existing.preco_varejo > 0) ||
+        (existing.preco_cotado && existing.preco_cotado > 0) ||
+        (existing.preco_estimado && existing.preco_estimado > 0)
+      );
+
+      if (hasPrice) {
+        // Se já foi preenchido ou cotado, oferece manter, editar ou adicionar +1
+        setDuplicateItemPrompt({
+          existingItem: existing,
+          scannedGtin: clean,
+        });
+      } else {
+        // Se ainda não tem preço preenchido, abre direto o formulário ágil para preencher!
+        setQuickPriceModalItem(existing);
+      }
       return;
     }
 
-    // Se não existe, busca informações oficiais do GTIN e adiciona à lista
+    // Se não existe, busca informações oficiais do GTIN e adiciona NO TOPO DA LISTA (ordem de cima para baixo)
     try {
       const info = await consultarProdutoPorGtin(clean);
       const isOfficial = Boolean(info && info.fonte !== "manual" && !info.nome.startsWith("Produto GTIN"));
@@ -348,14 +475,20 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
         quantidade_embalagem: displayPkg.quantidade || info?.quantidade_embalagem || 1,
         unidade_embalagem: embUnit,
         preco_estimado: 0,
+        preco_varejo: 0,
+        preco_cotado: 0,
         comprado: false,
       };
 
-      const updatedList = { ...activeList, itens: [...activeList.itens, newItem] };
+      // Coloca no TOPO da lista
+      const updatedList = { ...activeList, itens: [newItem, ...activeList.itens] };
       const saved = addOrUpdateShoppingList(updatedList);
       setLists(saved);
-      setGtinFeedback(`✓ ${resolvedName} adicionado à lista de compras via Leitor de Código de Barras!`);
-      setTimeout(() => setGtinFeedback(null), 4000);
+      
+      // Imediatamente abre o levantamento rápido para o usuário digitar o preço daquele produto bipado
+      setQuickPriceModalItem(newItem);
+      setGtinFeedback(`✓ ${resolvedName} bipado e colocado no topo! Preencha o preço.`);
+      setTimeout(() => setGtinFeedback(null), 3500);
     } catch {
       setGtinFeedback(`⚠️ Erro ao consultar GTIN ${clean}.`);
       setTimeout(() => setGtinFeedback(null), 3000);
@@ -367,18 +500,34 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
     if (!activeList) return;
 
     // Verifica se o item já existe na lista
-    const existing = activeList.itens.find(
+    const existingIndex = activeList.itens.findIndex(
       (i) =>
         (insumo.gtin && i.gtin === insumo.gtin) ||
         i.insumo_nome.trim().toUpperCase() === insumo.nomeFormatado.trim().toUpperCase()
     );
 
-    if (existing) {
-      // Pergunta se deseja acrescentar +1 unidade ao item existente
-      setDuplicateItemPrompt({
-        existingItem: existing,
-        scannedGtin: insumo.gtin,
-      });
+    if (existingIndex !== -1) {
+      const existing = activeList.itens[existingIndex];
+      // Mover para o topo da lista
+      const others = activeList.itens.filter((_, idx) => idx !== existingIndex);
+      const reorderedList = { ...activeList, itens: [existing, ...others] };
+      const saved = addOrUpdateShoppingList(reorderedList);
+      setLists(saved);
+
+      const hasPrice = Boolean(
+        (existing.preco_varejo && existing.preco_varejo > 0) ||
+        (existing.preco_cotado && existing.preco_cotado > 0) ||
+        (existing.preco_estimado && existing.preco_estimado > 0)
+      );
+
+      if (hasPrice) {
+        setDuplicateItemPrompt({
+          existingItem: existing,
+          scannedGtin: insumo.gtin,
+        });
+      } else {
+        setQuickPriceModalItem(existing);
+      }
       return;
     }
 
@@ -398,13 +547,16 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
       quantidade_embalagem: displayPkg.quantidade || insumo.quantidadeEmbalagem || 1,
       unidade_embalagem: embUnit,
       preco_estimado: insumo.precoReferencia || 0,
+      preco_varejo: insumo.precoReferencia || 0,
+      preco_cotado: insumo.precoReferencia || 0,
       comprado: false,
     };
-    const updatedList = { ...activeList, itens: [...activeList.itens, newItem] };
+    const updatedList = { ...activeList, itens: [newItem, ...activeList.itens] };
     const saved = addOrUpdateShoppingList(updatedList);
     setLists(saved);
+    setQuickPriceModalItem(newItem);
     setGtinFeedback(
-      `✓ ${insumo.nomeFormatado} adicionado à lista via ${
+      `✓ ${insumo.nomeFormatado} adicionado no topo da lista via ${
         insumo.origem === "autocorrecao_local"
           ? "Autocorreção Inteligente (Levenshtein)"
           : insumo.origem === "rcsistemas_sincronizado"
@@ -1196,14 +1348,25 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         )}
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(item.id)}
-                        className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0"
-                        title="Remover Item da Lista"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setQuickPriceModalItem(item)}
+                          className="rounded-lg bg-amber-500/15 hover:bg-amber-500 hover:text-slate-950 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-2 py-1 text-[11px] font-extrabold flex items-center gap-1 transition-colors"
+                          title="Abrir Levantamento Rápido de Preço no Mercado"
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          <span>Cotar / Preço</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(item.id)}
+                          className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          title="Remover Item da Lista"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Linha de Código GTIN / EAN com Atalhos Rápidos */}
@@ -1778,14 +1941,24 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                         </td>
 
                         <td className="py-2.5 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(item.id)}
-                            className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                            title="Remover Item"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setQuickPriceModalItem(item)}
+                              className="rounded p-1 text-amber-500 hover:bg-amber-500/10 transition-colors"
+                              title="Levantamento Rápido de Preço"
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              title="Remover Item"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1822,9 +1995,9 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
 
       {/* MODAL: CRIAR NOVA LISTA DE COMPRAS */}
       {isCreateListModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md max-h-[92vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 bg-card shrink-0">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4 text-primary" />
                 Criar Nova Lista de Compras
@@ -1838,7 +2011,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
               <div>
                 <label className="block font-semibold text-foreground mb-1">
                   Nome da Lista *:
@@ -1889,7 +2062,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+            <div className="flex items-center justify-end gap-2 border-t border-border p-3.5 bg-secondary/20 shrink-0">
               <Button
                 type="button"
                 variant="outline"
@@ -1914,9 +2087,9 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
 
       {/* MODAL: IMPORTAR LISTA DE COMPRAS (CSV / EXCEL / JSON / TEXTO) */}
       {isImportModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-xl max-h-[92vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 bg-card shrink-0">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5 text-primary" />
                 Importar Lista de Compras Inteligente
@@ -1930,7 +2103,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
               <div>
                 <label className="block font-semibold text-foreground mb-1">
                   Título da Lista (Opcional):
@@ -2014,7 +2187,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+            <div className="flex items-center justify-end gap-2 border-t border-border p-3.5 bg-secondary/20 shrink-0">
               <Button
                 type="button"
                 variant="outline"
@@ -2040,9 +2213,9 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
 
       {/* MODAL: SALVAR COTAÇÕES EM LOTE NO COMPARADOR */}
       {showBatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-md max-h-[92vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 bg-card shrink-0">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
                 Salvar Cotações da Lista no Banco
@@ -2056,7 +2229,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
               <p className="text-muted-foreground">
                 Todos os itens da lista que possuem <strong>Preço Cotado</strong> serão automaticamente salvos na tabela de <em>Pesquisas de Preço com Validade</em>.
               </p>
@@ -2092,7 +2265,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+            <div className="flex items-center justify-end gap-2 border-t border-border p-3.5 bg-secondary/20 shrink-0">
               <Button
                 type="button"
                 variant="outline"
@@ -2117,9 +2290,9 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
 
       {/* Modal de Conexão RSC Sistemas GTIN */}
       {isRscModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg max-h-[92vh] flex flex-col rounded-3xl border border-border bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 bg-card shrink-0">
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <Barcode className="h-5 w-5" />
@@ -2142,7 +2315,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
               </button>
             </div>
 
-            <div className="mt-4 space-y-4 text-xs">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 text-xs">
               <div className="rounded-2xl border border-border/80 bg-secondary/30 p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-foreground">Status do Serviço:</span>
@@ -2268,7 +2441,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end border-t border-border pt-3">
+            <div className="p-3.5 flex justify-end border-t border-border bg-secondary/20 shrink-0">
               <Button
                 type="button"
                 variant="default"
@@ -2283,9 +2456,320 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
         </div>
       )}
 
-      {/* Alerta inteligente: Produto já existe na lista de compras -> Adicionar +1 unidade? */}
+      {/* MODAL ÁGIL DE LEVANTAMENTO / COTAÇÃO RÁPIDA DE PREÇO NO MERCADO */}
+      {quickPriceModalItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-4 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-lg max-h-[92vh] flex flex-col rounded-3xl border border-border bg-card shadow-2xl overflow-hidden text-foreground">
+            {/* Header Fixo */}
+            <div className="flex items-center justify-between border-b border-border px-5 py-3.5 bg-card shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground leading-tight">
+                    Levantamento / Cotação Rápida
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    Preenchimento veloz para levantamento de preços em campo
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQuickPriceModalItem(null)}
+                className="rounded-full bg-secondary p-1.5 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Corpo Rolável */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 text-xs">
+              {/* Card Resumo do Produto */}
+              <div className="rounded-2xl border border-border bg-secondary/30 p-3.5 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <strong className="text-sm font-extrabold text-foreground leading-snug">
+                    {quickPriceModalItem.insumo_nome}
+                  </strong>
+                  {quickPriceModalItem.gtin && (
+                    <span className="shrink-0 font-mono text-[10px] font-bold px-2 py-0.5 rounded-md bg-secondary text-foreground border border-border">
+                      EAN: {quickPriceModalItem.gtin}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>Marca: <strong className="text-foreground">{quickPriceModalItem.marca || "Genérico"}</strong></span>
+                  <span>•</span>
+                  <span>Embalagem: <strong className="text-foreground">{quickPriceModalItem.quantidade_embalagem}{quickPriceModalItem.unidade_embalagem || quickPriceModalItem.unidade_medida}</strong></span>
+                </div>
+              </div>
+
+              {/* Bloco Destaque: Preço Varejo */}
+              <div className="rounded-2xl border-2 border-primary/40 bg-primary/5 p-4 space-y-2">
+                <label className="block text-xs font-extrabold text-primary uppercase tracking-wide">
+                  Preço Varejo Unitário (R$) *
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-extrabold text-primary">R$</span>
+                  <LocaleCurrencyInput
+                    autoFocus
+                    emptyWhenZero
+                    value={quickPriceForm.preco_varejo}
+                    onValueChange={(val) =>
+                      setQuickPriceForm((prev) => ({
+                        ...prev,
+                        preco_varejo: val ?? "",
+                      }))
+                    }
+                    placeholder="0,00"
+                    className="w-full rounded-xl border-2 border-primary bg-background px-3 py-2 text-xl font-mono font-extrabold text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-xs"
+                  />
+                </div>
+                <span className="text-[11px] text-muted-foreground block">
+                  Valor da etiqueta do produto na gôndola para 1 unidade.
+                </span>
+              </div>
+
+              {/* Bloco Atacado (Opcional) */}
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-2.5">
+                <span className="block text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  Preço Atacado com Qtd Mínima (Opcional):
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-foreground mb-1">
+                      Preço no Atacado (R$):
+                    </label>
+                    <LocaleCurrencyInput
+                      emptyWhenZero
+                      value={quickPriceForm.preco_atacado}
+                      onValueChange={(val) =>
+                        setQuickPriceForm((prev) => ({
+                          ...prev,
+                          preco_atacado: val ?? "",
+                        }))
+                      }
+                      placeholder="0,00"
+                      className="w-full rounded-xl border border-input bg-background px-2.5 py-1.5 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-foreground mb-1">
+                      Qtd Mínima (un):
+                    </label>
+                    <LocaleNumberInput
+                      maxDecimals={0}
+                      emptyWhenZero
+                      value={quickPriceForm.qtd_minima_atacado}
+                      onValueChange={(val) =>
+                        setQuickPriceForm((prev) => ({
+                          ...prev,
+                          qtd_minima_atacado: val ?? "",
+                        }))
+                      }
+                      placeholder="Ex: 6 ou 12"
+                      className="w-full rounded-xl border border-input bg-background px-2.5 py-1.5 text-center font-mono text-xs font-bold focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Quantidade a Comprar e Embalagem */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-border bg-secondary/20 p-3 space-y-1.5">
+                  <label className="block text-[11px] font-bold text-foreground">
+                    Quantidade a Comprar:
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <LocaleNumberInput
+                      maxDecimals={3}
+                      fallbackOnBlur={1}
+                      value={quickPriceForm.quantidade_necessaria}
+                      onValueChange={(val) =>
+                        setQuickPriceForm((prev) => ({
+                          ...prev,
+                          quantidade_necessaria: val ?? 1,
+                        }))
+                      }
+                      placeholder="1"
+                      className="w-full rounded-xl border border-input bg-background px-2.5 py-1.5 text-center font-extrabold text-xs focus:border-primary focus:outline-none"
+                    />
+                    <select
+                      value={quickPriceForm.unidade_compra}
+                      onChange={(e) =>
+                        setQuickPriceForm((prev) => ({
+                          ...prev,
+                          unidade_compra: e.target.value,
+                        }))
+                      }
+                      className="rounded-xl border border-input bg-background px-2 py-1.5 text-xs font-bold focus:border-primary focus:outline-none"
+                    >
+                      <option value="un">un</option>
+                      <option value="cx">cx</option>
+                      <option value="pct">pct</option>
+                      <option value="fardo">fardo</option>
+                      <option value="lata">lata</option>
+                      <option value="pote">pote</option>
+                      <option value="kg">kg</option>
+                      <option value="l">L</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-secondary/20 p-3 space-y-1.5">
+                  <label className="block text-[11px] font-bold text-foreground">
+                    Tamanho / Embalagem:
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <LocaleNumberInput
+                      maxDecimals={3}
+                      value={quickPriceForm.quantidade_embalagem}
+                      onValueChange={(val) =>
+                        setQuickPriceForm((prev) => ({
+                          ...prev,
+                          quantidade_embalagem: val ?? 1,
+                        }))
+                      }
+                      placeholder="395"
+                      className="w-full rounded-xl border border-input bg-background px-2.5 py-1.5 text-center font-bold text-xs focus:border-primary focus:outline-none"
+                    />
+                    <select
+                      value={quickPriceForm.unidade_embalagem}
+                      onChange={(e) =>
+                        setQuickPriceForm((prev) => ({
+                          ...prev,
+                          unidade_embalagem: e.target.value,
+                        }))
+                      }
+                      className="rounded-xl border border-input bg-background px-2 py-1.5 text-xs font-bold focus:border-primary focus:outline-none"
+                    >
+                      <option value="g">g</option>
+                      <option value="kg">kg</option>
+                      <option value="ml">ml</option>
+                      <option value="l">L</option>
+                      <option value="un">un</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Estabelecimento & Validade */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-foreground mb-1">
+                    Estabelecimento / Supermercado:
+                  </label>
+                  <select
+                    value={quickPriceForm.estabelecimento_id}
+                    onChange={(e) =>
+                      setQuickPriceForm((prev) => ({
+                        ...prev,
+                        estabelecimento_id: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-input bg-background px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none"
+                  >
+                    <option value="">Selecione ou deixe padrão...</option>
+                    {estabelecimentos.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.nome} ({e.cidade})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-foreground mb-1">
+                    Validade da Cotação / Oferta:
+                  </label>
+                  <input
+                    type="date"
+                    value={quickPriceForm.data_validade}
+                    onChange={(e) =>
+                      setQuickPriceForm((prev) => ({
+                        ...prev,
+                        data_validade: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-xl border border-input bg-background px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Toggles: Em Promoção & Já Comprado */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <label className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-secondary/30 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={quickPriceForm.em_promocao}
+                    onChange={(e) =>
+                      setQuickPriceForm((prev) => ({
+                        ...prev,
+                        em_promocao: e.target.checked,
+                      }))
+                    }
+                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <span className="text-[11px] font-bold text-foreground">🔥 Em Promoção</span>
+                </label>
+
+                <label className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-secondary/30 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={quickPriceForm.comprado}
+                    onChange={(e) =>
+                      setQuickPriceForm((prev) => ({
+                        ...prev,
+                        comprado: e.target.checked,
+                      }))
+                    }
+                    className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <span className="text-[11px] font-bold text-foreground">🛒 Já Comprado</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Footer Fixo: Ações Rápidas com Botão para Bipar Próximo Imediatamente */}
+            <div className="border-t border-border px-4 py-3 bg-secondary/30 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setQuickPriceModalItem(null)}
+                className="w-full sm:w-auto text-xs"
+              >
+                Cancelar
+              </Button>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={() => handleSaveQuickPrice(false)}
+                  className="flex-1 sm:flex-initial text-xs font-bold bg-primary text-primary-foreground"
+                >
+                  Salvar Preço
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => handleSaveQuickPrice(true)}
+                  className="flex-1 sm:flex-initial text-xs font-extrabold bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1.5 shadow-md"
+                  title="Salva este preço e abre a câmera imediatamente para bipar o próximo produto na gôndola"
+                >
+                  <Camera className="h-4 w-4" />
+                  <span>Salvar & Bipar Próximo 📷</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerta inteligente: Produto já existe na lista de compras -> Opções Manter, Editar ou Adicionar +1 */}
       {duplicateItemPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-xs p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in">
           <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4 text-foreground">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
@@ -2305,33 +2789,62 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                 Marca: <strong>{duplicateItemPrompt.existingItem.marca || "Padrão"}</strong>
               </p>
               <div className="flex items-center justify-between mt-1 text-xs">
-                <span className="text-muted-foreground">Quantidade Atual na Lista:</span>
+                <span className="text-muted-foreground">Qtd Atual na Lista:</span>
                 <span className="rounded-md bg-primary/10 px-2 py-0.5 font-bold text-primary">
                   {duplicateItemPrompt.existingItem.quantidade_necessaria}{" "}
                   {duplicateItemPrompt.existingItem.unidade_medida}
                 </span>
               </div>
+              {(duplicateItemPrompt.existingItem.preco_varejo || duplicateItemPrompt.existingItem.preco_cotado) && (
+                <div className="flex items-center justify-between text-xs pt-0.5">
+                  <span className="text-muted-foreground">Preço Atual:</span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency(
+                      duplicateItemPrompt.existingItem.preco_varejo ||
+                      duplicateItemPrompt.existingItem.preco_cotado ||
+                      0
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
 
             <p className="text-xs text-foreground font-medium leading-relaxed">
-              Este produto já está na sua lista de compras. Deseja <strong>acrescentar mais 1 unidade (+1)</strong> à quantidade necessária?
+              Este produto já está na lista e foi posicionado no topo. O que deseja fazer?
             </p>
 
-            <div className="flex items-center gap-2 pt-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={() => setDuplicateItemPrompt(null)}
-              >
-                Manter ({duplicateItemPrompt.existingItem.quantidade_necessaria} {duplicateItemPrompt.existingItem.unidade_medida})
-              </Button>
+            <div className="flex flex-col gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setDuplicateItemPrompt(null)}
+                >
+                  Manter Dados
+                </Button>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  className="text-xs font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 gap-1"
+                  onClick={() => {
+                    const itemToEdit = duplicateItemPrompt.existingItem;
+                    setDuplicateItemPrompt(null);
+                    setQuickPriceModalItem(itemToEdit);
+                  }}
+                >
+                  <Edit2 className="h-3 w-3" />
+                  <span>Editar Preço</span>
+                </Button>
+              </div>
+
               <Button
                 type="button"
                 variant="default"
                 size="sm"
-                className="flex-1 text-xs font-bold bg-primary text-primary-foreground gap-1.5 shadow-sm"
+                className="w-full text-xs font-bold bg-primary text-primary-foreground gap-1.5 shadow-sm"
                 onClick={() => {
                   handleUpdateItem(duplicateItemPrompt.existingItem.id, {
                     quantidade_necessaria: duplicateItemPrompt.existingItem.quantidade_necessaria + 1,
@@ -2346,7 +2859,7 @@ Açúcar Cristal 5kg;Mercearia;2;pct;17.50;15.90;5;baixa;Mart Minas Atacado e Va
                 }}
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>Sim, Adicionar +1</span>
+                <span>+1 Adicionar Unidade ({duplicateItemPrompt.existingItem.quantidade_necessaria + 1} {duplicateItemPrompt.existingItem.unidade_medida})</span>
               </Button>
             </div>
           </div>

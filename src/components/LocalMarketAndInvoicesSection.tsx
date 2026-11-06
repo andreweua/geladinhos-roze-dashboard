@@ -1511,9 +1511,9 @@ export const LocalMarketAndInvoicesSection: React.FC<
 
       {/* MODAL EXPLICATIVO: CUSTO DE REPOSIÇÃO VS CUSTO MÉDIO PONDERADO (CMP) */}
       {showCostMethodModal && pendingRecipeApply && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="w-full max-w-lg max-h-[92vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 shrink-0 bg-card">
               <div className="flex items-center gap-2">
                 <Calculator className="h-5 w-5 text-primary" />
                 <h3 className="text-base font-bold text-foreground">
@@ -1523,71 +1523,73 @@ export const LocalMarketAndInvoicesSection: React.FC<
               <button
                 type="button"
                 onClick={() => setShowCostMethodModal(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="rounded-xl border border-border/80 bg-secondary/30 p-3.5 text-xs text-muted-foreground space-y-2">
-              <p className="flex items-center gap-1.5 font-bold text-foreground">
-                <HelpCircle className="h-4 w-4 text-indigo-500" />
-                Entenda a diferença contábil entre os métodos:
-              </p>
-              <p>
-                <strong>Preço pago nesta Nota:</strong> {formatCurrency(pendingRecipeApply.precoPagoUnit)} ({pendingRecipeApply.quantidadeComprada} un.)
-              </p>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              {/* Option 1: Custo de Reposição (Recomendado) */}
-              <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-primary flex items-center gap-1.5">
-                    <TrendingUp className="h-4 w-4" />
-                    Opção 1: Custo de Reposição Atual (Recomendado)
-                  </span>
-                  <Badge variant="success" className="text-[10px]">
-                    Protege o Lucro
-                  </Badge>
-                </div>
-                <p className="text-muted-foreground">
-                  Aplica diretamente o valor da última compra ({formatCurrency(pendingRecipeApply.precoPagoUnit)}).
-                  <strong> Por que é o mais seguro?</strong> Quando você vende um geladinho, o dinheiro que entra no caixa precisa cobrir o preço que o supermercado está cobrando <em>hoje</em> para repor a despensa.
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="rounded-xl border border-border/80 bg-secondary/30 p-3.5 text-xs text-muted-foreground space-y-2">
+                <p className="flex items-center gap-1.5 font-bold text-foreground">
+                  <HelpCircle className="h-4 w-4 text-indigo-500" />
+                  Entenda a diferença contábil entre os métodos:
                 </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => handleConfirmApplyRecipe("reposicao")}
-                  className="w-full bg-primary text-primary-foreground font-bold mt-1"
-                >
-                  Usar Custo de Reposição ({formatCurrency(pendingRecipeApply.precoPagoUnit)})
-                </Button>
+                <p>
+                  <strong>Preço pago nesta Nota:</strong> {formatCurrency(pendingRecipeApply.precoPagoUnit)} ({pendingRecipeApply.quantidadeComprada} un.)
+                </p>
               </div>
 
-              {/* Option 2: Custo Médio Ponderado */}
-              <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-foreground flex items-center gap-1.5">
-                    <Calculator className="h-4 w-4" />
-                    Opção 2: Custo Médio Ponderado (CMP)
-                  </span>
-                  <Badge variant="secondary" className="text-[10px]">
-                    Contábil
-                  </Badge>
+              <div className="space-y-3 text-xs">
+                {/* Option 1: Custo de Reposição (Recomendado) */}
+                <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-primary flex items-center gap-1.5">
+                      <TrendingUp className="h-4 w-4" />
+                      Opção 1: Custo de Reposição Atual (Recomendado)
+                    </span>
+                    <Badge variant="success" className="text-[10px]">
+                      Protege o Lucro
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Aplica diretamente o valor da última compra ({formatCurrency(pendingRecipeApply.precoPagoUnit)}).
+                    <strong> Por que é o mais seguro?</strong> Quando você vende um geladinho, o dinheiro que entra no caixa precisa cobrir o preço que o supermercado está cobrando <em>hoje</em> para repor a despensa.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleConfirmApplyRecipe("reposicao")}
+                    className="w-full bg-primary text-primary-foreground font-bold mt-1"
+                  >
+                    Usar Custo de Reposição ({formatCurrency(pendingRecipeApply.precoPagoUnit)})
+                  </Button>
                 </div>
-                <p className="text-muted-foreground">
-                  Faz a média ponderada entre os insumos antigos que você já tinha no armário e o novo lote que acabou de entrar pela nota fiscal. Ideal se você comprou um lote promocional grande e quer diluir o custo ao longo das semanas.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleConfirmApplyRecipe("cmp")}
-                  className="w-full font-bold mt-1"
-                >
-                  Usar Custo Médio Ponderado (CMP)
-                </Button>
+
+                {/* Option 2: Custo Médio Ponderado */}
+                <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-foreground flex items-center gap-1.5">
+                      <Calculator className="h-4 w-4" />
+                      Opção 2: Custo Médio Ponderado (CMP)
+                    </span>
+                    <Badge variant="secondary" className="text-[10px]">
+                      Contábil
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Faz a média ponderada entre os insumos antigos que você já tinha no armário e o novo lote que acabou de entrar pela nota fiscal. Ideal se você comprou um lote promocional grande e quer diluir o custo ao longo das semanas.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleConfirmApplyRecipe("cmp")}
+                    className="w-full font-bold mt-1"
+                  >
+                    Usar Custo Médio Ponderado (CMP)
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -1596,22 +1598,23 @@ export const LocalMarketAndInvoicesSection: React.FC<
 
       {/* MODAL: CADASTRO / EDIÇÃO DE ESTABELECIMENTO */}
       {estabModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="w-full max-w-lg max-h-[92vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 shrink-0 bg-card">
               <h3 className="text-base font-bold text-foreground">
                 {editingEstab ? "Editar Estabelecimento" : "Novo Estabelecimento Local"}
               </h3>
               <button
                 type="button"
                 onClick={() => setEstabModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEstab} className="mt-4 space-y-3.5 text-xs">
+            <form onSubmit={handleSaveEstab} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
               <div>
                 <label className="block font-semibold text-foreground">
                   Nome do Estabelecimento *:
@@ -1762,7 +1765,9 @@ export const LocalMarketAndInvoicesSection: React.FC<
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+              </div>
+
+              <div className="flex items-center justify-end gap-2 border-t border-border p-3.5 bg-card/95 backdrop-blur-sm shrink-0">
                 <Button
                   type="button"
                   variant="outline"
@@ -1775,7 +1780,7 @@ export const LocalMarketAndInvoicesSection: React.FC<
                   type="submit"
                   variant="default"
                   size="sm"
-                  className="bg-primary text-primary-foreground font-bold"
+                  className="bg-primary text-primary-foreground font-bold shadow-sm"
                 >
                   Salvar Estabelecimento
                 </Button>
@@ -1787,22 +1792,24 @@ export const LocalMarketAndInvoicesSection: React.FC<
 
       {/* MODAL: NOVA PESQUISA DE PREÇO COM VALIDADE */}
       {pesquisaModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="text-base font-bold text-foreground">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="w-full max-w-lg max-h-[92vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 shrink-0 bg-card">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
                 Registrar Cotação de Preço com Validade
               </h3>
               <button
                 type="button"
                 onClick={() => setPesquisaModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSavePesquisa} className="mt-4 space-y-3.5 text-xs">
+            <form onSubmit={handleSavePesquisa} className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-foreground">
@@ -2302,33 +2309,35 @@ export const LocalMarketAndInvoicesSection: React.FC<
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPesquisaModalOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  variant="default"
-                  size="sm"
-                  className="bg-primary text-primary-foreground font-bold"
-                >
-                  Salvar Cotação
-                </Button>
-              </div>
-            </form>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 border-t border-border p-3.5 bg-card/95 backdrop-blur-sm shrink-0">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPesquisaModalOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="default"
+                    size="sm"
+                    className="bg-primary text-primary-foreground font-bold shadow-sm"
+                  >
+                    Salvar Cotação
+                  </Button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        )}
       {/* MODAL CONFIGURAR TOKEN RSC SISTEMAS */}
       {rscTokenModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4 backdrop-blur-sm overflow-hidden">
+          <div className="w-full max-w-md max-h-[92vh] flex flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border p-4 shrink-0 bg-card">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 <Key className="h-4 w-4 text-primary" />
                 Token da API GTIN RSC Sistemas
@@ -2336,13 +2345,13 @@ export const LocalMarketAndInvoicesSection: React.FC<
               <button
                 type="button"
                 onClick={() => setRscTokenModalOpen(false)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-4 text-xs">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
               {/* Opção 1: Login Automático */}
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 space-y-2.5">
                 <div className="flex items-center gap-1.5 font-bold text-foreground">
@@ -2423,7 +2432,7 @@ export const LocalMarketAndInvoicesSection: React.FC<
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-border pt-3">
+            <div className="flex items-center justify-end gap-2 border-t border-border p-3.5 bg-card/95 backdrop-blur-sm shrink-0">
               <Button
                 type="button"
                 variant="outline"

@@ -1,10 +1,12 @@
 {
-  "version": "3.6.9",
-  "build": 2026110502,
-  "releaseDate": "2026-11-05T22:30:00.000Z",
+  "version": "3.7.0",
+  "build": 2026110503,
+  "releaseDate": "2026-11-06T02:50:00.000Z",
   "features": [
-    "Restrição de cadastro de novos produtos no PDV exclusiva para Administrador Master e Administrador da Empresa (ocultado para operador com PIN / vendedor)",
-    "Blindagem de privacidade da margem de lucro no PDV: totalmente oculta para vendedores e protegida com botão interativo de exibição para administradores",
-    "Novo cabeçalho temático oficial da Estação da Rô (Locomotiva vintage, tipografia ornamental e Brasão Histórico de Jaú) no cupom impresso 80mm, PDF e bilhete digital"
+    "Levantamento Rápido de Preços em Campo: modal ergonômico com rolagem interna (max-h 92vh), inputs visíveis e botões 'Salvar Preço' e 'Salvar & Bipar Próximo' sempre acessíveis no Android e PWA",
+    "Bipagem Inteligente de Código de Barras (GTIN): itens escaneados posicionados no topo (de cima para baixo)",
+    "Detecção Inteligente de Itens já na Lista: se não preenchido abre levantamento imediato; se já cotado oferece opções 'Manter Dados', 'Editar Preço' ou '+1 Adicionar Unidade'",
+    "Botão '⚡ Cotar / Preço' direto nos cards e linhas da tabela da lista de compras",
+    "Blindagem de overflow em todos os modais de cotação, estabelecimentos, importação de planilhas e token RSC"
   ]
 }

@@ -7,6 +7,29 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.7.0] - 2026-11-06
+
+### Adicionado & Aprimorado
+- **Levantamento Rápido de Preços & Cotação em Campo**:
+  - Modal ergonômico e mobile-first para levantamento ágil de preços nos corredores do supermercado com rolagem interna (`max-h-[92vh] flex flex-col overflow-hidden`).
+  - Inputs otimizados: Preço Varejo destacado, Preço Atacado + Qtd Mínima, Quantidade a Comprar, Embalagem (tamanho/unidade), Estabelecimento e Validade da Oferta.
+  - Botões fixos e visíveis mesmo com o teclado virtual aberto no Android nativo e PWA: `[Salvar Preço]` e `[Salvar & Bipar Próximo 📷]`, permitindo bipar em sequência contínua sem perder tempo.
+- **Bipagem Inteligente de Código de Barras (GTIN) & Ordem de Cima para Baixo**:
+  - Todo produto escaneado com o leitor de código de barras ou adicionado na busca inteligente é imediatamente posicionado no **topo da lista** (index 0).
+- **Detecção Inteligente de Itens Já Cadastrados na Lista**:
+  - Se o item escaneado já está na lista mas ainda não possui preço cotado: abre direto o formulário de levantamento rápido para preenchimento.
+  - Se o item escaneado já possui preço preenchido: exibe prompt inteligente com três opções claras:
+    1. `[Manter Dados]`: Preserva as informações atuais sem alteração.
+    2. `[✏️ Editar Preço]`: Abre imediatamente o modal de levantamento rápido para atualizar o preço do item.
+    3. `[+1 Adicionar Unidade]`: Incrementa a quantidade necessária do item em 1 unidade.
+- **Botão Ágil `[⚡ Cotar / Preço]`**:
+  - Adicionado botão de atalho rápido direto nos cards e linhas da tabela da lista de compras para abrir a cotação rápida a qualquer momento.
+- **Correção de Overflow de Tela no Android Nativo**:
+  - Todos os modais de cotação de preços, cadastro de estabelecimentos, importação de planilhas/JSON e token RSC Sistemas agora contam com altura máxima responsiva (`max-h-[92vh]`), cabeçalho e rodapé fixos e corpo rolável, eliminando o problema de botões empurrados para fora da tela.
+- Versão `v3.7.0` (Build `2026110503`, Android `versionCode 64`).
+
+---
+
 ## [3.6.9] - 2026-11-05
 
 ### Segurança & Interface

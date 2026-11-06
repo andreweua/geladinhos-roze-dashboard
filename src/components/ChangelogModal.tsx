@@ -169,6 +169,10 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
+                  <strong className="text-foreground">Levantamento Rápido de Preços & Bipagem Otimizada (v3.7.0):</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
+                    Pesquisa de campo ágil no mercado: modal ergonômico com rolagem interna (max-h 92vh), botões fixos visíveis no Android e PWA ("Salvar Preço" e "Salvar & Bipar Próximo 📷"). Itens bipados posicionados automaticamente no topo da lista (de cima para baixo). Detecção inteligente de itens já na lista: se ainda sem preço abre formulário rápido imediatamente; se já preenchido/bipado oferece opções de manter, editar preço ou adicionar +1 unidade. Botão "⚡ Cotar / Preço" direto nos cards e tabela.
+                  </p>
                   <strong className="text-foreground">Segurança do PDV & Cabeçalho Oficial Estação da Rô (v3.6.9):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
                     Trava de segurança: cadastro de novos produtos no PDV restrito exclusivamente para Administradores (oculto para vendedores/operadores com PIN). Privacidade financeira: lucro no fechamento do PDV ocultado para vendedores e protegido por botão discreto com ícone de olho para administradores. Novo cabeçalho temático oficial da Estação da Rô (locomotiva a vapor, tipografia ornamental e Brasão Histórico de Jaú) no cupom 80mm térmico, PDF e visualização digital.
