@@ -3,6 +3,7 @@ import { BRAND_CONFIG } from "@/config/brand.config";
 import { formatCurrency, formatDateTime, PAYMENT_METHOD_LABELS } from "@/lib/utils";
 import { VendaDetalhada } from "@/types/dashboard";
 import { formatFiscalReceiptText, FiscalReceiptOptions, resolveReceiptTexts, getTicketNumber, getReceiptPaymentLabel } from "@/lib/receiptFormatter";
+import { ESTACAO_DA_RO_HEADER_BASE64 } from "@/data/estacaoHeaderImage";
 
 // Helper para acionar download no navegador / celular
 function triggerDownload(content: BlobPart, filename: string, mimeType: string) {
@@ -200,8 +201,9 @@ export function downloadReceiptPdf(
   const nextStop = texts.proximaParada;
   const destination = texts.destino;
 
-  // Altura dinâmica para acomodar todos os itens e a seção do Passaporte da Estrada Real
-  const estimatedHeight = Math.max(220, 205 + venda.itens.length * 5);
+  // Altura dinâmica para acomodar todos os itens, cabeçalho e Passaporte da Estrada Real
+  const isThematic = texts.tipoCupom !== "padrao_comercial";
+  const estimatedHeight = Math.max(250, (isThematic ? 245 : 205) + venda.itens.length * 5);
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -210,22 +212,46 @@ export function downloadReceiptPdf(
   });
 
   const pageWidth = 80;
-  let y = 8;
+  let y = 6;
 
-  // 1. Cabeçalho Temático Estrada Real ou Comercial
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10.5);
-  doc.text(companyName.toUpperCase(), pageWidth / 2, y, { align: "center" });
-  y += 4.5;
+  // 1. Cabeçalho: Temático Ilustrado Estação da Rô ou Padrão Comercial
+  if (isThematic) {
+    // Ilustração Oficial do Bilhete de Embarque (Locomotiva, Brasão de Jaú e Placa Estação da Rô)
+    const imgWidth = 68;
+    const imgHeight = 38; // aspect ratio 1.79
+    const imgX = (pageWidth - imgWidth) / 2;
 
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7);
-  doc.text(companyTagline, pageWidth / 2, y, { align: "center" });
-  y += 4;
+    try {
+      doc.addImage(ESTACAO_DA_RO_HEADER_BASE64, "JPEG", imgX, y, imgWidth, imgHeight);
+      y += imgHeight + 2;
+    } catch {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text("======= ESTAÇÃO DA RÔ =======", pageWidth / 2, y, { align: "center" });
+      y += 4.5;
+    }
 
-  // Divisória dupla
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(6.5);
+    doc.text(companyTagline, pageWidth / 2, y, { align: "center" });
+    y += 3.5;
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.text(companyName.toUpperCase(), pageWidth / 2, y, { align: "center" });
+    y += 4.5;
+
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7);
+    doc.text(companyTagline, pageWidth / 2, y, { align: "center" });
+    y += 4;
+  }
+
+  // Divisória dupla (trilho de trem estilizado)
   doc.setDrawColor(80, 80, 80);
   doc.setLineWidth(0.4);
+  doc.line(6, y, pageWidth - 6, y);
+  y += 1.2;
   doc.line(6, y, pageWidth - 6, y);
   y += 3.5;
 

@@ -38,6 +38,8 @@ import {
   Truck,
   MapPin,
   Store,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
@@ -70,6 +72,7 @@ import {
 } from "@/services/stonePixService";
 import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
 import { consultarProdutoPorGtin } from "@/services/gtinService";
+import { getCurrentUser } from "@/services/authService";
 import { Button } from "@/components/ui/primitives";
 
 interface PointOfSaleModalProps {
@@ -100,6 +103,31 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   const activeEmpresaId = empresaId || activeCompany.id;
   const allowNegativeStock =
     permitirEstoqueNegativo ?? activeCompany.permitirEstoqueNegativo ?? false;
+
+  // Permissões: Administrador Master ou da Empresa vs Operador de Caixa / Vendedor (PIN)
+  const currentUser = useMemo(() => getCurrentUser(), [isOpen]);
+  const isAdmin = currentUser?.role === "admin";
+
+  // Controle de visibilidade da margem de lucro (sempre oculta por padrão por segurança contra visão de clientes)
+  const [showProfit, setShowProfit] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("pdv_admin_show_profit") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleShowProfit = () => {
+    setShowProfit((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("pdv_admin_show_profit", String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // Step 1: Items selection & Customer details | Step 2: Payment & Pix confirmation
   const [step, setStep] = useState<"cart" | "payment">("cart");
@@ -1171,13 +1199,13 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                       <span>Câmera</span>
                     </Button>
 
-                    {onOpenCreateProduct && (
+                    {isAdmin && onOpenCreateProduct && (
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={onOpenCreateProduct}
-                        title="Cadastrar Novo Produto no Catálogo"
+                        title="Cadastrar Novo Produto no Catálogo (Apenas Administrador)"
                         className="gap-1 text-xs font-bold border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white shrink-0 shadow-xs"
                       >
                         <Plus className="h-3.5 w-3.5" />
@@ -1205,7 +1233,7 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                     <p className="text-xs text-muted-foreground">
                       Nenhum produto cadastrado ou encontrado{searchTerm ? ` para "${searchTerm}"` : ""}.
                     </p>
-                    {onOpenCreateProduct && (
+                    {isAdmin && onOpenCreateProduct && (
                       <Button
                         type="button"
                         size="sm"
@@ -1600,15 +1628,39 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
         {/* Modal Footer */}
         <div className="border-t border-border px-5 py-3.5 bg-secondary/20 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-xs">
+          <div className="text-xs flex items-center gap-1.5 flex-wrap">
             <span className="text-muted-foreground">Itens no Pedido: </span>
             <strong className="text-foreground">
               {totalUnidades} un. ({formatCurrency(totalVenda)})
             </strong>
-            {totalUnidades > 0 && (
-              <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-semibold">
-                (Lucro: +{formatCurrency(lucroEstimadoVenda)})
-              </span>
+
+            {/* Margem de Lucro: Exclusivo para Administrador Master e Administrador da Empresa (Oculto por padrão para proteção contra visão de clientes) */}
+            {isAdmin && totalUnidades > 0 && (
+              <div className="ml-2 inline-flex items-center gap-1.5">
+                {showProfit ? (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    <span>(Lucro: +{formatCurrency(lucroEstimadoVenda)})</span>
+                    <button
+                      type="button"
+                      onClick={toggleShowProfit}
+                      title="Ocultar lucro da tela (protege contra a visão do cliente no balcão)"
+                      className="p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+                    >
+                      <EyeOff className="h-3 w-3" />
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={toggleShowProfit}
+                    title="Exibir estimativa de lucro do pedido (apenas administrador)"
+                    className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-secondary/40 px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Eye className="h-3 w-3" />
+                    <span>(Lucro: ••••)</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
 

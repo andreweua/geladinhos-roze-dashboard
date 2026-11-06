@@ -1,8 +1,8 @@
 # 🍧 Geladinhos Gourmet da Roze — Sistema de Gestão, PDV, Cotações & Inteligência Artificial
 
-![Versão](https://img.shields.io/badge/vers%C3%A3o-3.6.8-e11d48)
+![Versão](https://img.shields.io/badge/vers%C3%A3o-3.6.9-e11d48)
 ![PWA](https://img.shields.io/badge/PWA-Android%20%7C%20iOS%20%7C%20Desktop-10b981)
-![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v62%29-38bdf8)
+![Capacitor](https://img.shields.io/badge/Capacitor-Android%20APK%20%28v63%29-38bdf8)
 ![RSC Sistemas](https://img.shields.io/badge/GTIN%20%2F%20EAN--13-RSC%20Sistemas%20%2B%20Fotos-f59e0b)
 ![Atacado e Varejo](https://img.shields.io/badge/Cota%C3%A7%C3%B5es-Atacado%20%26%20Varejo-8b5cf6)
 ![Segurança de Caixa](https://img.shields.io/badge/Caixa-Abertura%20Obrigat%C3%B3ria-10b981)
@@ -13,6 +13,19 @@ Sistema completo de gestão financeira, frente de caixa (PDV), engenharia de fic
 - 🌐 **Aplicação Web / PWA (GitHub Pages)**: [https://andreweua.github.io/geladinhos-roze-dashboard/](https://andreweua.github.io/geladinhos-roze-dashboard/)
 - 📲 **Download Direto do Aplicativo Android (APK Oficial)**: [Baixar APK Mais Recente (GitHub Releases)](https://github.com/andreweua/geladinhos-roze-dashboard/releases/latest)
 - 📋 **Histórico Completo de Alterações**: Consulte o [CHANGELOG.md](./CHANGELOG.md)
+
+---
+
+## 🚀 Destaques da Versão 3.6.9 (Build 2026110502 • Android versionCode 63)
+
+- **Permissões Reforçadas no PDV (Segurança por Papel)**:
+  - Botão de cadastro e criação de novos produtos (`+ Novo Produto`) restrito estritamente para perfis Administrador Master e Administrador da Empresa.
+  - Vendedor/operador que acessa via PIN do caixa não visualiza a opção de alterar ou adicionar produtos ao catálogo.
+- **Privacidade Total de Lucro no Caixa**:
+  - A margem de lucro total da compra foi ocultada para operadores de venda no fechamento do pedido para resguardar a privacidade perante clientes.
+  - Para o Administrador, o valor vem mascarado por padrão com botão discreto e ícone de olho para exibir sob demanda.
+- **Cabeçalho Temático Ilustrado da Estação da Rô**:
+  - Incorporação do cabeçalho oficial com a locomotiva a vapor histórica, tipografia artística e Brasão de Jaú (1853) no Cupom 80mm em PDF, na tela de visualização do bilhete e na impressão térmica.
 
 ---
 

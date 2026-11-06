@@ -7,6 +7,24 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.6.9] - 2026-11-05
+
+### Segurança & Interface
+- **Restrição de Criação de Produtos no PDV por Papel (Role-Based Access Control)**:
+  - O botão `+ Novo Produto` e o card de criação em catálogo vazio no PDV agora só aparecem para usuários com papel de **Administrador Master** ou **Administrador da Empresa**.
+  - Vendedores e operadores que acessam via PIN do Caixa (`operador_caixa`) não visualizam nem acessam a opção de adicionar ou alterar portfólio no PDV.
+- **Privacidade da Margem de Lucro no Fechamento do PDV**:
+  - Para o vendedor / operador de caixa, a informação de Lucro (`(Lucro: +R$ ...)`) foi completamente removida da tela de fechamento para evitar exposição perante o cliente.
+  - Para o Administrador, o lucro agora vem **ocultado por padrão** com visual discreto (`(Lucro: ••••)`) e botão interativo com ícone de olho (`Eye` / `EyeOff`), persistindo a preferência localmente.
+- **Cabeçalho Temático Ilustrado da Estação da Rô (Idêntico ao Brasão e Locomotiva Histórica)**:
+  - Integração do banner oficial vintage com a locomotiva a vapor histórica, tipografia artística *"ESTAÇÃO DA RÔ - Confeitaria Gelada & Sobremesas Artesanais"* e o Brasão Oficial de Jaú (1853).
+  - Renderizado no PDF do Cupom 80mm com alta nitidez através de asset vetorial/base64 embutido.
+  - Renderizado na visualização digital do bilhete (PWA/Navegador/Desktop) e no comprovante térmico para impressão.
+  - Atualizado o cabeçalho textual/WhatsApp com trilhos duplos e alusão a Jaú - São Paulo.
+- Versão `v3.6.9` (Build `2026110502`, Android `versionCode 63`).
+
+---
+
 ## [3.6.8] - 2026-11-05
 
 ### Adicionado & Aprimorado

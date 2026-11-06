@@ -159,7 +159,7 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                 </span>
               </div>
               <span className="rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-black">
-                NOVA • 04/11/2026
+                NOVA • 05/11/2026
               </span>
             </div>
 
@@ -169,6 +169,10 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
+                  <strong className="text-foreground">Segurança do PDV & Cabeçalho Oficial Estação da Rô (v3.6.9):</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
+                    Trava de segurança: cadastro de novos produtos no PDV restrito exclusivamente para Administradores (oculto para vendedores/operadores com PIN). Privacidade financeira: lucro no fechamento do PDV ocultado para vendedores e protegido por botão discreto com ícone de olho para administradores. Novo cabeçalho temático oficial da Estação da Rô (locomotiva a vapor, tipografia ornamental e Brasão Histórico de Jaú) no cupom 80mm térmico, PDF e visualização digital.
+                  </p>
                   <strong className="text-foreground">Sincronização em Nuvem de Pesquisas de Mercado & Preços Pagos (v3.6.8):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
                     Sincronização bidirecional em tempo real entre celulares e computadores via Supabase para Estabelecimentos Comerciais, Pesquisas de Preços, Histórico de Inflação, Compras/Cupons Fiscais (NFC-e) e Listas de Compras, com suporte offline resiliente e botão manual de atualização na nuvem.

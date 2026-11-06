@@ -245,9 +245,11 @@ _Desenvolvido por:_
 *PereiraLabs*
 _Divisão de Tecnologia e IA_
 _Louzada & Pereira - Soluções Digitais_`.trim()
-    : `🚂 *${companyName.toUpperCase()}*
+    : `════════════════════════════════
+🚂 *${companyName.toUpperCase()}* 🏛️
+      *JAÚ - SÃO PAULO*
 _${companyTagline}_
-${doubleDivider}
+════════════════════════════════
 🎫 *BILHETE DE EMBARQUE GOURMET*
 *Bilhete Nº:* ${ticketNumber}
 *Linha:* ${texts.linha}

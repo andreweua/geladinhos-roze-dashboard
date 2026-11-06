@@ -1,11 +1,10 @@
 {
-  "version": "3.6.8",
-  "build": 2026110501,
-  "releaseDate": "2026-11-05T02:20:00.000Z",
+  "version": "3.6.9",
+  "build": 2026110502,
+  "releaseDate": "2026-11-05T22:30:00.000Z",
   "features": [
-    "Sincronização em Nuvem (Supabase) do módulo 'Pesquisa de Mercados & Preços Pagos Reais' entre múltiplos dispositivos",
-    "Compartilhamento em tempo real de estabelecimentos, cotações de insumos, histórico de inflação e cupons/notas fiscais (NFC-e)",
-    "Sincronização em nuvem e persistência das Listas de Compras entre celulares e computadores",
-    "Botão de sincronização com a nuvem e reconexão automática com cache offline resiliente"
+    "Restrição de cadastro de novos produtos no PDV exclusiva para Administrador Master e Administrador da Empresa (ocultado para operador com PIN / vendedor)",
+    "Blindagem de privacidade da margem de lucro no PDV: totalmente oculta para vendedores e protegida com botão interativo de exibição para administradores",
+    "Novo cabeçalho temático oficial da Estação da Rô (Locomotiva vintage, tipografia ornamental e Brasão Histórico de Jaú) no cupom impresso 80mm, PDF e bilhete digital"
   ]
 }

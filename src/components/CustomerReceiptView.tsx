@@ -30,6 +30,7 @@ import {
 import { formatFiscalReceiptText, resolveReceiptTexts, getTicketNumber, getReceiptPaymentLabel } from "@/lib/receiptFormatter";
 import { buscarCliente, getPassaporteGrid } from "@/services/customerService";
 import { Badge, Button } from "@/components/ui/primitives";
+import { ESTACAO_DA_RO_HEADER_BASE64 } from "@/data/estacaoHeaderImage";
 
 interface CustomerReceiptViewProps {
   venda: VendaDetalhada;
@@ -160,15 +161,29 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
 
       {/* BILHETE TÉRMICO OCULTO (Renderizado exclusivamente na Impressão 80mm) */}
       <div id="thermal-print-slip" className="hidden">
-        <div style={{ textAlign: "center", marginBottom: "4px" }}>
-          <strong style={{ fontSize: "13px", display: "block" }}>{receiptTexts.companyName.toUpperCase()}</strong>
-          <span style={{ fontSize: "9px", fontStyle: "italic", display: "block" }}>
-            {receiptTexts.companyTagline}
-          </span>
-          <div style={{ borderBottom: "1px dashed #000", margin: "4px 0" }} />
-          <strong style={{ fontSize: "11px", display: "block" }}>BILHETE DE EMBARQUE GOURMET</strong>
-          <div style={{ borderBottom: "1px dashed #000", margin: "4px 0" }} />
-        </div>
+        {receiptTexts.tipoCupom !== "padrao_comercial" ? (
+          <div style={{ textAlign: "center", marginBottom: "6px" }}>
+            <img
+              src={ESTACAO_DA_RO_HEADER_BASE64}
+              alt="Estação da Rô"
+              style={{ width: "100%", maxHeight: "115px", objectFit: "contain", margin: "0 auto 4px auto", display: "block" }}
+            />
+            <div style={{ borderBottom: "2px solid #000", margin: "3px 0 1px 0" }} />
+            <div style={{ borderBottom: "1px solid #000", margin: "0 0 4px 0" }} />
+            <strong style={{ fontSize: "11px", display: "block", letterSpacing: "0.5px" }}>BILHETE DE EMBARQUE GOURMET</strong>
+            <div style={{ borderBottom: "1px dashed #000", margin: "4px 0" }} />
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", marginBottom: "4px" }}>
+            <strong style={{ fontSize: "13px", display: "block" }}>{receiptTexts.companyName.toUpperCase()}</strong>
+            <span style={{ fontSize: "9px", fontStyle: "italic", display: "block" }}>
+              {receiptTexts.companyTagline}
+            </span>
+            <div style={{ borderBottom: "1px dashed #000", margin: "4px 0" }} />
+            <strong style={{ fontSize: "11px", display: "block" }}>CUPOM NÃO FISCAL</strong>
+            <div style={{ borderBottom: "1px dashed #000", margin: "4px 0" }} />
+          </div>
+        )}
 
         <div style={{ fontSize: "10px", marginBottom: "4px" }}>
           <div><strong>Passageiro(a):</strong> {passengerName}</div>
@@ -249,33 +264,47 @@ export const CustomerReceiptView: React.FC<CustomerReceiptViewProps> = ({
         </div>
 
         {/* Brand Boarding Pass Header */}
-        <div className="p-6 text-center border-b border-border/60 bg-gradient-to-b from-amber-500/10 to-transparent relative">
+        <div className="p-5 text-center border-b border-border/60 bg-gradient-to-b from-amber-500/10 to-transparent relative">
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="absolute left-4 top-4 rounded-xl p-2 text-muted-foreground hover:bg-secondary hover:text-foreground text-xs font-semibold flex items-center gap-1 transition-colors"
+              className="absolute left-4 top-4 z-10 rounded-xl p-2 text-muted-foreground bg-background/80 hover:bg-secondary hover:text-foreground text-xs font-semibold flex items-center gap-1 transition-colors backdrop-blur-sm shadow-sm"
             >
               <ArrowLeft className="h-4 w-4" />
               <span>Voltar</span>
             </button>
           )}
 
-          <div className="inline-flex relative mb-2">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-600 text-white shadow-lg shadow-amber-500/25">
-              <Train className="h-8 w-8" />
+          {receiptTexts.tipoCupom !== "padrao_comercial" ? (
+            <div className="mb-3 flex flex-col items-center">
+              <div className="overflow-hidden rounded-2xl border border-amber-500/40 shadow-lg shadow-amber-500/15 max-w-[360px] w-full bg-black/5">
+                <img
+                  src={ESTACAO_DA_RO_HEADER_BASE64}
+                  alt="Estação da Rô - Jaú SP"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
             </div>
-            <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs text-white shadow">
-              <CheckCircle2 className="h-4 w-4" />
-            </span>
-          </div>
+          ) : (
+            <>
+              <div className="inline-flex relative mb-2">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-rose-600 text-white shadow-lg shadow-amber-500/25">
+                  <Train className="h-8 w-8" />
+                </div>
+                <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs text-white shadow">
+                  <CheckCircle2 className="h-4 w-4" />
+                </span>
+              </div>
 
-          <h2 className="text-xl font-black tracking-tight text-foreground">
-            {receiptTexts.companyName.toUpperCase()}
-          </h2>
-          <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold mt-0.5">
-            {receiptTexts.companyTagline}
-          </p>
+              <h2 className="text-xl font-black tracking-tight text-foreground">
+                {receiptTexts.companyName.toUpperCase()}
+              </h2>
+              <p className="text-xs text-amber-700 dark:text-amber-400 font-semibold mt-0.5">
+                {receiptTexts.companyTagline}
+              </p>
+            </>
+          )}
 
           <div className="mt-3 flex items-center justify-center gap-2">
             <Badge variant="outline" className="text-xs font-mono font-bold border-amber-500/40 text-amber-700 dark:text-amber-400">
