@@ -16,8 +16,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (file('../release-key.jks').exists()) {
+                storeFile file('../release-key.jks')
+                storePassword System.getenv("KEYSTORE_PASSWORD") ?: "PereiraLabs2026"
+                keyAlias System.getenv("KEY_ALIAS") ?: "pereiralabs"
+                keyPassword System.getenv("KEY_PASSWORD") ?: "PereiraLabs2026"
+            }
+        }
+    }
     buildTypes {
         release {
+            if (file('../release-key.jks').exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

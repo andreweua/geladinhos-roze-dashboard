@@ -55,6 +55,12 @@ jobs:
           cp -r dist/* android/app/src/main/assets/public/
           npx cap copy android
 
+      - name: Setup Keystore
+        run: |
+          if [ ! -f android/release-key.jks ]; then
+            keytool -genkeypair -v -keystore android/release-key.jks -alias pereiralabs -keyalg RSA -keysize 2048 -validity 10000 -storepass PereiraLabs2026 -keypass PereiraLabs2026 -dname "CN=PereiraLabs, OU=Mobile, O=PereiraLabs, L=Jau, ST=SP, C=BR"
+          fi
+
       - name: Build Android Debug APK
         run: |
           cd android
@@ -64,6 +70,18 @@ jobs:
             tail -n 120 gradle-build.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             cat gradle-build.log
+            exit 1
+          }
+
+      - name: Build Android Release App Bundle (.AAB for Google Play Store)
+        run: |
+          cd android
+          ./gradlew bundleRelease --stacktrace > gradle-bundle.log 2>&1 || {
+            echo "### Gradle Bundle Error" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -n 120 gradle-bundle.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat gradle-bundle.log
             exit 1
           }
 
@@ -78,11 +96,15 @@ jobs:
             echo "tag=v${PKG_VER}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Prepare APK with Official Name
+      - name: Prepare APK and AAB with Official Name
         run: |
           TAG="${{ steps.vars.outputs.tag }}"
+          # APK
           cp android/app/build/outputs/apk/debug/app-debug.apk "android/app/build/outputs/apk/debug/PereiraLabs-PDV-Foods-${TAG}.apk"
           cp android/app/build/outputs/apk/debug/app-debug.apk "android/app/build/outputs/apk/debug/PereiraLabs-PDV-Foods-latest.apk"
+          # AAB (Google Play Store)
+          cp android/app/build/outputs/bundle/release/app-release.aab "android/app/build/outputs/bundle/release/PereiraLabs-PDV-Foods-${TAG}.aab"
+          cp android/app/build/outputs/bundle/release/app-release.aab "android/app/build/outputs/bundle/release/PereiraLabs-PDV-Foods-latest.aab"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -91,13 +113,21 @@ jobs:
           path: android/app/build/outputs/apk/debug/PereiraLabs-PDV-Foods-*.apk
           retention-days: 14
 
-      - name: Create or Update GitHub Release with Direct APK Download
+      - name: Upload AAB Bundle Artifact (Google Play Store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: PereiraLabs-PDV-Foods-App-Release-AAB
+          path: android/app/build/outputs/bundle/release/PereiraLabs-PDV-Foods-*.aab
+          retention-days: 14
+
+      - name: Create or Update GitHub Release with APK & Play Store AAB
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: PereiraLabs PDV Foods ${{ steps.vars.outputs.tag }}
           files: |
             android/app/build/outputs/apk/debug/PereiraLabs-PDV-Foods-*.apk
+            android/app/build/outputs/bundle/release/PereiraLabs-PDV-Foods-*.aab
           generate_release_notes: true
           draft: false
           prerelease: false
