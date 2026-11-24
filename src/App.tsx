@@ -94,6 +94,7 @@ import {
   resetLocalDemoData,
   saveBatchFichasTecnicas,
   saveProductFichaTecnica,
+  syncAllCompaniesLocalProductsToSupabase,
   updateProductStock,
   wipeCompanyData,
 } from "@/services/dataService";
@@ -312,10 +313,13 @@ export function App() {
     }
   }, [loadData]);
 
-  // Sincroniza empresas com a nuvem Supabase em segundo plano ao abrir
+  // Sincroniza empresas e produtos pendentes de todas as empresas locais com a nuvem Supabase ao abrir
   useEffect(() => {
-    syncCompaniesWithSupabase().catch(() => {});
-  }, []);
+    syncCompaniesWithSupabase()
+      .then(() => syncAllCompaniesLocalProductsToSupabase())
+      .then(() => loadData(false))
+      .catch(() => {});
+  }, [loadData]);
 
   // Sincroniza passageiros/clientes com a nuvem Supabase em segundo plano
   useEffect(() => {
@@ -332,9 +336,25 @@ export function App() {
   useEffect(() => {
     if (!checkIsSupabaseConfigured() || !supabase) return;
 
-    // 1. Escuta alterações em tempo real na nuvem (vendas e estoque)
+    // 1. Escuta alterações em tempo real na nuvem (produtos, fichas técnicas, vendas, estoque e empresas)
     const channel = supabase
       .channel("live-db-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "produtos" },
+        () => {
+          loadData(false);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "fichas_tecnicas" },
+        () => {
+          if (activeSectionRef.current !== "fichas") {
+            loadData(false);
+          }
+        }
+      )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "vendas" },
@@ -583,6 +603,8 @@ export function App() {
       alert("Acesso Somente Leitura: Usuários do perfil Consultoria possuem permissão estritamente analítica e não podem operar vendas.");
       return;
     }
+    // Sincroniza o catálogo e estoque com a nuvem imediatamente ao acionar o PDV
+    loadData(false);
     // Validação estrita: nem o administrador nem o operador podem vender sem antes abrir o caixa
     const activeShift = getCurrentShift();
     if (!activeShift) {
@@ -591,7 +613,7 @@ export function App() {
       return;
     }
     setPosModalOpen(true);
-  }, [currentUser]);
+  }, [currentUser, loadData]);
 
   const handleSubmitSale = async (payload: NewSalePayload) => {
     if (currentUser?.role === "consultoria") {
@@ -1588,6 +1610,8 @@ export function App() {
           empresaId={activeCompany.id}
           permitirEstoqueNegativo={activeCompany.permitirEstoqueNegativo}
           onOpenCreateProduct={() => setCreateProductModalOpen(true)}
+          onRefreshCatalog={() => loadData(true)}
+          isRefreshingCatalog={isRefreshing}
         />
       )}
 
@@ -1650,6 +1674,10 @@ export function App() {
         onSuccess={(user) => {
           setCurrentUser(user);
           setAuthModalOpen(false);
+          if (user.empresaId) {
+            setActiveCompanyId(user.empresaId);
+          }
+          loadData(true);
 
           // REQUISITO 2: Se o usuário logado for Administrador PereiraLabs, redirecionamento direto para a Área de Gestão de Faturamento / Painel Master
           if (isPereiraLabsMaster(user)) {
@@ -1675,6 +1703,7 @@ export function App() {
         onShiftUpdated={(shift) => {
           setCurrentShift(shift);
           if (shift && shift.status === "aberto") {
+            loadData(false);
             setPosModalOpen(true);
           }
         }}

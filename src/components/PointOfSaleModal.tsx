@@ -40,6 +40,7 @@ import {
   Store,
   Eye,
   EyeOff,
+  RefreshCw,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { BRAND_CONFIG, getCustomBrandConfig } from "@/config/brand.config";
@@ -85,6 +86,8 @@ interface PointOfSaleModalProps {
   empresaId?: string;
   permitirEstoqueNegativo?: boolean;
   onOpenCreateProduct?: () => void;
+  onRefreshCatalog?: () => void;
+  isRefreshingCatalog?: boolean;
 }
 
 export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
@@ -97,6 +100,8 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
   empresaId,
   permitirEstoqueNegativo,
   onOpenCreateProduct,
+  onRefreshCatalog,
+  isRefreshingCatalog = false,
 }) => {
   // Contexto multi-tenant estrito da empresa ativa
   const activeCompany = useMemo(() => getActiveCompany(), [isOpen, empresaId]);
@@ -677,32 +682,50 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/80 px-5 py-4 bg-secondary/30">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
               <ShoppingBag className="h-5 w-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-foreground">
-                  Frente de Caixa (PDV) — Novo Pedido
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-bold text-foreground truncate">
+                  Frente de Caixa (PDV) — {activeCompany?.nome || "Novo Pedido"}
                 </h3>
                 <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-                  Stone OpenBank Pix
+                  ☁️ Nuvem Sincronizada ({inventoryByFlavor.length} itens)
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Cobrança dinâmica Stone OpenBank, liquidação automática via Webhook e baixa de estoque
+              <p className="text-xs text-muted-foreground truncate">
+                Catálogo sincronizado em tempo real entre aparelhos • Baixa automática de estoque
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {onRefreshCatalog && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onRefreshCatalog}
+                disabled={isRefreshingCatalog}
+                title="Sincronizar produtos e estoques da nuvem agora"
+                className="gap-1.5 text-xs font-bold border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingCatalog ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">
+                  {isRefreshingCatalog ? "Sincronizando..." : "Sincronizar"}
+                </span>
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Step Indicator Tabs */}
@@ -1231,19 +1254,36 @@ export const PointOfSaleModal: React.FC<PointOfSaleModalProps> = ({
                 {filteredFlavors.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-border/80 bg-secondary/20 p-8 text-center space-y-3">
                     <p className="text-xs text-muted-foreground">
-                      Nenhum produto cadastrado ou encontrado{searchTerm ? ` para "${searchTerm}"` : ""}.
+                      Nenhum produto cadastrado ou encontrado{searchTerm ? ` para "${searchTerm}"` : ""} na empresa <strong>{activeCompany?.nome}</strong>.
                     </p>
-                    {isAdmin && onOpenCreateProduct && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={onOpenCreateProduct}
-                        className="gap-1.5 text-xs font-bold bg-primary text-primary-foreground shadow-sm"
-                      >
-                        <Plus className="h-4 w-4" />
-                        <span>Cadastrar Novo Produto no Catálogo</span>
-                      </Button>
-                    )}
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      {onRefreshCatalog && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={onRefreshCatalog}
+                          disabled={isRefreshingCatalog}
+                          className="gap-1.5 text-xs font-bold border-primary/40 text-primary hover:bg-primary/10"
+                        >
+                          <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingCatalog ? "animate-spin" : ""}`} />
+                          <span>
+                            {isRefreshingCatalog ? "Sincronizando..." : "Sincronizar Produtos da Nuvem"}
+                          </span>
+                        </Button>
+                      )}
+                      {isAdmin && onOpenCreateProduct && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={onOpenCreateProduct}
+                          className="gap-1.5 text-xs font-bold bg-primary text-primary-foreground shadow-sm"
+                        >
+                          <Plus className="h-4 w-4" />
+                          <span>Cadastrar Novo Produto no Catálogo</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-2">

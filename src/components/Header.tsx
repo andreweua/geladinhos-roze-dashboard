@@ -19,8 +19,16 @@ import {
 import { BRAND_CONFIG } from "@/config/brand.config";
 import { Badge, Button } from "@/components/ui/primitives";
 import { UserProfile } from "@/types/auth";
-import { isPereiraLabsMaster } from "@/services/companyService";
+import {
+  getActiveCompanyId,
+  getCompanyLifecycleStatus,
+  getLocalCompanies,
+  isPereiraLabsMaster,
+  setActiveCompanyId,
+  subscribeCompanyChange,
+} from "@/services/companyService";
 import { subscribeToOta, OtaUpdateInfo } from "@/services/otaService";
+import { Company } from "@/types/multiTenant";
 
 interface HeaderProps {
   isDark: boolean;
@@ -61,7 +69,19 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [justRefreshed, setJustRefreshed] = useState(false);
   const [otaInfo, setOtaInfo] = useState<OtaUpdateInfo | null>(null);
+  const [companies, setCompanies] = useState<Company[]>(() => getLocalCompanies());
+  const [activeCompId, setActiveCompId] = useState<string>(() => getActiveCompanyId());
   const isCashier = currentUser?.role === "operador_caixa";
+  const isMaster = isPereiraLabsMaster(currentUser);
+
+  useEffect(() => {
+    setCompanies(getLocalCompanies());
+    setActiveCompId(getActiveCompanyId());
+    return subscribeCompanyChange((comp) => {
+      setCompanies(getLocalCompanies());
+      setActiveCompId(comp.id);
+    });
+  }, []);
 
   useEffect(() => {
     return subscribeToOta((info) => {
@@ -79,6 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
   }, [isRefreshing]);
 
   const displayCompanyName = companyName || currentUser?.empresaNome || BRAND_CONFIG.companyName;
+  const activeCompaniesList = companies.filter((c) => getCompanyLifecycleStatus(c) !== "excluida");
 
   return (
     <header
@@ -99,24 +120,41 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 min-w-0">
-              <h1 className="text-sm sm:text-lg font-bold tracking-tight text-foreground truncate">
-                {displayCompanyName}
-              </h1>
+              {isMaster && activeCompaniesList.length > 1 ? (
+                <select
+                  value={activeCompId}
+                  onChange={(e) => {
+                    setActiveCompanyId(e.target.value);
+                  }}
+                  title="Alternar Empresa Ativa"
+                  className="max-w-[175px] sm:max-w-[280px] rounded-lg border border-border/80 bg-background/80 px-2 py-1 text-xs sm:text-sm font-bold text-foreground truncate focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+                >
+                  {activeCompaniesList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <h1 className="text-sm sm:text-lg font-bold tracking-tight text-foreground truncate">
+                  {displayCompanyName}
+                </h1>
+              )}
               <Badge
                 variant={dataSource === "supabase" ? "success" : "secondary"}
-                className="hidden sm:inline-flex gap-1 text-[10px] items-center cursor-pointer transition-opacity hover:opacity-85 shrink-0"
-                onClick={onOpenSettingsModal}
+                className="inline-flex gap-1 text-[10px] items-center cursor-pointer transition-opacity hover:opacity-85 shrink-0"
+                onClick={onRefresh}
                 title={
                   dataSource === "supabase"
-                    ? "Conectado ao banco PostgreSQL no Supabase (Tempo Real Ativo). Clique para gerenciar sincronização."
-                    : "Modo Local Offline. Clique para conectar à Nuvem Supabase."
+                    ? "Conectado ao banco PostgreSQL no Supabase (Tempo Real Ativo). Clique para sincronizar agora."
+                    : "Modo Local Offline. Clique para reconectar e sincronizar com a Nuvem Supabase."
                 }
               >
                 {dataSource === "supabase" && (
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 )}
                 <Database className="h-2.5 w-2.5" />
-                {dataSource === "supabase" ? "Nuvem Ativa" : "Local"}
+                <span>{dataSource === "supabase" ? "Nuvem Ativa" : "Local"}</span>
               </Badge>
             </div>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground truncate hidden xs:block">

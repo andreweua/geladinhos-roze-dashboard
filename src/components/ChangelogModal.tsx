@@ -169,6 +169,10 @@ export const ChangelogModal: React.FC<ChangelogModalProps> = ({
                   <Sparkles className="h-3.5 w-3.5" />
                 </div>
                 <div>
+                  <strong className="text-foreground">Sincronização Total Multi-Dispositivos & Multi-Empresa no PDV (v3.7.2):</strong>
+                  <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
+                    Correção definitiva da sincronização em nuvem para novas empresas criadas no Painel Master: eliminação da falha de schema na consulta de vendas por empresa_id (erro 42703) que fazia outros aparelhos caírem em modo local isolado. Agora todos os produtos, estoques e fichas técnicas criados em qualquer aparelho (inclusive produtos iniciais do cadastro da empresa) sobem e descem automaticamente do Supabase em tempo real em todos os dispositivos, com seletor de empresa na tela de Login (Admin e PIN do Caixa) e botão "Sincronizar" direto no PDV.
+                  </p>
                   <strong className="text-foreground">Sincronização em Nuvem Supabase de Passageiros & Fidelidade (v3.7.1):</strong>
                   <p className="text-muted-foreground text-[11px] mt-0.5 mb-2">
                     Os passageiros e clientes do programa de fidelidade agora são sincronizados instantaneamente na nuvem via Supabase (tabela `clientes_fidelidade`). Clientes cadastrados no PWA web agora aparecem automaticamente no aplicativo Android do Google Play e em outros dispositivos. Botão manual "Sincronizar Nuvem 🔄" com feedback de status e sincronização automática em segundo plano na inicialização da empresa.

@@ -777,7 +777,53 @@ export function seedCompanyInitialProducts(
   };
 
   saveLocalSnapshot(updatedSnapshot, companyId);
+
+  // Envia imediatamente os produtos iniciais da nova empresa para a nuvem Supabase
+  syncPendingLocalProductsToSupabase(companyId).catch((err) => {
+    console.warn("Aviso ao sincronizar produtos iniciais da nova empresa com Supabase:", err);
+  });
+
   return updatedSnapshot;
+}
+
+function getSyncedCloudProdIdsKey(companyId: string): string {
+  return `${BRAND_CONFIG.storagePrefix}_cloud_synced_prods_${companyId}_v1`;
+}
+
+export function getSyncedCloudProdIds(companyId?: string): Set<string> {
+  const id = companyId || getActiveCompanyId();
+  try {
+    const raw = localStorage.getItem(getSyncedCloudProdIdsKey(id));
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr.map(String));
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+export function addSyncedCloudProdIds(prodIds: string[], companyId?: string): void {
+  const id = companyId || getActiveCompanyId();
+  try {
+    const current = getSyncedCloudProdIds(id);
+    prodIds.forEach((pid) => current.add(String(pid)));
+    localStorage.setItem(getSyncedCloudProdIdsKey(id), JSON.stringify(Array.from(current)));
+  } catch {
+    // ignore
+  }
+}
+
+export function removeSyncedCloudProdId(prodId: string, companyId?: string): void {
+  const id = companyId || getActiveCompanyId();
+  try {
+    const current = getSyncedCloudProdIds(id);
+    current.delete(String(prodId));
+    localStorage.setItem(getSyncedCloudProdIdsKey(id), JSON.stringify(Array.from(current)));
+  } catch {
+    // ignore
+  }
 }
 
 /**
@@ -802,7 +848,7 @@ export async function syncPendingLocalSalesToSupabase(companyId?: string): Promi
       return { syncedCount: 0, discardedDuplicatesCount: 0 };
     }
 
-    // Busca vendas existentes no Supabase para reconciliação
+    // Busca vendas existentes no Supabase para reconciliação (com fallback caso vendas.empresa_id não exista no banco)
     let remoteQuery = supabase
       .from("vendas")
       .select("id, data_venda, valor_total, forma_pagamento, status");
@@ -811,7 +857,15 @@ export async function syncPendingLocalSalesToSupabase(companyId?: string): Promi
       remoteQuery = remoteQuery.eq("empresa_id", currentId);
     }
 
-    const { data: remoteVendas, error: fetchErr } = await remoteQuery;
+    let { data: remoteVendas, error: fetchErr } = await remoteQuery;
+
+    if (fetchErr) {
+      const fallbackRes = await supabase
+        .from("vendas")
+        .select("id, data_venda, valor_total, forma_pagamento, status");
+      remoteVendas = fallbackRes.data;
+      fetchErr = fallbackRes.error;
+    }
 
     if (fetchErr || !remoteVendas) {
       return { syncedCount: 0, discardedDuplicatesCount: 0 };
@@ -941,8 +995,8 @@ export async function syncPendingLocalSalesToSupabase(companyId?: string): Promi
 
 /**
  * Auto-sincroniza produtos cadastrados localmente no navegador/app com a nuvem Supabase.
- * Isso garante que produtos criados no app (mesmo offline ou criados antes das permissões de RLS)
- * sejam enviados para a tabela 'produtos' e 'estoque_lotes' no Supabase automaticamente.
+ * Isso garante que produtos criados no app (mesmo offline ou em modo fallback local)
+ * sejam enviados para a tabela 'produtos', 'estoque_lotes' e 'fichas_tecnicas' no Supabase automaticamente.
  */
 export async function syncPendingLocalProductsToSupabase(companyId?: string): Promise<{
   syncedProductsCount: number;
@@ -962,23 +1016,36 @@ export async function syncPendingLocalProductsToSupabase(companyId?: string): Pr
       return { syncedProductsCount: 0, syncedFichasCount: 0 };
     }
 
-    // Busca produtos existentes no Supabase
-    let prodsQuery = supabase.from("produtos").select("id, nome");
-    if (currentId !== "emp-roze-gourmet") {
+    // Busca produtos existentes no Supabase para esta empresa específica
+    let prodsQuery = supabase.from("produtos").select("id, nome, empresa_id");
+    if (currentId === "emp-roze-gourmet") {
+      prodsQuery = prodsQuery.or("empresa_id.eq.emp-roze-gourmet,empresa_id.is.null");
+    } else {
       prodsQuery = prodsQuery.eq("empresa_id", currentId);
     }
-    const { data: remoteProds, error: pErr } = await prodsQuery;
+    let { data: remoteProds, error: pErr } = await prodsQuery;
+    if (pErr) {
+      const fallbackRes = await supabase.from("produtos").select("id, nome");
+      remoteProds = fallbackRes.data as any;
+      pErr = fallbackRes.error;
+    }
     if (pErr || !remoteProds) {
       return { syncedProductsCount: 0, syncedFichasCount: 0 };
     }
 
     const remoteIds = new Set(remoteProds.map((p: any) => String(p.id)));
-    const remoteNames = new Set(remoteProds.map((p: any) => String(p.nome).toLowerCase().trim()));
+    const syncedCloudIds = getSyncedCloudProdIds(currentId);
+    const wasDemoLocal = localSnap.source === "demo_local";
 
-    // Identifica produtos locais que não constam no Supabase
-    const pendingProducts = localSnap.produtos.filter(
-      (lp) => !remoteIds.has(String(lp.id)) && !remoteNames.has(lp.nome.toLowerCase().trim())
-    );
+    // Identifica produtos locais que não constam no Supabase:
+    // Se o ID já esteve sincronizado na nuvem (syncedCloudIds.has) e não está mais em remoteIds,
+    // significa que foi excluído na nuvem por outro aparelho — não devemos re-enviar!
+    const pendingProducts = localSnap.produtos.filter((lp) => {
+      const pid = String(lp.id);
+      if (remoteIds.has(pid)) return false;
+      if (syncedCloudIds.has(pid)) return false;
+      return true;
+    });
 
     let syncedProductsCount = 0;
     let syncedFichasCount = 0;
@@ -1020,6 +1087,7 @@ export async function syncPendingLocalProductsToSupabase(companyId?: string): Pr
 
       if (!insertErr) {
         syncedProductsCount++;
+        addSyncedCloudProdIds([prodIdStr], currentId);
 
         // 2. Sincroniza lote de estoque inicial correspondente
         const lote = (localSnap.estoqueLotes || []).find((l) => String(l.produto_id) === prodIdStr);
@@ -1030,6 +1098,7 @@ export async function syncPendingLocalProductsToSupabase(companyId?: string): Pr
             produto_id: prodIdStr,
             quantidade_disponivel: qty,
             empresa_id: currentId,
+            updated_at: lote?.updated_at || new Date().toISOString(),
           };
           const loteRes = await supabase.from("estoque_lotes").upsert(loteData);
           if (loteRes.error) {
@@ -1068,8 +1137,41 @@ export async function syncPendingLocalProductsToSupabase(companyId?: string): Pr
       }
     }
 
+    // Se o dispositivo estava operando em modo demo_local (ex: antes da correção de vendas.empresa_id),
+    // garante também que lotes de estoque editados localmente (> 0) de produtos já existentes subam para o Supabase
+    if (wasDemoLocal && Array.isArray(localSnap.estoqueLotes)) {
+      for (const lote of localSnap.estoqueLotes) {
+        const pid = String(lote.produto_id);
+        if (remoteIds.has(pid) && !syncedCloudIds.has(pid) && Number(lote.quantidade_disponivel) > 0) {
+          try {
+            const { data: remLotes } = await supabase
+              .from("estoque_lotes")
+              .select("id, quantidade_disponivel")
+              .eq("produto_id", pid);
+            const remLote = remLotes?.[0];
+            if (!remLote || Number(remLote.quantidade_disponivel) === 0) {
+              const loteUpsert: Record<string, any> = {
+                id: remLote?.id || `est-${pid}`,
+                produto_id: pid,
+                quantidade_disponivel: Number(lote.quantidade_disponivel),
+                empresa_id: currentId,
+                updated_at: lote.updated_at || new Date().toISOString(),
+              };
+              const res = await supabase.from("estoque_lotes").upsert(loteUpsert);
+              if (res.error) {
+                delete loteUpsert.empresa_id;
+                await supabase.from("estoque_lotes").upsert(loteUpsert);
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }
+
     if (syncedProductsCount > 0) {
-      console.info(`✓ Sincronizados ${syncedProductsCount} produto(s) pendente(s) com a nuvem Supabase.`);
+      console.info(`✓ Sincronizados ${syncedProductsCount} produto(s) pendente(s) da empresa ${currentId} com a nuvem Supabase.`);
     }
 
     return { syncedProductsCount, syncedFichasCount };
@@ -1079,71 +1181,186 @@ export async function syncPendingLocalProductsToSupabase(companyId?: string): Pr
   }
 }
 
+/**
+ * Sincroniza produtos e vendas locais pendentes de TODAS as empresas cadastradas neste aparelho.
+ * Garante que produtos criados em qualquer empresa neste dispositivo subam imediatamente para a nuvem.
+ */
+export async function syncAllCompaniesLocalProductsToSupabase(): Promise<void> {
+  if (!checkIsSupabaseConfigured() || !supabase) return;
+  try {
+    const companies = getLocalCompanies();
+    for (const comp of companies) {
+      await syncPendingLocalProductsToSupabase(comp.id);
+      await syncPendingLocalSalesToSupabase(comp.id);
+    }
+  } catch (err) {
+    console.warn("Aviso ao sincronizar todas as empresas locais com Supabase:", err);
+  }
+}
+
 export async function fetchDashboardData(companyId?: string): Promise<DashboardDataSnapshot> {
   const activeCompId = companyId || getActiveCompanyId();
 
   if (checkIsSupabaseConfigured() && supabase) {
     try {
       // Auto-sincroniza vendas e produtos offline antes de consultar para manter Nuvem e Aparelhos 100% idênticos
-      await syncPendingLocalSalesToSupabase(activeCompId);
       await syncPendingLocalProductsToSupabase(activeCompId);
+      await syncPendingLocalSalesToSupabase(activeCompId);
 
-      // Se for Roze Gourmet, lê normal. Se for outra empresa, tenta filtrar por empresa_id
+      // 1. Consulta Produtos filtrados estritamente pela empresa ativa
       let prodsQuery = supabase.from("produtos").select("*");
-      let vendasQuery = supabase.from("vendas").select("*");
-      let itensQuery = supabase.from("itens_venda").select("*");
-      let estoqueQuery = supabase.from("estoque_lotes").select("*");
-
-      if (activeCompId !== "emp-roze-gourmet") {
+      if (activeCompId === "emp-roze-gourmet") {
+        prodsQuery = prodsQuery.or("empresa_id.eq.emp-roze-gourmet,empresa_id.is.null");
+      } else {
         prodsQuery = prodsQuery.eq("empresa_id", activeCompId);
-        vendasQuery = vendasQuery.eq("empresa_id", activeCompId);
       }
 
-      const [produtosRes, vendasRes, itensRes, estoqueRes] = await Promise.all([
-        prodsQuery.order("nome"),
-        vendasQuery.order("data_venda", { ascending: false }),
-        itensQuery,
-        estoqueQuery,
+      let produtosRes = await prodsQuery.order("nome");
+      if (produtosRes.error) {
+        // Fallback caso a coluna empresa_id não exista na tabela produtos
+        produtosRes = await supabase.from("produtos").select("*").order("nome");
+      }
+
+      // 2. Consulta Lotes de Estoque e Itens de Venda
+      const [itensRes, estoqueRes] = await Promise.all([
+        supabase.from("itens_venda").select("*"),
+        supabase.from("estoque_lotes").select("*"),
       ]);
 
-      if (
-        !produtosRes.error &&
-        !vendasRes.error &&
-        !itensRes.error &&
-        !estoqueRes.error
-      ) {
-        const prods: Produto[] = (produtosRes.data || []).map((p) => ({
-          ...p,
-          empresaId: p.empresa_id || p.empresaId || activeCompId,
-          preco_venda: Number(p.preco_venda),
-          custo_estimado: Number(p.custo_estimado),
-        }));
+      // 3. Consulta Vendas com fallback automático caso a coluna vendas.empresa_id ainda não exista no banco (erro 42703)
+      let vendasHasEmpresaIdCol = true;
+      let vendasQuery = supabase.from("vendas").select("*");
+      if (activeCompId === "emp-roze-gourmet") {
+        vendasQuery = vendasQuery.or("empresa_id.eq.emp-roze-gourmet,empresa_id.is.null");
+      } else {
+        vendasQuery = vendasQuery.eq("empresa_id", activeCompId);
+      }
+      let vendasRes = await vendasQuery.order("data_venda", { ascending: false });
+      if (vendasRes.error) {
+        vendasHasEmpresaIdCol = false;
+        vendasRes = await supabase
+          .from("vendas")
+          .select("*")
+          .order("data_venda", { ascending: false });
+      }
+
+      // IMPORTANTE: Nunca descartar os produtos do Supabase se vendas/itens tiverem qualquer aviso de schema!
+      if (!produtosRes.error) {
+        const prods: Produto[] = (produtosRes.data || [])
+          .filter((p) => {
+            const pEmp = p.empresa_id || p.empresaId;
+            if (activeCompId === "emp-roze-gourmet") {
+              return !pEmp || pEmp === "emp-roze-gourmet";
+            }
+            return pEmp === activeCompId;
+          })
+          .map((p) => ({
+            ...p,
+            empresaId: p.empresa_id || p.empresaId || activeCompId,
+            preco_venda: Number(p.preco_venda),
+            custo_estimado: Number(p.custo_estimado),
+          }));
+
         const localSnap = getLocalSnapshot(activeCompId);
         const channelMap = getLocalSaleChannels(activeCompId);
+        const syncedCloudIds = getSyncedCloudProdIds(activeCompId);
 
-        // Preserva produtos cadastrados localmente que ainda não foram sincronizados com a nuvem
+        // Registra todos os produtos vindos do Supabase como confirmados na nuvem
         const remoteIds = new Set(prods.map((p) => String(p.id)));
         const remoteNames = new Set(prods.map((p) => p.nome.toLowerCase().trim()));
-        const customLocalProds = (localSnap.produtos || []).filter(
-          (lp) => !remoteIds.has(String(lp.id)) && !remoteNames.has(lp.nome.toLowerCase().trim())
-        );
+        addSyncedCloudProdIds(Array.from(remoteIds), activeCompId);
+
+        // Preserva apenas produtos criados localmente que AINDA não foram sincronizados com a nuvem
+        // (Ignora produtos que já estiveram em syncedCloudIds e foram excluídos no Supabase por outro dispositivo)
+        const customLocalProds = (localSnap.produtos || []).filter((lp) => {
+          const pid = String(lp.id);
+          if (remoteIds.has(pid)) return false;
+          if (remoteNames.has(lp.nome.toLowerCase().trim())) return false;
+          if (syncedCloudIds.has(pid)) return false;
+          return true;
+        });
+
         const combinedProds = [...prods, ...customLocalProds];
+        const companyProdIds = new Set(combinedProds.map((p) => String(p.id)));
 
-        // Preserva lotes de estoque dos produtos locais
-        const remoteStockProdIds = new Set((estoqueRes.data || []).map((e) => String(e.produto_id)));
-        const customLocalLotes = (localSnap.estoqueLotes || []).filter(
-          (lote) => !remoteStockProdIds.has(String(lote.produto_id))
-        );
-        const combinedLotes = [
-          ...(estoqueRes.data || []).map((e) => ({
-            ...e,
-            empresaId: e.empresa_id || e.empresaId || activeCompId,
-            quantidade_disponivel: Number(e.quantidade_disponivel),
-          })),
-          ...customLocalLotes,
-        ];
+        // Mapeia e garante que todo produto da empresa tenha seu lote de estoque correspondente
+        const rawRemoteLotes = (!estoqueRes.error && estoqueRes.data) ? estoqueRes.data : [];
+        const loteByProdId = new Map<string, EstoqueLote>();
 
-        const allVendas: Venda[] = (vendasRes.data || []).map((v) => ({
+        for (const e of rawRemoteLotes) {
+          const pid = String(e.produto_id);
+          if (!companyProdIds.has(pid)) continue;
+          const existing = loteByProdId.get(pid);
+          if (
+            !existing ||
+            new Date(e.updated_at || 0).getTime() >= new Date(existing.updated_at || 0).getTime()
+          ) {
+            loteByProdId.set(pid, {
+              ...e,
+              id: String(e.id),
+              produto_id: pid,
+              empresaId: e.empresa_id || e.empresaId || activeCompId,
+              quantidade_disponivel: Number(e.quantidade_disponivel) || 0,
+            });
+          }
+        }
+
+        // Adiciona lotes locais para produtos que ainda não possuem lote no banco remoto
+        for (const localLote of localSnap.estoqueLotes || []) {
+          const pid = String(localLote.produto_id);
+          if (companyProdIds.has(pid) && !loteByProdId.has(pid)) {
+            loteByProdId.set(pid, {
+              ...localLote,
+              empresaId: activeCompId,
+              quantidade_disponivel: Number(localLote.quantidade_disponivel) || 0,
+            });
+          }
+        }
+
+        // Garante lote 0 para qualquer produto do catálogo que não tenha registro em estoque_lotes
+        const nowIso = new Date().toISOString();
+        for (const prod of combinedProds) {
+          const pid = String(prod.id);
+          if (!loteByProdId.has(pid)) {
+            loteByProdId.set(pid, {
+              id: `est-${pid}`,
+              empresaId: activeCompId,
+              produto_id: pid,
+              quantidade_disponivel: 0,
+              updated_at: nowIso,
+            });
+          }
+        }
+
+        const combinedLotes = Array.from(loteByProdId.values());
+
+        const rawItens: ItemVenda[] = ((!itensRes.error && itensRes.data) ? itensRes.data : []).map((i) => ({
+          ...i,
+          quantidade: Number(i.quantidade),
+          preco_unitario: Number(i.preco_unitario),
+        }));
+
+        // Isola vendas por empresa (mesmo se a coluna vendas.empresa_id ainda não existir no Supabase)
+        const rawVendas = (!vendasRes.error && vendasRes.data) ? vendasRes.data : [];
+        const filteredRawVendas = rawVendas.filter((v: any) => {
+          if (v.empresa_id) {
+            if (activeCompId === "emp-roze-gourmet") {
+              return v.empresa_id === "emp-roze-gourmet";
+            }
+            return v.empresa_id === activeCompId;
+          }
+          if (!vendasHasEmpresaIdCol) {
+            const saleItens = rawItens.filter((i) => i.venda_id === v.id);
+            if (saleItens.length > 0) {
+              return saleItens.some((i) => companyProdIds.has(String(i.produto_id)));
+            }
+            if (channelMap[v.id]) return true;
+            return activeCompId === "emp-roze-gourmet";
+          }
+          return activeCompId === "emp-roze-gourmet";
+        });
+
+        const allVendas: Venda[] = filteredRawVendas.map((v: any) => ({
           ...v,
           empresaId: v.empresa_id || v.empresaId || activeCompId,
           canal_venda: v.canal_venda || channelMap[v.id] || "Balcao",
@@ -1154,17 +1371,16 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
           valor_total: Number(v.valor_total),
         }));
 
-        const allItens: ItemVenda[] = (itensRes.data || []).map((i) => ({
-          ...i,
-          quantidade: Number(i.quantidade),
-          preco_unitario: Number(i.preco_unitario),
-        }));
+        const validVendaIds = new Set(allVendas.map((v) => v.id));
+        const allItens = rawItens.filter((i) => validVendaIds.has(i.venda_id));
 
         // Consulta fichas técnicas na nuvem se a tabela fichas_tecnicas existir no Supabase
         let remoteFichas: FichaTecnicaProduto[] = [];
         try {
           let fQuery = supabase.from("fichas_tecnicas").select("*");
-          if (activeCompId !== "emp-roze-gourmet") {
+          if (activeCompId === "emp-roze-gourmet") {
+            fQuery = fQuery.or("empresa_id.eq.emp-roze-gourmet,empresa_id.is.null");
+          } else {
             fQuery = fQuery.eq("empresa_id", activeCompId);
           }
           const { data: fData, error: fErr } = await fQuery;
@@ -1198,8 +1414,11 @@ export async function fetchDashboardData(companyId?: string): Promise<DashboardD
           // Se a tabela ainda não foi criada no Supabase, continua normalmente com fallback local
         }
 
-        const mergedFichas = [...(localSnap.fichasTecnicas || [])];
+        const mergedFichas = [...(localSnap.fichasTecnicas || [])].filter((lf) =>
+          companyProdIds.has(String(lf.produto_id))
+        );
         for (const rf of remoteFichas) {
+          if (!companyProdIds.has(String(rf.produto_id))) continue;
           const idx = mergedFichas.findIndex(
             (lf) => String(lf.produto_id) === String(rf.produto_id)
           );
@@ -1654,10 +1873,12 @@ export async function updateProductStock(
     adminNome?: string;
     motivo?: string;
     observacoes?: string;
-  }
+  },
+  companyId?: string
 ): Promise<DashboardDataSnapshot> {
+  const currentCompId = companyId || getActiveCompanyId();
   const qtdSegura = Math.max(0, Math.round(novaQuantidade));
-  const current = await fetchDashboardData();
+  const current = await fetchDashboardData(currentCompId);
   const nowIso = new Date().toISOString();
 
   // Auditoria de estoque
@@ -1687,28 +1908,6 @@ export async function updateProductStock(
     });
   }
 
-  if (current.source === "supabase" && supabase) {
-    const existingLote = current.estoqueLotes.find(
-      (e) => e.produto_id === produtoId
-    );
-    if (existingLote) {
-      await supabase
-        .from("estoque_lotes")
-        .update({
-          quantidade_disponivel: qtdSegura,
-          updated_at: nowIso,
-        })
-        .eq("id", existingLote.id);
-    } else {
-      await supabase.from("estoque_lotes").insert({
-        produto_id: produtoId,
-        quantidade_disponivel: qtdSegura,
-        updated_at: nowIso,
-      });
-    }
-    return fetchDashboardData();
-  }
-
   let found = false;
   const novosLotes = current.estoqueLotes.map((lote) => {
     if (lote.produto_id === produtoId) {
@@ -1723,9 +1922,8 @@ export async function updateProductStock(
   });
 
   if (!found) {
-    const currentCompId = getActiveCompanyId();
     novosLotes.push({
-      id: `est-${Date.now()}`,
+      id: `est-${produtoId}`,
       empresaId: currentCompId,
       produto_id: produtoId,
       quantidade_disponivel: qtdSegura,
@@ -1739,7 +1937,38 @@ export async function updateProductStock(
     lastSyncedAt: nowIso,
   };
 
-  saveLocalSnapshot(updatedSnapshot);
+  saveLocalSnapshot(updatedSnapshot, currentCompId);
+
+  if (checkIsSupabaseConfigured() && supabase) {
+    try {
+      const targetLoteId = existingLote?.id || `est-${produtoId}`;
+      const loteData: Record<string, any> = {
+        id: targetLoteId,
+        produto_id: produtoId,
+        quantidade_disponivel: qtdSegura,
+        empresa_id: currentCompId,
+        updated_at: nowIso,
+      };
+      const upRes = await supabase.from("estoque_lotes").upsert(loteData);
+      if (upRes.error) {
+        delete loteData.empresa_id;
+        await supabase.from("estoque_lotes").upsert(loteData);
+      }
+      // Atualiza também por produto_id caso haja outro ID de lote preexistente no banco
+      await supabase
+        .from("estoque_lotes")
+        .update({
+          quantidade_disponivel: qtdSegura,
+          updated_at: nowIso,
+        })
+        .eq("produto_id", produtoId);
+
+      return fetchDashboardData(currentCompId);
+    } catch (err) {
+      console.warn("Aviso ao atualizar estoque no Supabase:", err);
+    }
+  }
+
   return updatedSnapshot;
 }
 
@@ -1813,12 +2042,14 @@ export async function createNewProduct(
 
       if (!insertError && prodInserido) {
         novoProdId = String(prodInserido.id);
+        addSyncedCloudProdIds([novoProdId], currentCompId);
 
         const loteInsertData: any = {
           id: `est-${novoProdId}`,
           produto_id: novoProdId,
           quantidade_disponivel: estoqueInicial,
           empresa_id: currentCompId,
+          updated_at: nowIso,
         };
         const loteRes = await supabase.from("estoque_lotes").upsert(loteInsertData);
         if (loteRes.error) {
@@ -1850,7 +2081,7 @@ export async function createNewProduct(
   };
 
   const novoLote: EstoqueLote = {
-    id: `est-${Date.now()}`,
+    id: `est-${novoProdId}`,
     empresaId: currentCompId,
     produto_id: novoProdId,
     quantidade_disponivel: estoqueInicial,
@@ -1928,6 +2159,9 @@ export async function createNewProduct(
       await supabase
         .from("fichas_tecnicas")
         .upsert(fichaUpsertData, { onConflict: "id" });
+
+      const freshFromCloud = await fetchDashboardData(currentCompId);
+      return { snapshot: freshFromCloud, newProduct: novoProduto };
     } catch (err) {
       console.warn("Aviso ao tentar salvar nova ficha no Supabase:", err);
     }
@@ -2162,8 +2396,12 @@ export async function deleteProduct(
   const current = await fetchDashboardData(currentCompId);
   const nowIso = new Date().toISOString();
 
-  if (current.source === "supabase" && supabase) {
+  // Registra em syncedCloudProdIds para que nenhum dispositivo re-envie o produto excluído
+  addSyncedCloudProdIds([produtoId], currentCompId);
+
+  if (checkIsSupabaseConfigured() && supabase) {
     try {
+      await supabase.from("fichas_tecnicas").delete().eq("produto_id", produtoId);
       await supabase.from("estoque_lotes").delete().eq("produto_id", produtoId);
       await supabase.from("produtos").delete().eq("id", produtoId);
     } catch (err) {

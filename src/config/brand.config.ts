@@ -114,9 +114,9 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "3.7.1",
-  buildNumber: 2026110601,
-  androidVersionCode: 65,
+  appVersion: "3.7.2",
+  buildNumber: 2026112401,
+  androidVersionCode: 66,
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",
@@ -247,8 +247,14 @@ export function getCustomBrandConfig(): BrandConfig {
           ...(overrides.stoneConfig || {}),
         },
         supabaseConfig: {
-          supabaseUrl: overrides.supabaseConfig?.supabaseUrl || "",
-          supabaseAnonKey: overrides.supabaseConfig?.supabaseAnonKey || "",
+          supabaseUrl:
+            overrides.supabaseConfig?.supabaseUrl ||
+            BRAND_CONFIG.supabaseConfig?.supabaseUrl ||
+            "",
+          supabaseAnonKey:
+            overrides.supabaseConfig?.supabaseAnonKey ||
+            BRAND_CONFIG.supabaseConfig?.supabaseAnonKey ||
+            "",
         },
         basesOperacionais: {
           jau: {

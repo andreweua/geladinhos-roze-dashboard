@@ -7,6 +7,26 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.7.2] - 2026-11-24
+
+### Corrigido & Aprimorado (Sincronização Crítica Multi-Dispositivos)
+- **Correção da Falha de Leitura do Supabase para Novas Empresas (`vendas.empresa_id` - Erro `42703`)**:
+  - Anteriormente, ao consultar dados de qualquer empresa diferente da matriz (`activeCompId !== "emp-roze-gourmet"`), a função `fetchDashboardData` executava `vendasQuery.eq("empresa_id", activeCompId)`. Como a tabela `vendas` no Supabase não possuía a coluna `empresa_id`, o PostgreSQL retornava erro `42703` e o bloco `if (!produtosRes.error && !vendasRes.error ...)` descartava toda a resposta do Supabase (inclusive os produtos já salvos na nuvem!), forçando cada aparelho a exibir apenas o seu próprio `localStorage` local.
+  - Agora `fetchDashboardData` processa `produtos`, `estoque_lotes` e `fichas_tecnicas` de forma independente, faz fallback automático na tabela `vendas` caso a coluna `empresa_id` não exista (isolando as vendas pelos itens do catálogo da empresa) e mantém `source: "supabase"` ("Nuvem Ativa") em 100% das empresas e dispositivos.
+- **Isolamento Estrito de Produtos na Empresa Matriz**:
+  - A consulta da matriz (`emp-roze-gourmet`) agora filtra estritamente por `empresa_id.eq.emp-roze-gourmet,empresa_id.is.null`, impedindo que produtos de outras empresas apareçam misturados.
+- **Sincronização Automática de Produtos Iniciais e Todas as Empresas Locais**:
+  - `seedCompanyInitialProducts` agora envia imediatamente os produtos iniciais de novas empresas para o Supabase.
+  - Adicionada `syncAllCompaniesLocalProductsToSupabase()` na inicialização do app para enviar à nuvem quaisquer produtos ou saldos de estoque que tenham ficado retidos localmente em qualquer um dos dispositivos.
+- **Supabase Realtime para `produtos` e `fichas_tecnicas` + Sincronização no PDV**:
+  - Adicionados listeners Realtime para `produtos` e `fichas_tecnicas`.
+  - Ao abrir o PDV (`PointOfSaleModal`), o catálogo é sincronizado automaticamente com a nuvem e conta com botão `[🔄 Sincronizar]` no topo e na tela de catálogo vazio.
+- **Seletor de Empresa na Tela de Login (`AuthScreen`) e no Cabeçalho (`Header`)**:
+  - Tanto o login de Administrador quanto o login por **PIN do Caixa** agora exibem o seletor da Empresa/Unidade sincronizado com o Supabase e vinculam o caixa à empresa selecionada.
+- Versão `v3.7.2` (Build `2026112401`, Android `versionCode 66`).
+
+---
+
 ## [3.7.1] - 2026-11-06
 
 ### Adicionado & Aprimorado

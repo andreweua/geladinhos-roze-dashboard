@@ -15,6 +15,7 @@ import {
   HelpCircle,
   MessageCircle,
   Building2,
+  RefreshCw,
 } from "lucide-react";
 import { BRAND_CONFIG } from "@/config/brand.config";
 import {
@@ -25,11 +26,14 @@ import { UserProfile } from "@/types/auth";
 import { Button } from "@/components/ui/primitives";
 import {
   getActiveCompany,
+  getCompanyLifecycleStatus,
   getLocalCompanies,
   saveLocalCompanies,
   setActiveCompanyId,
+  syncCompaniesWithSupabase,
   updateCompany,
 } from "@/services/companyService";
+import { Company } from "@/types/multiTenant";
 
 interface AuthScreenProps {
   onSuccess: (user: UserProfile) => void;
@@ -53,8 +57,37 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
+  const [companies, setCompanies] = useState<Company[]>(() => getLocalCompanies());
+  const [selectedCompId, setSelectedCompId] = useState<string>(() => getActiveCompany().id);
+  const [isSyncingCompanies, setIsSyncingCompanies] = useState(false);
 
-  const activeComp = getActiveCompany();
+  const activeComp = companies.find((c) => c.id === selectedCompId) || getActiveCompany();
+
+  // Ao abrir a tela de login, sincroniza a lista de empresas da nuvem Supabase
+  useEffect(() => {
+    if (!isOpen) return;
+    setCompanies(getLocalCompanies());
+    setSelectedCompId(getActiveCompany().id);
+    setIsSyncingCompanies(true);
+    syncCompaniesWithSupabase()
+      .then((res) => {
+        if (res.success) {
+          const freshList = getLocalCompanies();
+          setCompanies(freshList);
+          const curId = getActiveCompany().id;
+          if (freshList.some((c) => c.id === curId)) {
+            setSelectedCompId(curId);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsSyncingCompanies(false));
+  }, [isOpen]);
+
+  const handleSelectCompany = (compId: string) => {
+    setSelectedCompId(compId);
+    setActiveCompanyId(compId);
+  };
 
   // Verifica se há Link Mágico de 1 clique na URL (?magic_auth=...)
   useEffect(() => {
@@ -113,7 +146,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setIsLoading(true);
 
     try {
-      const res = await loginWithSupabase(email, password);
+      const res = await loginWithSupabase(email, password, selectedCompId);
       if (res.error) {
         setErrorMsg(res.error);
       } else if (res.user) {
@@ -132,7 +165,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setIsLoading(true);
 
     try {
-      const res = await loginWithPin(pin, cashierName);
+      const res = await loginWithPin(pin, cashierName, selectedCompId);
       if (res.error) {
         setErrorMsg(res.error);
       } else if (res.user) {
@@ -144,6 +177,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       setIsLoading(false);
     }
   };
+
+  const handleRefreshCompaniesList = async () => {
+    setIsSyncingCompanies(true);
+    try {
+      const res = await syncCompaniesWithSupabase();
+      if (res.success) {
+        setCompanies(getLocalCompanies());
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsSyncingCompanies(false);
+    }
+  };
+
+  const activeCompaniesList = companies.filter((c) => getCompanyLifecycleStatus(c) !== "excluida");
 
   const handleWhatsAppSupport = () => {
     const zapText = `Olá, equipe PereiraLabs! Preciso de ajuda para recuperar a senha de acesso da minha empresa no sistema. (E-mail: ${email || "não informado"})`;
@@ -216,6 +265,37 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             <QrCode className="h-4 w-4 text-amber-500" />
             <span>PIN do Caixa</span>
           </button>
+        </div>
+
+        {/* Seletor de Empresa / Loja Ativa (Sincronizado com Supabase) */}
+        <div className="mb-4 rounded-2xl border border-primary/25 bg-primary/5 p-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="flex items-center gap-1.5 text-[11px] font-bold text-foreground">
+              <Building2 className="h-3.5 w-3.5 text-primary" />
+              <span>Empresa / Unidade Comercial</span>
+            </label>
+            <button
+              type="button"
+              onClick={handleRefreshCompaniesList}
+              disabled={isSyncingCompanies}
+              title="Sincronizar lista de empresas com a nuvem"
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:underline disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3 w-3 ${isSyncingCompanies ? "animate-spin" : ""}`} />
+              <span>{isSyncingCompanies ? "Sincronizando..." : "Atualizar Nuvem"}</span>
+            </button>
+          </div>
+          <select
+            value={selectedCompId}
+            onChange={(e) => handleSelectCompany(e.target.value)}
+            className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+          >
+            {activeCompaniesList.map((comp) => (
+              <option key={comp.id} value={comp.id}>
+                {comp.nome} {comp.cidade ? `(${comp.cidade})` : ""}
+              </option>
+            ))}
+          </select>
         </div>
 
         {errorMsg && (

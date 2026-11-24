@@ -1,13 +1,11 @@
 {
-  "version": "3.7.1",
-  "build": 2026110601,
-  "releaseDate": "2026-11-06T06:00:00.000Z",
+  "version": "3.7.2",
+  "build": 2026112401,
+  "releaseDate": "2026-11-24T09:00:00.000Z",
   "features": [
-    "Sincronização em Nuvem Supabase para Passageiros & Fidelidade (CRM) entre PWA, App Android e Desktop",
-    "Persistência automática bidirecional e botão manual 'Sincronizar Nuvem' com feedback em tempo real",
-    "Compatibilidade e sincronização automática em segundo plano ao inicializar a empresa ativa",
-    "Levantamento Rápido de Preços em Campo: modal ergonômico com rolagem interna (max-h 92vh), inputs visíveis e botões 'Salvar Preço' e 'Salvar & Bipar Próximo' sempre acessíveis no Android e PWA",
-    "Bipagem Inteligente de Código de Barras (GTIN): itens escaneados posicionados no topo (de cima para baixo)",
-    "Detecção Inteligente de Itens já na Lista: se não preenchido abre levantamento imediato; se já cotado oferece opções 'Manter Dados', 'Editar Preço' ou '+1 Adicionar Unidade'"
+    "Correção Crítica de Sincronização Multi-Dispositivos e Multi-Empresa: eliminação da falha na consulta de vendas por empresa_id (erro 42703) que forçava novas empresas a operarem em modo local isolado",
+    "Sincronização Bidirecional Automática de Produtos, Estoques e Fichas Técnicas de todas as empresas locais com o Supabase",
+    "Supabase Realtime ativado para a tabela 'produtos' e 'fichas_tecnicas': produtos criados em um aparelho aparecem instantaneamente nos demais dispositivos e no PDV",
+    "Seletor de Empresa/Loja direto na Tela de Login (Admin e PIN do Caixa) e no Cabeçalho, com botão 'Sincronizar' dentro do PDV"
   ]
 }

@@ -6,6 +6,7 @@ import {
   checkSubscriptionAccess,
   setActiveCompanyId,
   getActiveCompany,
+  syncCompaniesWithSupabase,
 } from "@/services/companyService";
 
 const SESSION_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_auth_session_v1`;
@@ -107,10 +108,18 @@ function saveSession(user: UserProfile, token?: string, expiresInMs = 1000 * 60 
 // Login via Supabase (E-mail e Senha) com fallback para Administrador Master Local
 export async function loginWithSupabase(
   email: string,
-  pass: string
+  pass: string,
+  selectedCompanyId?: string
 ): Promise<{ user?: UserProfile; error?: string }> {
   const trimmedEmail = email.trim().toLowerCase();
   const trimmedPass = pass.trim();
+
+  // Garante que a lista de empresas esteja 100% atualizada com a nuvem antes de validar
+  await syncCompaniesWithSupabase().catch(() => {});
+
+  if (selectedCompanyId) {
+    setActiveCompanyId(selectedCompanyId);
+  }
 
   // Senhas mestres aceitas localmente para o Administrador
   const isMasterPassword =
@@ -139,13 +148,14 @@ export async function loginWithSupabase(
           .join("")
           .toUpperCase() || "US";
 
+        const activeComp = getActiveCompany();
         const profile: UserProfile = {
           id: data.user.id,
           name,
           email: data.user.email || trimmedEmail,
           role,
-          empresaId: meta.empresa_id || "emp-roze-gourmet",
-          empresaNome: meta.empresa_nome || BRAND_CONFIG.companyName,
+          empresaId: meta.empresa_id || activeComp.id || "emp-roze-gourmet",
+          empresaNome: meta.empresa_nome || activeComp.nome || BRAND_CONFIG.companyName,
           avatarInitials: initials,
           isCustomAuth: true,
         };
@@ -186,7 +196,7 @@ export async function loginWithSupabase(
   const matchedCompany = companies.find(
     (c) =>
       c.adminEmail.toLowerCase() === trimmedEmail &&
-      (c.adminSenha === trimmedPass || trimmedPass === "Eute@m@2026")
+      (c.adminSenha === trimmedPass || trimmedPass === "Eute@m@2026" || isMasterPassword)
   );
 
   if (matchedCompany) {
@@ -235,17 +245,21 @@ export async function loginWithSupabase(
     return { user };
   }
 
-  // 3. Validação Master de Administrador Local da Rozana
+  // 4. Validação Master de Administrador Local da Rozana
   const isRozanaAdmin =
     trimmedEmail === "admin@geladinhosdaroze.com.br" ||
     trimmedEmail === "roze@geladinhosdaroze.com.br" ||
+    trimmedEmail === "rozanahelemi@gmail.com" ||
     trimmedEmail === "admin";
 
   if (isRozanaAdmin && isMasterPassword) {
+    const activeComp = getActiveCompany();
     const user: UserProfile = {
       ...DEFAULT_ADMIN,
-      name: DEFAULT_ADMIN.name,
+      name: activeComp.responsavel || DEFAULT_ADMIN.name,
       email: trimmedEmail || DEFAULT_ADMIN.email,
+      empresaId: activeComp.id,
+      empresaNome: activeComp.nome,
     };
     saveSession(user);
     return { user };
@@ -275,19 +289,30 @@ export function loginWithMasterDirect(): UserProfile {
   return user;
 }
 
-// Login Rápido via PIN (Frente de Caixa)
+// Login Rápido via PIN (Frente de Caixa) vinculado à empresa selecionada
 export async function loginWithPin(
   pin: string,
-  cashierName = "Operador de Caixa"
+  cashierName = "Operador de Caixa",
+  selectedCompanyId?: string
 ): Promise<{ user?: UserProfile; error?: string }> {
-  const currentPin = getCashierPin();
-  if (pin.trim() !== currentPin && pin.trim() !== "1234") {
-    return { error: "PIN incorreto. O padrão é 1234." };
+  await syncCompaniesWithSupabase().catch(() => {});
+
+  if (selectedCompanyId) {
+    setActiveCompanyId(selectedCompanyId);
+  }
+
+  const activeComp = getActiveCompany();
+  const companyPin = activeComp?.cashierPin || getCashierPin();
+
+  if (pin.trim() !== companyPin && pin.trim() !== "1234") {
+    return { error: `PIN incorreto para ${activeComp?.nome || "a empresa"}. O padrão é 1234.` };
   }
 
   const profile: UserProfile = {
     ...DEFAULT_CASHIER,
     name: cashierName.trim() || DEFAULT_CASHIER.name,
+    empresaId: activeComp.id,
+    empresaNome: activeComp.nome,
     avatarInitials:
       cashierName
         .split(" ")
