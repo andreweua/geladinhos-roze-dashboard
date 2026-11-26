@@ -7,6 +7,33 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.7.3] - 2026-11-26
+
+### Corrigido & Aprimorado (Isolamento Estrito Multi-Empresa / Multi-Tenant)
+- **Isolamento Estrito de Listas de Compras (`src/services/shoppingListService.ts` & `src/components/ShoppingListSection.tsx`)**:
+  - Substituída a chave única global de `localStorage` por chaves escopadas por `empresa_id` (`getShoppingListsStorageKey(companyId)`).
+  - A lista padrão *"Lista de Compras da Semana — Produção Roze"* agora é inicializada exclusivamente para a empresa `emp-roze-gourmet`; novas empresas iniciam com lista limpa (`[]`).
+  - `syncShoppingListsWithSupabase`, `saveShoppingLists`, `addOrUpdateShoppingList` e `deleteShoppingList` agora filtram estritamente por `empresa_id` tanto para a matriz (`empresa_id.eq.emp-roze-gourmet,empresa_id.is.null`) quanto para todas as demais empresas (`empresa_id.eq.<id>`), impedindo que listas de uma empresa sejam baixadas ou enviadas para outra.
+- **Isolamento Estrito de Estabelecimentos, Pesquisas de Preços e Compras/Notas Fiscais (`src/services/marketSurveyService.ts` & `src/components/LocalMarketAndInvoicesSection.tsx`)**:
+  - Corrigida a ausência de filtro `.or("empresa_id.eq.emp-roze-gourmet,empresa_id.is.null")` em `syncMarketSurveyWithSupabase` quando a empresa ativa era `emp-roze-gourmet` (que antes buscava estabelecimentos e cotações de todas as empresas do banco, como *"Hipermercado rede ABC"* de `emp-mvlbu3ia-59lb`).
+  - Adicionada filtragem em memória por `r.empresa_id` e filtro `.eq("empresa_id", currentId)` nas exclusões (`deleteEstabelecimento`, `deletePesquisaPreco`, `deleteCompraNotaFiscal`).
+  - `LocalMarketAndInvoicesSection` agora recebe `empresaId` e recarrega instantaneamente estabelecimentos, pesquisas, notas fiscais e listas de compras ao alternar de empresa.
+- **Isolamento de Auditoria de Estoque, Matérias-Primas e Destinatários (`src/services/auditService.ts` & `src/components/StockAuditSection.tsx`)**:
+  - Escopadas as chaves de `localStorage` (`getAuditStorageKey`, `getRecipientsStorageKey`, `getMateriaPrimaStorageKey`) por `empresa_id`.
+  - O catálogo padrão `DEFAULT_MATERIA_PRIMA` (insumos da Roze) agora é carregado apenas para `emp-roze-gourmet`; demais empresas iniciam com catálogo de matérias-primas limpo.
+- **Isolamento de Fichas Técnicas, Caldas Artesanais e Sobras de Estoque (`src/components/TechnicalSheetAndDreSection.tsx`)**:
+  - Os painéis *"Caldas & Geleias Artesanais (Base p/ Mesclar)"* e *"Desembolso Inicial no Caixa x Sobras em Estoque"* agora são exibidos exclusivamente quando `isRozeCompany === true` (`emp-roze-gourmet`).
+  - Ao trocar de empresa ativa, qualquer rascunho de ficha técnica em edição (`isEditing`, `draftFicha`, `draftPrecoVenda`, `draftProductName`) é imediatamente descartado e reinicializado com os produtos da nova empresa.
+- **Invalidação Imediata de Estado em Memória, Proteção contra Condição de Corrida e Escopo de Operações (`src/App.tsx` & `src/services/dataService.ts`)**:
+  - Ao alternar de empresa ativa ou encerrar sessão (`handleLogout`), o `snapshot` em memória, o `selectedProductId`, a taxa do iFood (`getIfoodFeeStorageKey`) e o turno de caixa (`currentShift`) são substituídos instantaneamente antes da conclusão do fetch assíncrono, com proteção contra *race condition* caso o usuário alterne rapidamente entre empresas.
+  - Adicionadas chaves de remontagem (`key={activeCompany.id}`) e prop `empresaId={activeCompany.id}` em todas as seções e modais operacionais.
+  - `resetToCleanSlate` em `src/services/dataService.ts` agora zera vendas e estoques estritamente da empresa ativa (`companyId`), preservando intactos os dados das demais empresas no Supabase.
+  - Atualizado o rodapé dinâmico para refletir o nome e nicho da empresa ativa mantendo a assinatura institucional **PereiraLabs - Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais**.
+  - Criada migração SQL `supabase/migrations/20261126_strict_multi_tenant_isolation.sql` garantindo `empresa_id` e índices em todas as tabelas.
+- Versão `v3.7.3` (Build `2026112601`, Android `versionCode 67`).
+
+---
+
 ## [3.7.2] - 2026-11-24
 
 ### Corrigido & Aprimorado (Sincronização Crítica Multi-Dispositivos)
@@ -535,3 +562,8 @@ e este projeto adere ao [Versionamento Semântico (SemVer)](https://semver.org/l
   - Modal para registro de novas vendas (com baixa automática no estoque) e cadastro de novos sabores.
 - **Camada de Dados Híbrida (`src/services/dataService.ts` & `supabase/schema_and_seed.sql`)**:
   - Funcionamento automático em Modo Demo Local (`localStorage`) com histórico realista de 90 dias e integração transparente com PostgreSQL no Supabase (`produtos`, `vendas`, `itens_venda`, `estoque_lotes`) via `.env`.
+
+---
+
+**Desenvolvido por:**  
+**PereiraLabs - Divisão de Tecnologia e IA | Louzada & Pereira - Soluções Digitais**

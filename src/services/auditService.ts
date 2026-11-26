@@ -1,9 +1,9 @@
 import { BRAND_CONFIG } from "@/config/brand.config";
-import { SOBRAS_ESTOQUE_INSUMOS } from "@/data/insumosCatalog";
-import { formatCurrency } from "@/lib/utils";
+import { getActiveCompanyId, getActiveCompany } from "@/services/companyService";
 
 export interface AuditoriaEstoqueLog {
   id: string;
+  empresa_id?: string;
   timestamp: string;
   admin_responsavel: string;
   tipo_item: "geladinho_pronto" | "materia_prima_insumo";
@@ -29,9 +29,29 @@ export interface MateriaPrimaItem {
   custo_por_unidade: number;
 }
 
-const AUDIT_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_estoque_audit_logs_v1`;
-const RECIPIENTS_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_audit_email_recipients_v1`;
-const MATERIA_PRIMA_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_materia_prima_estoque_v1`;
+function getAuditStorageKey(companyId?: string): string {
+  const currentId = companyId || getActiveCompanyId();
+  if (currentId === "emp-roze-gourmet") {
+    return `${BRAND_CONFIG.storagePrefix}_estoque_audit_logs_v1`;
+  }
+  return `${BRAND_CONFIG.storagePrefix}_estoque_audit_logs_${currentId}_v1`;
+}
+
+function getRecipientsStorageKey(companyId?: string): string {
+  const currentId = companyId || getActiveCompanyId();
+  if (currentId === "emp-roze-gourmet") {
+    return `${BRAND_CONFIG.storagePrefix}_audit_email_recipients_v1`;
+  }
+  return `${BRAND_CONFIG.storagePrefix}_audit_email_recipients_${currentId}_v1`;
+}
+
+function getMateriaPrimaStorageKey(companyId?: string): string {
+  const currentId = companyId || getActiveCompanyId();
+  if (currentId === "emp-roze-gourmet") {
+    return `${BRAND_CONFIG.storagePrefix}_materia_prima_estoque_v1`;
+  }
+  return `${BRAND_CONFIG.storagePrefix}_materia_prima_estoque_${currentId}_v1`;
+}
 
 const DEFAULT_EMAILS = [
   "andrew@pereiralabs.com",
@@ -131,9 +151,10 @@ const DEFAULT_MATERIA_PRIMA: MateriaPrimaItem[] = [
   },
 ];
 
-export function loadAuditRecipients(): string[] {
+export function loadAuditRecipients(companyId?: string): string[] {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    const raw = localStorage.getItem(RECIPIENTS_STORAGE_KEY);
+    const raw = localStorage.getItem(getRecipientsStorageKey(currentId));
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -141,10 +162,11 @@ export function loadAuditRecipients(): string[] {
   } catch (err) {
     console.warn("Erro ao ler destinatários de e-mail de auditoria:", err);
   }
-  return DEFAULT_EMAILS;
+  return currentId === "emp-roze-gourmet" ? DEFAULT_EMAILS : ["andrew@pereiralabs.com"];
 }
 
-export function saveAuditRecipients(emails: string[]): void {
+export function saveAuditRecipients(emails: string[], companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
   try {
     const valid = Array.from(
       new Set(
@@ -153,28 +175,33 @@ export function saveAuditRecipients(emails: string[]): void {
           .filter((e) => e.includes("@") && e.includes("."))
       )
     );
-    localStorage.setItem(RECIPIENTS_STORAGE_KEY, JSON.stringify(valid));
+    localStorage.setItem(getRecipientsStorageKey(currentId), JSON.stringify(valid));
   } catch (err) {
     console.warn("Erro ao salvar destinatários:", err);
   }
 }
 
-export function loadMateriaPrimaCatalog(): MateriaPrimaItem[] {
+export function loadMateriaPrimaCatalog(companyId?: string): MateriaPrimaItem[] {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    const raw = localStorage.getItem(MATERIA_PRIMA_STORAGE_KEY);
+    const raw = localStorage.getItem(getMateriaPrimaStorageKey(currentId));
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch (err) {
     console.warn("Erro ao ler matérias-primas:", err);
   }
-  return DEFAULT_MATERIA_PRIMA;
+  if (currentId === "emp-roze-gourmet") {
+    return DEFAULT_MATERIA_PRIMA;
+  }
+  return [];
 }
 
-export function saveMateriaPrimaCatalog(items: MateriaPrimaItem[]): void {
+export function saveMateriaPrimaCatalog(items: MateriaPrimaItem[], companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    localStorage.setItem(MATERIA_PRIMA_STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(getMateriaPrimaStorageKey(currentId), JSON.stringify(items));
   } catch (err) {
     console.warn("Erro ao salvar matérias-primas:", err);
   }
@@ -185,9 +212,11 @@ export function updateMateriaPrimaStock(
   novaQuantidade: number,
   adminNome: string,
   motivoAjuste: string,
-  observacoes?: string
+  observacoes?: string,
+  companyId?: string
 ): { item: MateriaPrimaItem; log: AuditoriaEstoqueLog } {
-  const catalog = loadMateriaPrimaCatalog();
+  const currentId = companyId || getActiveCompanyId();
+  const catalog = loadMateriaPrimaCatalog(currentId);
   const index = catalog.findIndex((i) => i.id === itemId);
   if (index === -1) {
     throw new Error(`Matéria-prima com ID ${itemId} não encontrada.`);
@@ -199,30 +228,39 @@ export function updateMateriaPrimaStock(
 
   item.quantidade_em_estoque = Math.max(0, novaQuantidade);
   catalog[index] = item;
-  saveMateriaPrimaCatalog(catalog);
+  saveMateriaPrimaCatalog(catalog, currentId);
 
-  const log = addAuditLog({
-    admin_responsavel: adminNome,
-    tipo_item: "materia_prima_insumo",
-    item_id: item.id,
-    item_nome: item.nome,
-    unidade_medida: item.unidade,
-    quantidade_anterior: anterior,
-    quantidade_nova: item.quantidade_em_estoque,
-    diferenca,
-    motivo_ajuste: motivoAjuste,
-    observacoes,
-  });
+  const log = addAuditLog(
+    {
+      admin_responsavel: adminNome,
+      tipo_item: "materia_prima_insumo",
+      item_id: item.id,
+      item_nome: item.nome,
+      unidade_medida: item.unidade,
+      quantidade_anterior: anterior,
+      quantidade_nova: item.quantidade_em_estoque,
+      diferenca,
+      motivo_ajuste: motivoAjuste,
+      observacoes,
+    },
+    currentId
+  );
 
   return { item, log };
 }
 
-export function loadAuditLogs(): AuditoriaEstoqueLog[] {
+export function loadAuditLogs(companyId?: string): AuditoriaEstoqueLog[] {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    const raw = localStorage.getItem(AUDIT_STORAGE_KEY);
+    const raw = localStorage.getItem(getAuditStorageKey(currentId));
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (log: AuditoriaEstoqueLog) =>
+            !log.empresa_id || log.empresa_id === currentId
+        );
+      }
     }
   } catch (err) {
     console.warn("Erro ao ler logs de auditoria:", err);
@@ -234,13 +272,16 @@ export function addAuditLog(
   entry: Omit<
     AuditoriaEstoqueLog,
     "id" | "timestamp" | "emails_notificados" | "status_envio_email"
-  >
+  >,
+  companyId?: string
 ): AuditoriaEstoqueLog {
-  const logs = loadAuditLogs();
-  const recipients = loadAuditRecipients();
+  const currentId = companyId || getActiveCompanyId();
+  const logs = loadAuditLogs(currentId);
+  const recipients = loadAuditRecipients(currentId);
 
   const newLog: AuditoriaEstoqueLog = {
     ...entry,
+    empresa_id: currentId,
     id: `audit-${Date.now()}-${Math.random().toString(36).slice(-4)}`,
     timestamp: new Date().toISOString(),
     emails_notificados: recipients,
@@ -249,7 +290,7 @@ export function addAuditLog(
 
   const updated = [newLog, ...logs].slice(0, 300); // Guardar até 300 eventos
   try {
-    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(getAuditStorageKey(currentId), JSON.stringify(updated));
   } catch (err) {
     console.warn("Erro ao salvar log de auditoria:", err);
   }
@@ -262,15 +303,16 @@ export function generateAuditEmailContent(log: AuditoriaEstoqueLog): {
   body: string;
   mailtoUrl: string;
 } {
+  const activeComp = getActiveCompany();
   const deltaStr = log.diferenca > 0 ? `+${log.diferenca}` : `${log.diferenca}`;
-  const subject = `[AUDITORIA DE ESTOQUE] Ajuste de ${log.item_nome} (${deltaStr} ${log.unidade_medida}) por ${log.admin_responsavel}`;
+  const subject = `[AUDITORIA DE ESTOQUE - ${activeComp.nome.toUpperCase()}] Ajuste de ${log.item_nome} (${deltaStr} ${log.unidade_medida}) por ${log.admin_responsavel}`;
 
   const body =
-    `RELATÓRIO DE AUDITORIA DE ESTOQUE — GELADINHOS GOURMET DA ROZE\n` +
+    `RELATÓRIO DE AUDITORIA DE ESTOQUE — ${activeComp.nome.toUpperCase()}\n` +
     `------------------------------------------------------------\n` +
     `Data/Hora: ${new Date(log.timestamp).toLocaleString("pt-BR")}\n` +
     `Administrador Responsável: ${log.admin_responsavel}\n` +
-    `Tipo de Item: ${log.tipo_item === "geladinho_pronto" ? "Geladinho Pronto (150ml)" : "Matéria-Prima / Insumo"}\n` +
+    `Tipo de Item: ${log.tipo_item === "geladinho_pronto" ? "Produto Pronto" : "Matéria-Prima / Insumo"}\n` +
     `Item Ajustado: ${log.item_nome}\n` +
     `Estoque Anterior: ${log.quantidade_anterior} ${log.unidade_medida}\n` +
     `Novo Saldo no Freezer/Despensa: ${log.quantidade_nova} ${log.unidade_medida}\n` +

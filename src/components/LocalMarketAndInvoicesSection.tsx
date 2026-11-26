@@ -77,6 +77,7 @@ import {
 } from "@/services/gtinService";
 
 interface LocalMarketAndInvoicesSectionProps {
+  empresaId?: string;
   onOpenInvoiceModal: () => void;
   fichasTecnicas?: FichaTecnicaProduto[];
   reposicaoEstoque?: EstoquePorProduto[];
@@ -88,21 +89,21 @@ interface LocalMarketAndInvoicesSectionProps {
 
 export const LocalMarketAndInvoicesSection: React.FC<
   LocalMarketAndInvoicesSectionProps
-> = ({ onOpenInvoiceModal, fichasTecnicas, reposicaoEstoque = [], onApplyPaidPriceToRecipes }) => {
+> = ({ empresaId, onOpenInvoiceModal, fichasTecnicas, reposicaoEstoque = [], onApplyPaidPriceToRecipes }) => {
   const [activeTab, setActiveTab] = useState<
     "estabelecimentos" | "pesquisas" | "historico_inflacao" | "compras" | "lista_compras"
   >("pesquisas");
 
   // Live state
-  const customBrand = useMemo(() => getCustomBrandConfig(), []);
+  const customBrand = useMemo(() => getCustomBrandConfig(), [empresaId]);
   const [estabelecimentos, setEstabelecimentos] = useState<EstabelecimentoLocal[]>(
-    () => loadEstabelecimentos()
+    () => loadEstabelecimentos(empresaId)
   );
   const [pesquisas, setPesquisas] = useState<PesquisaPrecoLocal[]>(() =>
-    loadPesquisasPreco()
+    loadPesquisasPreco(empresaId)
   );
   const [compras, setCompras] = useState<CompraNotaFiscalReal[]>(() =>
-    loadComprasNotasFiscais()
+    loadComprasNotasFiscais(empresaId)
   );
 
   // Sincronização em Nuvem (Supabase) entre Dispositivos (Celulares & PCs)
@@ -110,14 +111,15 @@ export const LocalMarketAndInvoicesSection: React.FC<
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "success" | "error">("idle");
   const [lastSyncText, setLastSyncText] = useState<string | null>(null);
 
-  const handleSyncWithCloud = async () => {
+  const handleSyncWithCloud = async (targetCompId?: string | React.MouseEvent) => {
+    const cid = typeof targetCompId === "string" ? targetCompId : empresaId;
     setIsSyncing(true);
     setSyncStatus("syncing");
     try {
-      const res = await syncMarketSurveyWithSupabase();
-      setEstabelecimentos(loadEstabelecimentos());
-      setPesquisas(loadPesquisasPreco());
-      setCompras(loadComprasNotasFiscais());
+      const res = await syncMarketSurveyWithSupabase(cid);
+      setEstabelecimentos(loadEstabelecimentos(cid));
+      setPesquisas(loadPesquisasPreco(cid));
+      setCompras(loadComprasNotasFiscais(cid));
       if (res.status === "success") {
         setSyncStatus("success");
         setLastSyncText(`Nuvem OK (${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })})`);
@@ -134,13 +136,16 @@ export const LocalMarketAndInvoicesSection: React.FC<
   };
 
   useEffect(() => {
-    handleSyncWithCloud();
+    setEstabelecimentos(loadEstabelecimentos(empresaId));
+    setPesquisas(loadPesquisasPreco(empresaId));
+    setCompras(loadComprasNotasFiscais(empresaId));
+    handleSyncWithCloud(empresaId);
     const onFocus = () => {
-      handleSyncWithCloud();
+      handleSyncWithCloud(empresaId);
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  }, [empresaId]);
 
   // Search & Filters
   const [filterText, setFilterText] = useState("");
@@ -1502,10 +1507,11 @@ export const LocalMarketAndInvoicesSection: React.FC<
       {/* SUB-ABA 5: LISTAS DE COMPRAS & IMPORTAÇÃO */}
       {activeTab === "lista_compras" && (
         <ShoppingListSection
+          empresaId={empresaId}
           estabelecimentos={estabelecimentos}
           fichasTecnicas={fichasTecnicas}
           reposicaoEstoque={reposicaoEstoque}
-          onQuotationsSaved={() => setPesquisas(loadPesquisasPreco())}
+          onQuotationsSaved={() => setPesquisas(loadPesquisasPreco(empresaId))}
         />
       )}
 

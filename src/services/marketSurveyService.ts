@@ -641,7 +641,9 @@ export async function syncMarketSurveyWithSupabase(companyId?: string): Promise<
   try {
     // 1. SINCRONIZA ESTABELECIMENTOS
     let remoteEstabsQuery = supabase.from("estabelecimentos_pesquisa").select("*");
-    if (currentId !== "emp-roze-gourmet") {
+    if (currentId === "emp-roze-gourmet") {
+      remoteEstabsQuery = remoteEstabsQuery.or("empresa_id.eq.emp-roze-gourmet,empresa_id.is.null");
+    } else {
       remoteEstabsQuery = remoteEstabsQuery.eq("empresa_id", currentId);
     }
     const { data: remoteEstabs, error: estabErr } = await remoteEstabsQuery;
@@ -652,6 +654,8 @@ export async function syncMarketSurveyWithSupabase(companyId?: string): Promise<
     if (!estabErr && Array.isArray(remoteEstabs)) {
       const remoteMap = new Map<string, EstabelecimentoLocal>();
       for (const r of remoteEstabs) {
+        if (r.empresa_id && r.empresa_id !== currentId) continue;
+        if (!r.empresa_id && currentId !== "emp-roze-gourmet") continue;
         remoteMap.set(r.id, {
           id: r.id,
           nome: r.nome,
@@ -714,7 +718,9 @@ export async function syncMarketSurveyWithSupabase(companyId?: string): Promise<
 
     // 2. SINCRONIZA PESQUISAS DE PREÇO
     let remotePesqQuery = supabase.from("pesquisas_precos").select("*");
-    if (currentId !== "emp-roze-gourmet") {
+    if (currentId === "emp-roze-gourmet") {
+      remotePesqQuery = remotePesqQuery.or("empresa_id.eq.emp-roze-gourmet,empresa_id.is.null");
+    } else {
       remotePesqQuery = remotePesqQuery.eq("empresa_id", currentId);
     }
     const { data: remotePesquisas, error: pesqErr } = await remotePesqQuery;
@@ -725,6 +731,8 @@ export async function syncMarketSurveyWithSupabase(companyId?: string): Promise<
     if (!pesqErr && Array.isArray(remotePesquisas)) {
       const pesqMap = new Map<string, PesquisaPrecoLocal>();
       for (const r of remotePesquisas) {
+        if (r.empresa_id && r.empresa_id !== currentId) continue;
+        if (!r.empresa_id && currentId !== "emp-roze-gourmet") continue;
         pesqMap.set(r.id, {
           id: r.id,
           estabelecimento_id: r.estabelecimento_id,
@@ -801,7 +809,9 @@ export async function syncMarketSurveyWithSupabase(companyId?: string): Promise<
 
     // 3. SINCRONIZA COMPRAS E NOTAS FISCAIS
     let remoteComprasQuery = supabase.from("compras_notas_fiscais").select("*");
-    if (currentId !== "emp-roze-gourmet") {
+    if (currentId === "emp-roze-gourmet") {
+      remoteComprasQuery = remoteComprasQuery.or("empresa_id.eq.emp-roze-gourmet,empresa_id.is.null");
+    } else {
       remoteComprasQuery = remoteComprasQuery.eq("empresa_id", currentId);
     }
     const { data: remoteCompras, error: compErr } = await remoteComprasQuery;
@@ -812,6 +822,8 @@ export async function syncMarketSurveyWithSupabase(companyId?: string): Promise<
     if (!compErr && Array.isArray(remoteCompras)) {
       const compMap = new Map<string, CompraNotaFiscalReal>();
       for (const r of remoteCompras) {
+        if (r.empresa_id && r.empresa_id !== currentId) continue;
+        if (!r.empresa_id && currentId !== "emp-roze-gourmet") continue;
         compMap.set(r.id, {
           id: r.id,
           estabelecimento_id: r.estabelecimento_id || undefined,
@@ -894,7 +906,12 @@ export function loadEstabelecimentos(companyId?: string): EstabelecimentoLocal[]
     const raw = localStorage.getItem(getSurveyStorageKey("estabelecimentos", currentId));
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        if (currentId === "emp-roze-gourmet") {
+          return parsed.filter((e: EstabelecimentoLocal) => e.id !== "est-1795103101706");
+        }
+        return parsed;
+      }
     }
   } catch {
     // fallback
@@ -991,7 +1008,7 @@ export function deleteEstabelecimento(id: string, companyId?: string): void {
   const client = supabase;
   if (checkIsSupabaseConfigured() && client) {
     safeCloudCall(
-      () => client.from("estabelecimentos_pesquisa").delete().eq("id", id),
+      () => client.from("estabelecimentos_pesquisa").delete().eq("id", id).eq("empresa_id", currentId),
       "excluir estabelecimento"
     );
   }
@@ -1101,7 +1118,7 @@ export function deletePesquisaPreco(id: string, companyId?: string): void {
   const client = supabase;
   if (checkIsSupabaseConfigured() && client) {
     safeCloudCall(
-      () => client.from("pesquisas_precos").delete().eq("id", id),
+      () => client.from("pesquisas_precos").delete().eq("id", id).eq("empresa_id", currentId),
       "excluir pesquisa de preço"
     );
   }
@@ -1181,7 +1198,7 @@ export function deleteCompraNotaFiscal(id: string, companyId?: string): void {
   const client = supabase;
   if (checkIsSupabaseConfigured() && client) {
     safeCloudCall(
-      () => client.from("compras_notas_fiscais").delete().eq("id", id),
+      () => client.from("compras_notas_fiscais").delete().eq("id", id).eq("empresa_id", currentId),
       "excluir compra de nota fiscal"
     );
   }

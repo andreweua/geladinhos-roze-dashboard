@@ -11,7 +11,13 @@ import {
 import { addPesquisaPreco, calculateNormalizedPrice } from "@/services/marketSurveyService";
 import { parsePackagingFromTitle } from "@/services/gtinService";
 
-const STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_listas_compras_v1`;
+function getShoppingListsStorageKey(companyId?: string): string {
+  const currentId = companyId || getActiveCompanyId();
+  if (currentId === "emp-roze-gourmet") {
+    return `${BRAND_CONFIG.storagePrefix}_listas_compras_emp_roze_v2`;
+  }
+  return `${BRAND_CONFIG.storagePrefix}_listas_compras_${currentId}_v2`;
+}
 
 /**
  * Extrai o tamanho/peso/volume e a unidade de apresentação da embalagem para a Lista de Compras,
@@ -440,13 +446,23 @@ export const SHOPPING_LIST_TEMPLATES: Array<{
   },
 ];
 
-export function loadShoppingLists(): ListaCompras[] {
+export function loadShoppingLists(companyId?: string): ListaCompras[] {
+  const currentId = companyId || getActiveCompanyId();
+  const storageKey = getShoppingListsStorageKey(currentId);
+
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return parsed.map((list: ListaCompras) => ({
+        const filtered =
+          currentId === "emp-roze-gourmet"
+            ? parsed
+            : parsed.filter(
+                (list: ListaCompras) =>
+                  list.titulo !== "Lista de Compras da Semana — Produção Roze"
+              );
+        return filtered.map((list: ListaCompras) => ({
           ...list,
           itens: Array.isArray(list.itens)
             ? list.itens.map((it) => normalizeShoppingListItem(it))
@@ -458,7 +474,11 @@ export function loadShoppingLists(): ListaCompras[] {
     console.warn("Erro ao ler listas de compras locais:", err);
   }
 
-  // Se não houver nenhuma, cria a lista padrão da semana baseada no template 1
+  // Apenas para a empresa original emp-roze-gourmet: migra ou cria a lista padrão da semana
+  if (currentId !== "emp-roze-gourmet") {
+    return [];
+  }
+
   const defaultList: ListaCompras = {
     id: `lista-${Date.now()}`,
     titulo: "Lista de Compras da Semana — Produção Roze",
@@ -473,7 +493,7 @@ export function loadShoppingLists(): ListaCompras[] {
     updated_at: new Date().toISOString(),
   };
 
-  saveShoppingLists([defaultList]);
+  saveShoppingLists([defaultList], currentId);
   return [defaultList];
 }
 
@@ -492,7 +512,7 @@ function safeCloudCall(fn: () => PromiseLike<any>, desc: string): void {
 
 export async function syncShoppingListsWithSupabase(companyId?: string): Promise<ListaCompras[]> {
   const currentId = companyId || getActiveCompanyId();
-  const local = loadShoppingLists();
+  const local = loadShoppingLists(currentId);
 
   if (!checkIsSupabaseConfigured() || !supabase) {
     return local;
@@ -500,7 +520,9 @@ export async function syncShoppingListsWithSupabase(companyId?: string): Promise
 
   try {
     let query = supabase.from("listas_compras").select("*");
-    if (currentId !== "emp-roze-gourmet") {
+    if (currentId === "emp-roze-gourmet") {
+      query = query.or("empresa_id.eq.emp-roze-gourmet,empresa_id.is.null");
+    } else {
       query = query.eq("empresa_id", currentId);
     }
     const { data: remoteLists, error } = await query;
@@ -510,6 +532,15 @@ export async function syncShoppingListsWithSupabase(companyId?: string): Promise
 
     const listMap = new Map<string, ListaCompras>();
     for (const r of remoteLists) {
+      if (r.empresa_id && r.empresa_id !== currentId) continue;
+      if (!r.empresa_id && currentId !== "emp-roze-gourmet") continue;
+      if (
+        currentId !== "emp-roze-gourmet" &&
+        r.titulo === "Lista de Compras da Semana — Produção Roze"
+      ) {
+        continue;
+      }
+
       listMap.set(r.id, {
         id: r.id,
         titulo: r.titulo,
@@ -524,7 +555,7 @@ export async function syncShoppingListsWithSupabase(companyId?: string): Promise
       });
     }
 
-    // Se temos listas locais que ainda não estão na nuvem, faz o upload
+    // Se temos listas locais que ainda não estão na nuvem, faz o upload estrito para currentId
     const toUpload: Record<string, unknown>[] = [];
     for (const l of local) {
       if (!listMap.has(l.id)) {
@@ -558,7 +589,7 @@ export async function syncShoppingListsWithSupabase(companyId?: string): Promise
     }
 
     const merged = Array.from(listMap.values());
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    localStorage.setItem(getShoppingListsStorageKey(currentId), JSON.stringify(merged));
     return merged;
   } catch (err) {
     console.warn("Erro ao sincronizar listas de compras com Supabase:", err);
@@ -566,9 +597,10 @@ export async function syncShoppingListsWithSupabase(companyId?: string): Promise
   }
 }
 
-export function saveShoppingLists(lists: ListaCompras[]): void {
+export function saveShoppingLists(lists: ListaCompras[], companyId?: string): void {
+  const currentId = companyId || getActiveCompanyId();
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
+    localStorage.setItem(getShoppingListsStorageKey(currentId), JSON.stringify(lists));
   } catch (err) {
     console.warn("Erro ao salvar listas de compras no LocalStorage:", err);
   }
@@ -576,7 +608,6 @@ export function saveShoppingLists(lists: ListaCompras[]): void {
   // Backup e sincronização em segundo plano na nuvem Supabase
   const client = supabase;
   if (checkIsSupabaseConfigured() && client) {
-    const currentId = getActiveCompanyId();
     const rows = lists.map((l) => ({
       id: l.id,
       empresa_id: currentId,
@@ -599,8 +630,9 @@ export function saveShoppingLists(lists: ListaCompras[]): void {
   }
 }
 
-export function addOrUpdateShoppingList(list: ListaCompras): ListaCompras[] {
-  const all = loadShoppingLists();
+export function addOrUpdateShoppingList(list: ListaCompras, companyId?: string): ListaCompras[] {
+  const currentId = companyId || getActiveCompanyId();
+  const all = loadShoppingLists(currentId);
   const idx = all.findIndex((l) => l.id === list.id);
   let updated: ListaCompras[];
   if (idx >= 0) {
@@ -617,19 +649,20 @@ export function addOrUpdateShoppingList(list: ListaCompras): ListaCompras[] {
       ...all,
     ];
   }
-  saveShoppingLists(updated);
+  saveShoppingLists(updated, currentId);
   return updated;
 }
 
-export function deleteShoppingList(listId: string): ListaCompras[] {
-  const all = loadShoppingLists();
+export function deleteShoppingList(listId: string, companyId?: string): ListaCompras[] {
+  const currentId = companyId || getActiveCompanyId();
+  const all = loadShoppingLists(currentId);
   const updated = all.filter((l) => l.id !== listId);
-  saveShoppingLists(updated);
+  saveShoppingLists(updated, currentId);
 
   const client = supabase;
   if (checkIsSupabaseConfigured() && client) {
     safeCloudCall(
-      () => client.from("listas_compras").delete().eq("id", listId),
+      () => client.from("listas_compras").delete().eq("id", listId).eq("empresa_id", currentId),
       "remover lista de compras"
     );
   }

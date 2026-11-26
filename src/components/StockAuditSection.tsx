@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ShieldCheck,
   Package,
@@ -33,6 +33,7 @@ import { LocaleNumberInput } from "@/components/ui/LocaleInputs";
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/primitives";
 
 interface StockAuditSectionProps {
+  empresaId?: string;
   inventoryByFlavor: EstoquePorProduto[];
   onUpdateFlavorStock: (
     produtoId: string,
@@ -46,17 +47,24 @@ interface StockAuditSectionProps {
 }
 
 export const StockAuditSection: React.FC<StockAuditSectionProps> = ({
+  empresaId,
   inventoryByFlavor,
   onUpdateFlavorStock,
 }) => {
   // Live state
-  const [logs, setLogs] = useState<AuditoriaEstoqueLog[]>(() => loadAuditLogs());
+  const [logs, setLogs] = useState<AuditoriaEstoqueLog[]>(() => loadAuditLogs(empresaId));
   const [materiaPrima, setMateriaPrima] = useState<MateriaPrimaItem[]>(() =>
-    loadMateriaPrimaCatalog()
+    loadMateriaPrimaCatalog(empresaId)
   );
   const [recipients, setRecipients] = useState<string[]>(() =>
-    loadAuditRecipients()
+    loadAuditRecipients(empresaId)
   );
+
+  useEffect(() => {
+    setLogs(loadAuditLogs(empresaId));
+    setMateriaPrima(loadMateriaPrimaCatalog(empresaId));
+    setRecipients(loadAuditRecipients(empresaId));
+  }, [empresaId]);
 
   // Filters
   const [filterText, setFilterText] = useState("");
@@ -143,11 +151,11 @@ export const StockAuditSection: React.FC<StockAuditSectionProps> = ({
         observacoes: flavorForm.observacoes,
       });
 
-      const updatedLogs = loadAuditLogs();
+      const updatedLogs = loadAuditLogs(empresaId);
       setLogs(updatedLogs);
       setFlavorModalOpen(false);
       setFeedbackNotice(
-        `✓ Estoque do geladinho atualizado com sucesso! Log de auditoria registrado e notificação preparada para ${recipients.length} e-mail(s).`
+        `✓ Estoque atualizado com sucesso! Log de auditoria registrado e notificação preparada para ${recipients.length} e-mail(s).`
       );
       setTimeout(() => setFeedbackNotice(null), 4000);
     } catch (err: unknown) {
@@ -165,11 +173,12 @@ export const StockAuditSection: React.FC<StockAuditSectionProps> = ({
         mpForm.novoEstoque,
         mpForm.adminNome,
         mpForm.motivo,
-        mpForm.observacoes
+        mpForm.observacoes,
+        empresaId
       );
 
-      setMateriaPrima(loadMateriaPrimaCatalog());
-      setLogs(loadAuditLogs());
+      setMateriaPrima(loadMateriaPrimaCatalog(empresaId));
+      setLogs(loadAuditLogs(empresaId));
       setMpModalOpen(false);
       setFeedbackNotice(
         `✓ Estoque da matéria-prima atualizado com sucesso! Auditoria registrada.`
@@ -192,7 +201,7 @@ export const StockAuditSection: React.FC<StockAuditSectionProps> = ({
       return;
     }
     const updated = [...recipients, clean];
-    saveAuditRecipients(updated);
+    saveAuditRecipients(updated, empresaId);
     setRecipients(updated);
     setNewEmailInput("");
   };
@@ -203,7 +212,7 @@ export const StockAuditSection: React.FC<StockAuditSectionProps> = ({
       return;
     }
     const updated = recipients.filter((e) => e !== emailToRemove);
-    saveAuditRecipients(updated);
+    saveAuditRecipients(updated, empresaId);
     setRecipients(updated);
   };
 

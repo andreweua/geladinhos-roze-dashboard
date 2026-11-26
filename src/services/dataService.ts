@@ -2323,32 +2323,35 @@ export async function saveBatchFichasTecnicas(
 }
 
 /**
- * Zera todos os dados operacionais (vendas, itens e estoque) para início de produção real,
- * mantendo 100% preservadas as fichas técnicas de receitas e os produtos cadastrados.
+ * Zera todos os dados operacionais (vendas, itens e estoque) da empresa ativa para início de produção real,
+ * mantendo 100% preservadas as fichas técnicas de receitas, os produtos cadastrados e os dados de outras empresas.
  */
-export async function resetToCleanSlate(): Promise<DashboardDataSnapshot> {
-  const current = await fetchDashboardData();
+export async function resetToCleanSlate(companyId?: string): Promise<DashboardDataSnapshot> {
+  const currentCompId = companyId || getActiveCompanyId();
+  const current = await fetchDashboardData(currentCompId);
   const nowIso = new Date().toISOString();
 
   if (current.source === "supabase" && supabase) {
-    await supabase
-      .from("itens_venda")
-      .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-    await supabase
-      .from("vendas")
-      .delete()
-      .neq("id", "00000000-0000-0000-0000-000000000000");
-    await supabase
-      .from("estoque_lotes")
-      .update({
-        quantidade_disponivel: 0,
-        updated_at: nowIso,
-      })
-      .neq("id", "00000000-0000-0000-0000-000000000000");
+    const vendaIds = current.vendas.map((v) => v.id);
+    const produtoIds = current.produtos.map((p) => p.id);
 
-    // Limpa também o snapshot local para garantir que nenhuma venda órfã persista
-    const localSnap = getLocalSnapshot();
+    if (vendaIds.length > 0) {
+      await supabase.from("itens_venda").delete().in("venda_id", vendaIds);
+      await supabase.from("vendas").delete().in("id", vendaIds);
+    }
+
+    if (produtoIds.length > 0) {
+      await supabase
+        .from("estoque_lotes")
+        .update({
+          quantidade_disponivel: 0,
+          updated_at: nowIso,
+        })
+        .in("produto_id", produtoIds);
+    }
+
+    // Limpa também o snapshot local da empresa ativa para garantir que nenhuma venda órfã persista
+    const localSnap = getLocalSnapshot(currentCompId);
     const cleanLocal: DashboardDataSnapshot = {
       ...localSnap,
       vendas: [],
@@ -2360,9 +2363,9 @@ export async function resetToCleanSlate(): Promise<DashboardDataSnapshot> {
       })),
       lastSyncedAt: nowIso,
     };
-    saveLocalSnapshot(cleanLocal);
+    saveLocalSnapshot(cleanLocal, currentCompId);
 
-    return fetchDashboardData();
+    return fetchDashboardData(currentCompId);
   }
 
   // Local snapshot
@@ -2380,7 +2383,7 @@ export async function resetToCleanSlate(): Promise<DashboardDataSnapshot> {
     lastSyncedAt: nowIso,
   };
 
-  saveLocalSnapshot(cleanSnapshot);
+  saveLocalSnapshot(cleanSnapshot, currentCompId);
   return cleanSnapshot;
 }
 
@@ -2427,7 +2430,7 @@ export async function deleteProduct(
 
 /**
  * Limpa e zera 100% dos dados da empresa especificada (ou ativa),
- * removendo qualquer vestígio de produtos anteriores, vendas ou fichas.
+ * removendo qualquer vestígio de produtos anteriores, vendas ou fichas apenas dessa empresa.
  */
 export async function wipeCompanyData(companyId?: string): Promise<DashboardDataSnapshot> {
   const currentId = companyId || getActiveCompanyId();

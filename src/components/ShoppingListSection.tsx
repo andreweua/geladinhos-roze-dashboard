@@ -71,6 +71,7 @@ import { Button, Badge, Card, CardContent } from "@/components/ui/primitives";
 import { LocaleCurrencyInput, LocaleNumberInput } from "@/components/ui/LocaleInputs";
 
 interface ShoppingListSectionProps {
+  empresaId?: string;
   estabelecimentos: EstabelecimentoLocal[];
   fichasTecnicas?: FichaTecnicaProduto[];
   reposicaoEstoque?: EstoquePorProduto[];
@@ -78,14 +79,15 @@ interface ShoppingListSectionProps {
 }
 
 export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
+  empresaId,
   estabelecimentos,
   fichasTecnicas = [],
   reposicaoEstoque = [],
   onQuotationsSaved,
 }) => {
-  const [lists, setLists] = useState<ListaCompras[]>(() => loadShoppingLists());
+  const [lists, setLists] = useState<ListaCompras[]>(() => loadShoppingLists(empresaId));
   const [selectedListId, setSelectedListId] = useState<string>(() => {
-    const loaded = loadShoppingLists();
+    const loaded = loadShoppingLists(empresaId);
     return loaded[0]?.id || "";
   });
 
@@ -108,18 +110,25 @@ export const ShoppingListSection: React.FC<ShoppingListSectionProps> = ({
   const [, setGovernanceTick] = useState(0);
 
   useEffect(() => {
-    syncShoppingListsWithSupabase().then((merged) => {
-      if (Array.isArray(merged) && merged.length > 0) {
+    const localLists = loadShoppingLists(empresaId);
+    setLists(localLists);
+    setSelectedListId(localLists[0]?.id || "");
+
+    syncShoppingListsWithSupabase(empresaId).then((merged) => {
+      if (Array.isArray(merged)) {
         setLists(merged);
+        setSelectedListId((prev) =>
+          merged.some((l) => l.id === prev) ? prev : merged[0]?.id || ""
+        );
       }
     });
 
     const unsub = subscribeProductGovernanceChanges(() => {
-      setLists(loadShoppingLists());
+      setLists(loadShoppingLists(empresaId));
       setGovernanceTick((t) => t + 1);
     });
     return unsub;
-  }, []);
+  }, [empresaId]);
 
   // RSC Sistemas Config Modal State
   const [isRscModalOpen, setIsRscModalOpen] = useState(false);

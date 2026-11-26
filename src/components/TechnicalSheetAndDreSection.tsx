@@ -52,6 +52,7 @@ import {
 } from "@/types/dashboard";
 
 interface TechnicalSheetAndDreSectionProps {
+  empresaId?: string;
   produtos: Produto[];
   fichasTecnicas: FichaTecnicaProduto[];
   drePorProduto: DreProdutoItem[];
@@ -74,6 +75,7 @@ interface TechnicalSheetAndDreSectionProps {
 export const TechnicalSheetAndDreSection: React.FC<
   TechnicalSheetAndDreSectionProps
 > = ({
+  empresaId,
   produtos,
   fichasTecnicas,
   drePorProduto,
@@ -88,7 +90,8 @@ export const TechnicalSheetAndDreSection: React.FC<
   onDeleteProduct,
   onOpenCulinaryStudio,
 }) => {
-  const isRozeCompany = getActiveCompanyId() === "emp-roze-gourmet";
+  const activeCompId = empresaId || getActiveCompanyId();
+  const isRozeCompany = activeCompId === "emp-roze-gourmet";
   const activeProducts = produtos.filter((p) => p.ativo);
   const currentProduct =
     activeProducts.find((p) => String(p.id) === String(selectedProductId)) || activeProducts[0];
@@ -225,6 +228,20 @@ export const TechnicalSheetAndDreSection: React.FC<
   // Rastreia o produto selecionado para sincronizar ficha somente quando trocar de produto
   const prevProductIdRef = useRef<string | undefined>(currentProduct?.id);
   const lastStartEditingTimeRef = useRef<number>(0);
+
+  // Ao trocar de empresa, limpa imediatamente qualquer rascunho em edição da empresa anterior
+  useEffect(() => {
+    setIsEditing(false);
+    setSaveError(null);
+    prevProductIdRef.current = currentProduct?.id;
+    if (currentFicha) {
+      setDraftFicha(JSON.parse(JSON.stringify(currentFicha)));
+      setDraftPrecoVenda(String(currentProduct?.preco_venda || 8.5));
+      setDraftProductName(currentProduct?.nome || "");
+    } else {
+      setDraftFicha(null);
+    }
+  }, [activeCompId]);
 
   useEffect(() => {
     if (!currentProduct) return;
@@ -467,7 +484,7 @@ export const TechnicalSheetAndDreSection: React.FC<
       ? Number(((val / dreLinhas.receitaBruta) * 100).toFixed(1))
       : 0;
 
-  const currentCatalog = loadCurrentQuotations();
+  const currentCatalog = loadCurrentQuotations(activeCompId);
   const filteredQuotations = currentCatalog.filter((item) => {
     const matchesCat = insumoCat === "Todas" || item.categoria === insumoCat;
     const matchesSearch =
@@ -1601,7 +1618,8 @@ export const TechnicalSheetAndDreSection: React.FC<
         </CardContent>
       </Card>
 
-      {/* CALDAS ARTESANAIS BASE & SOBRAS DE ESTOQUE */}
+      {/* CALDAS ARTESANAIS BASE & SOBRAS DE ESTOQUE (Apenas na Matriz Roze Gourmet) */}
+      {isRozeCompany && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <Card className="lg:col-span-5">
           <CardHeader>
@@ -1693,6 +1711,7 @@ export const TechnicalSheetAndDreSection: React.FC<
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* TABELA DE COTAÇÃO DE INSUMOS (VAREJO / ATACADO / PREÇO DE 1G - PDF 5) */}
       <Card>

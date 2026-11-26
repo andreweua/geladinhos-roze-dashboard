@@ -89,6 +89,7 @@ import {
   createNewSale,
   deleteProduct,
   fetchDashboardData,
+  getLocalSnapshot,
   NewProductPayload,
   NewSalePayload,
   resetLocalDemoData,
@@ -107,7 +108,29 @@ import {
 } from "@/types/dashboard";
 
 const THEME_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_theme`;
-const IFOOD_FEE_STORAGE_KEY = `${BRAND_CONFIG.storagePrefix}_ifood_fee_pct`;
+
+function getIfoodFeeStorageKey(companyId?: string): string {
+  const currentId = companyId || getActiveCompanyId();
+  if (currentId === "emp-roze-gourmet") {
+    return `${BRAND_CONFIG.storagePrefix}_ifood_fee_pct`;
+  }
+  return `${BRAND_CONFIG.storagePrefix}_ifood_fee_pct_${currentId}`;
+}
+
+function loadCompanyIfoodFeePct(companyId?: string): number {
+  try {
+    const saved = localStorage.getItem(getIfoodFeeStorageKey(companyId));
+    if (saved !== null) {
+      const parsed = parseFloat(saved);
+      if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 80) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return BRAND_CONFIG.defaultIfoodFeePct;
+}
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -141,26 +164,15 @@ export function App() {
     }
   }, [isDark]);
 
-  // Registered iFood Fee % state (persisted in localStorage, defaults to BRAND_CONFIG.defaultIfoodFeePct = 26.2%)
-  const [ifoodFeePct, setIfoodFeePct] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem(IFOOD_FEE_STORAGE_KEY);
-      if (saved !== null) {
-        const parsed = parseFloat(saved);
-        if (!Number.isNaN(parsed) && parsed >= 0 && parsed <= 80) {
-          return parsed;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    return BRAND_CONFIG.defaultIfoodFeePct;
-  });
+  // Registered iFood Fee % state (persisted in localStorage per company, defaults to BRAND_CONFIG.defaultIfoodFeePct = 26.2%)
+  const [ifoodFeePct, setIfoodFeePct] = useState<number>(() =>
+    loadCompanyIfoodFeePct()
+  );
 
   const handleChangeIfoodFeePct = (newRate: number) => {
     setIfoodFeePct(newRate);
     try {
-      localStorage.setItem(IFOOD_FEE_STORAGE_KEY, String(newRate));
+      localStorage.setItem(getIfoodFeeStorageKey(getActiveCompanyId()), String(newRate));
     } catch {
       // ignore
     }
@@ -180,24 +192,37 @@ export function App() {
 
   // Sub-aba de Gestão & Inteligência ("ia" | "auditoria")
   const [gestaoSubTab, setGestaoSubTab] = useState<"ia" | "auditoria">("ia");
-  const [selectedProductId, setSelectedProductId] = useState<string>(
-    "prod-doce-de-leite"
-  );
+  const [selectedProductId, setSelectedProductId] = useState<string>(() => {
+    const initialSnap = getLocalSnapshot();
+    return initialSnap.produtos[0]?.id || "prod-doce-de-leite";
+  });
 
   // Dashboard Data Snapshot
-  const [snapshot, setSnapshot] = useState<DashboardDataSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<DashboardDataSnapshot | null>(() =>
+    getLocalSnapshot()
+  );
   const [activeCompany, setActiveCompany] = useState(() => getActiveCompany());
   const activeCompanyId = activeCompany.id;
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [showRefreshToast, setShowRefreshToast] = useState<boolean>(false);
   const [syncSuccessToast, setSyncSuccessToast] = useState<string | null>(null);
 
-  const loadData = useCallback(async (isManualTrigger = false) => {
+  const loadData = useCallback(async (isManualTrigger = false, targetCompId?: string) => {
+    const requestedCompId = targetCompId || getActiveCompanyId();
     setIsRefreshing(true);
     const start = Date.now();
     try {
-      const data = await fetchDashboardData();
+      const data = await fetchDashboardData(requestedCompId);
+      // Proteção contra condição de corrida: descarta resposta se o usuário já trocou de empresa
+      if (requestedCompId !== getActiveCompanyId()) {
+        return;
+      }
       setSnapshot(data);
+      setSelectedProductId((prev) =>
+        data.produtos.some((p) => String(p.id) === String(prev))
+          ? prev
+          : data.produtos[0]?.id || ""
+      );
       const elapsed = Date.now() - start;
       if (elapsed < 650) {
         await new Promise((r) => setTimeout(r, 650 - elapsed));
@@ -431,10 +456,15 @@ export function App() {
   // Sincronização reativa instantânea quando a empresa ativa mudar de nome, dados ou tema
   useEffect(() => {
     return subscribeCompanyChange((comp) => {
+      const immediateSnap = getLocalSnapshot(comp.id);
       setActiveCompany(comp);
+      // Invalida e substitui imediatamente o estado em memória da empresa anterior
+      setSnapshot(immediateSnap);
+      setSelectedProductId(immediateSnap.produtos[0]?.id || "");
+      setIfoodFeePct(loadCompanyIfoodFeePct(comp.id));
       // Garante isolamento estrito: cada empresa tem seu próprio caixa aberto ou fechado
       setCurrentShift(getCurrentShift(comp.id));
-      loadData(false);
+      loadData(false, comp.id);
     });
   }, [loadData]);
 
@@ -518,7 +548,17 @@ export function App() {
 
   const handleLogout = async () => {
     await performLogout();
+    setPosModalOpen(false);
+    setModalOpen(false);
+    setCreateProductModalOpen(false);
+    setInvoiceModalOpen(false);
+    setSettingsModalOpen(false);
+    setMasterModalOpen(false);
     setCurrentUser(null);
+    const comp = getActiveCompany();
+    const cleanSnap = getLocalSnapshot(comp.id);
+    setSnapshot(cleanSnap);
+    setSelectedProductId(cleanSnap.produtos[0]?.id || "");
     setAuthModalOpen(true);
   };
 
@@ -1359,6 +1399,7 @@ export function App() {
 
                       {/* 2 Operational Tables */}
                       <TablesSection
+                        key={`tables-${activeCompany.id}`}
                         ultimasVendas={analytics.ultimasVendas}
                         reposicaoEstoque={analytics.reposicaoEstoque}
                         fichasTecnicas={snapshot?.fichasTecnicas || []}
@@ -1379,6 +1420,8 @@ export function App() {
               {(activeSection === "fichas" || activeSection === "completo") && (
                 <div className="space-y-6">
                   <TechnicalSheetAndDreSection
+                    key={`fichas-${activeCompany.id}`}
+                    empresaId={activeCompany.id}
                     produtos={snapshot.produtos}
                     fichasTecnicas={snapshot.fichasTecnicas}
                     drePorProduto={analytics.drePorProduto}
@@ -1405,6 +1448,8 @@ export function App() {
               {(activeSection === "cotacoes" || activeSection === "completo") && (
                 <div className="space-y-6">
                   <LocalMarketAndInvoicesSection
+                    key={`cotacoes-${activeCompany.id}`}
+                    empresaId={activeCompany.id}
                     onOpenInvoiceModal={() => setInvoiceModalOpen(true)}
                     fichasTecnicas={snapshot.fichasTecnicas}
                     reposicaoEstoque={analytics.reposicaoEstoque}
@@ -1451,6 +1496,7 @@ export function App() {
 
                   {(activeSection === "completo" || gestaoSubTab === "ia") && (
                     <AiIntelligenceSection
+                      key={`ia-${activeCompany.id}`}
                       snapshot={snapshot}
                       analytics={analytics}
                       ifoodFeePct={ifoodFeePct}
@@ -1466,6 +1512,8 @@ export function App() {
 
                   {(activeSection === "completo" || gestaoSubTab === "auditoria") && (
                     <StockAuditSection
+                      key={`auditoria-${activeCompany.id}`}
+                      empresaId={activeCompany.id}
                       inventoryByFlavor={analytics.inventoryByFlavor}
                       onUpdateFlavorStock={handleUpdateStock}
                     />
@@ -1476,6 +1524,7 @@ export function App() {
               {/* TELA DE CRM: PASSAGEIROS & FIDELIDADE */}
               {activeSection === "clientes" && (
                 <CustomersCrmView
+                  key={`crm-${activeCompany.id}`}
                   empresaId={activeCompany.id}
                   activeCompany={activeCompany}
                 />
@@ -1484,6 +1533,7 @@ export function App() {
               {/* TELA 6: CONSULTORIA PEREIRALABS */}
               {activeSection === "consultoria" && (
                 <ConsultingSection
+                  key={`consultoria-${activeCompany.id}`}
                   empresaId={activeCompany.id}
                   empresaNome={activeCompany.nome}
                   currentUser={currentUser}
@@ -1498,9 +1548,9 @@ export function App() {
             <div className="flex flex-wrap items-center justify-center gap-2">
               <p>
                 <strong className="text-foreground">
-                  {BRAND_CONFIG.companyName}
+                  {activeCompany.nome}
                 </strong>{" "}
-                — {BRAND_CONFIG.tagline}
+                — {activeCompany.nicho || BRAND_CONFIG.tagline}
               </p>
               <div className="inline-flex flex-wrap items-center justify-center gap-1.5">
                 <button
@@ -1601,6 +1651,7 @@ export function App() {
 
       {analytics && (
         <PointOfSaleModal
+          key={`pos-${activeCompany.id}`}
           isOpen={posModalOpen}
           onClose={() => setPosModalOpen(false)}
           inventoryByFlavor={analytics.inventoryByFlavor}
@@ -1616,6 +1667,7 @@ export function App() {
       )}
 
       <CreateProductModal
+        key={`createprod-${activeCompany.id}`}
         isOpen={createProductModalOpen}
         onClose={() => setCreateProductModalOpen(false)}
         onCreateProduct={handleCreateProduct}
@@ -1624,6 +1676,7 @@ export function App() {
 
       {analytics && (
         <QuickOperationsModal
+          key={`quickops-${activeCompany.id}`}
           isOpen={modalOpen}
           initialTab={modalTab}
           onClose={() => setModalOpen(false)}
