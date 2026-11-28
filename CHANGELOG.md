@@ -7,6 +7,18 @@ e este projeto adere ao [Versionamento SemÃ¢ntico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.7.5] - 2026-11-28
+
+### Corrigido (Isolamento Total do Motor PereiraLabs IA)
+- **`src/lib/aiEngine.ts` & `src/components/AiIntelligenceSection.tsx`**:
+  - Removidos os dados fixos (*hardcoded*) da Roze que ainda apareciam na aba **PereiraLabs IA** para empresas recém-criadas:
+    - **Módulo IA #4 (Engenharia de Compras)**: eliminada a lista fixa de 5 insumos somando `R$ 398,64/mês` (Nutella, Creme de Leite, Leite Condensado, Ovomaltine, Doce de Leite Itambé); agora calcula oportunidades reais a partir das pesquisas de preço e cotações da empresa ativa.
+    - **Módulo IA #6 (Combos Inteligentes & WhatsApp)**: eliminados os fallbacks fixos de sabores da Roze e o título `"GELADINHOS GOURMET DA ROZE"`; agora gera combos apenas com os produtos reais da empresa ativa (exibindo estado vazio limpo quando há menos de 2 produtos) e utiliza o nome da empresa ativa nos textos de WhatsApp.
+    - **Resumo Executivo & Sobras de Despensa**: removida a mensagem fixa de sobras (*Leite Ninho, Ovomaltine, Cacau 50%, Morango*) e corrigido o bug `"undefined lidera com undefined un. vendidas"` quando ainda não há vendas.
+    - **Consultor Gemini (`askPereiraLabsAI`)**: contexto do sistema agora é montado dinamicamente com o nome, nicho e catálogo real da empresa ativa.
+- Versão `v3.7.5` (Build `2026112802`, Android `versionCode 69`).
+
+---
 ## [3.7.4] - 2026-11-28
 
 ### Corrigido (Limpeza total sem resíduos)

@@ -816,12 +816,12 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
             </div>
           </div>
 
-          {/* Right 6 cols: Radar de Otimização de Insumos (54 Cotações) */}
+          {/* Right 6 cols: Radar de Otimização de Insumos */}
           <div className="xl:col-span-6 rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  Módulo IA #4 • Engenharia de Compras (54 Cotações)
+                  Módulo IA #4 • Engenharia de Compras (Cotações da Empresa)
                 </span>
                 <h3 className="text-base font-extrabold text-foreground flex items-center gap-2">
                   <TrendingDown className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -851,46 +851,52 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
             </div>
 
             <div className="mt-4 space-y-3">
-              {report.costOptimizations.opportunities.map((opt) => (
-                <div
-                  key={opt.id}
-                  className="rounded-xl border border-border/70 bg-background/60 p-3.5"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-bold text-foreground">
-                      {opt.insumo_alvo}
-                    </span>
-                    <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-300">
-                      -{opt.reducao_grama_pct}% por grama (Economia:{" "}
-                      {formatCurrency(opt.economia_mensal_estimada)}/mês)
-                    </span>
-                  </div>
-
-                  <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2 text-xs">
-                    <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 px-2.5 py-1.5">
-                      <span className="text-[10px] font-bold uppercase text-rose-600 dark:text-rose-400 block">
-                        Custo Varejo / Embalagem Menor
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {opt.cenario_atual}
-                      </span>
-                    </div>
-                    <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 px-2.5 py-1.5">
-                      <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400 block">
-                        Custo Otimizado Atacado
-                      </span>
-                      <span className="font-bold text-foreground">
-                        {opt.cenario_otimizado}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    ✨ <strong>Impacto na Qualidade:</strong>{" "}
-                    {opt.impacto_qualidade}
-                  </p>
+              {report.costOptimizations.opportunities.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-6 text-center text-xs text-muted-foreground">
+                  Nenhuma oportunidade de economia mapeada ainda para <strong>{companyDisplayName}</strong>. Cadastre pesquisas de preço com valores de varejo e atacado em <strong>Cotações &amp; Compras</strong> ou importe uma nota fiscal para ativar o Radar de Redução de Custo.
                 </div>
-              ))}
+              ) : (
+                report.costOptimizations.opportunities.map((opt) => (
+                  <div
+                    key={opt.id}
+                    className="rounded-xl border border-border/70 bg-background/60 p-3.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-bold text-foreground">
+                        {opt.insumo_alvo}
+                      </span>
+                      <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-300">
+                        -{opt.reducao_grama_pct}% por unidade (Economia:{" "}
+                        {formatCurrency(opt.economia_mensal_estimada)}/mês)
+                      </span>
+                    </div>
+
+                    <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2 text-xs">
+                      <div className="rounded-lg bg-rose-500/5 border border-rose-500/20 px-2.5 py-1.5">
+                        <span className="text-[10px] font-bold uppercase text-rose-600 dark:text-rose-400 block">
+                          Custo Varejo / Embalagem Menor
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {opt.cenario_atual}
+                        </span>
+                      </div>
+                      <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/20 px-2.5 py-1.5">
+                        <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400 block">
+                          Custo Otimizado Atacado
+                        </span>
+                        <span className="font-bold text-foreground">
+                          {opt.cenario_otimizado}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      ✨ <strong>Impacto na Qualidade:</strong>{" "}
+                      {opt.impacto_qualidade}
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -1067,7 +1073,12 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
             </div>
 
             <div className="mt-4 space-y-4">
-              {report.smartCombos.map((combo) => (
+              {report.smartCombos.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-6 text-center text-xs text-muted-foreground">
+                  Cadastre pelo menos <strong>2 produtos</strong> em <strong>{companyDisplayName}</strong> para a IA gerar automaticamente combos com margem protegida e textos prontos para WhatsApp.
+                </div>
+              ) : (
+                report.smartCombos.map((combo) => (
                 <div
                   key={combo.id}
                   className="rounded-xl border border-border/80 bg-background/60 p-4"
@@ -1137,7 +1148,8 @@ export const AiIntelligenceSection: React.FC<AiIntelligenceSectionProps> = ({
                     </button>
                   </div>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </div>
         </div>

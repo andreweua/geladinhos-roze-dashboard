@@ -1,12 +1,9 @@
-import {
-  RESUMO_LOTES_PRODUCAO,
-  SOBRAS_ESTOQUE_INSUMOS,
-  TABELA_COTACAO_INSUMOS,
-} from "@/data/insumosCatalog";
 import { ComputedDashboardAnalytics, calculateDynamicIfoodPrice } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/utils";
 import { loadCurrentQuotations } from "@/services/quotationService";
-import { getActiveCompanyGeminiConfig } from "@/services/companyService";
+import { loadPesquisasPreco } from "@/services/marketSurveyService";
+import { loadMateriaPrimaCatalog } from "@/services/auditService";
+import { getActiveCompany, getActiveCompanyGeminiConfig } from "@/services/companyService";
 import { DashboardDataSnapshot } from "@/types/dashboard";
 
 export interface ProductionRecommendationItem {
@@ -333,6 +330,11 @@ export function computeAiIntelligenceReport(
     }
   }
 
+  const activeCompany = getActiveCompany();
+  const companyId = activeCompany.id;
+  const companyNome = activeCompany.nome || "Sua Empresa";
+  const materiaPrimaReal = loadMateriaPrimaCatalog(companyId);
+
   const shoppingItems: SmartShoppingItem[] = Array.from(
     ingredientAggregation.entries()
   ).map(([key, agg], idx) => {
@@ -340,56 +342,27 @@ export function computeAiIntelligenceReport(
     let statusCompra: SmartShoppingItem["status_compra"] = "comprar_agora";
     let economiaEstimada = 0;
     let recomendacaoEmbalagem =
-      "Comprar no Atacado para garantir menor custo por grama";
+      "Comprar no Atacado para garantir menor custo por unidade";
 
-    if (key.includes("ninho") || key.includes("leite em pó")) {
-      sobraDetectada = `${SOBRAS_ESTOQUE_INSUMOS[0].sobra_estoque} da ${SOBRAS_ESTOQUE_INSUMOS[0].embalagem_padrao}`;
-      statusCompra = "em_estoque_sobra";
-      economiaEstimada = Number(agg.custoTotal.toFixed(2));
-      recomendacaoEmbalagem =
-        "Usar lata já aberta na despensa (não precisa comprar hoje)";
-    } else if (key.includes("ovomaltine")) {
-      sobraDetectada = `${SOBRAS_ESTOQUE_INSUMOS[1].sobra_estoque} do ${SOBRAS_ESTOQUE_INSUMOS[1].embalagem_padrao}`;
-      statusCompra = "em_estoque_sobra";
-      economiaEstimada = Number(agg.custoTotal.toFixed(2));
-      recomendacaoEmbalagem =
-        "Usar pacote 600g em estoque (rende mais 9 lotes completos)";
-    } else if (key.includes("50%") || key.includes("cacau") || key.includes("brigadeiro")) {
-      sobraDetectada = `${SOBRAS_ESTOQUE_INSUMOS[2].sobra_estoque} da ${SOBRAS_ESTOQUE_INSUMOS[2].embalagem_padrao}`;
-      statusCompra = "em_estoque_sobra";
-      economiaEstimada = Number(agg.custoTotal.toFixed(2));
-      recomendacaoEmbalagem =
-        "Usar barra/pó 50% cacau em estoque (960g disponíveis)";
-    } else if (key.includes("nutella")) {
-      sobraDetectada = `${SOBRAS_ESTOQUE_INSUMOS[3].sobra_estoque} do ${SOBRAS_ESTOQUE_INSUMOS[3].embalagem_padrao}`;
-      if (agg.quantidadeTotal <= 120) {
+    // Verifica apenas sobras REAIS cadastradas no estoque de matéria-prima da empresa ativa
+    const mpMatch = materiaPrimaReal.find(
+      (mp) =>
+        mp.quantidade_em_estoque > 0 &&
+        (mp.nome.toLowerCase().includes(key) || key.includes(mp.nome.toLowerCase()))
+    );
+
+    if (mpMatch) {
+      sobraDetectada = `${mpMatch.quantidade_em_estoque} ${mpMatch.unidade} em estoque (${mpMatch.embalagem_padrao})`;
+      if (mpMatch.quantidade_em_estoque >= agg.quantidadeTotal) {
         statusCompra = "em_estoque_sobra";
         economiaEstimada = Number(agg.custoTotal.toFixed(2));
-        recomendacaoEmbalagem = "Sobra de 120g cobre 100% da produção de hoje";
+        recomendacaoEmbalagem = "Usar saldo disponível em estoque (não precisa comprar hoje)";
       } else {
         statusCompra = "compra_parcial";
-        economiaEstimada = Number((agg.custoTotal * 0.55).toFixed(2));
-        recomendacaoEmbalagem =
-          "Aproveitar 120g em estoque + comprar Pote 650g no Atacado (R$ 39,90)";
+        const ratio = mpMatch.quantidade_em_estoque / Math.max(1, agg.quantidadeTotal);
+        economiaEstimada = Number((agg.custoTotal * ratio).toFixed(2));
+        recomendacaoEmbalagem = `Aproveitar ${mpMatch.quantidade_em_estoque} ${mpMatch.unidade} em estoque e comprar apenas a diferença`;
       }
-    } else if (key.includes("morango")) {
-      sobraDetectada = `${SOBRAS_ESTOQUE_INSUMOS[5].sobra_estoque} (${SOBRAS_ESTOQUE_INSUMOS[5].embalagem_padrao})`;
-      statusCompra = "em_estoque_sobra";
-      economiaEstimada = Number(agg.custoTotal.toFixed(2));
-      recomendacaoEmbalagem =
-        "Usar 520g de morango congelado em estoque + 100g de açúcar da despensa";
-    } else if (key.includes("condensado")) {
-      recomendacaoEmbalagem = `Comprar ${Math.ceil(
-        agg.quantidadeTotal / 395
-      )} cx(s) de 395g no Atacado (R$ 4,79 a R$ 6,89/cx)`;
-    } else if (key.includes("creme de leite")) {
-      recomendacaoEmbalagem = `Comprar ${Math.ceil(
-        agg.quantidadeTotal / 200
-      )} cx(s) de 200g no Atacado (R$ 2,75 a R$ 3,49/cx)`;
-    } else if (key.includes("leite integral")) {
-      recomendacaoEmbalagem = `Comprar ${Math.ceil(
-        agg.quantidadeTotal / 1000
-      )} Litro(s) UHT no Atacado (R$ 4,39 a R$ 4,69/L)`;
     }
 
     return {
@@ -417,77 +390,71 @@ export function computeAiIntelligenceReport(
     Math.max(0, custoBrutoReceitas - economiaComSobras).toFixed(2)
   );
 
-  // 3. Build Cost & Brand Optimization Radar from the 54 quotations in TABELA_COTACAO_INSUMOS
-  const costOpportunities: CostOptimizationOpportunity[] = [
-    {
-      id: "opt-nutella-650",
-      insumo_alvo: "Nutella Original (Pote 140g vs. Pote 650g Atacado)",
-      sabores_impactados: ["Ninho com Nutella"],
-      cenario_atual: "Pote 140g Varejo (R$ 13,90 = R$ 0,099/g)",
-      cenario_otimizado: "Pote 650g Atacado (R$ 39,90 = R$ 0,061/g)",
-      reducao_grama_pct: 38.4,
-      economia_por_lote: 6.84,
-      economia_mensal_estimada: 82.08,
-      impacto_qualidade:
-        "Zero alteração de sabor! Mantém 100% Nutella Original Ferrero reduzindo R$ 0,76 no custo de cada saquinho.",
-    },
-    {
-      id: "opt-creme-leite",
-      insumo_alvo: "Creme de Leite Base (Lata 300g vs. TP 200g Atacado)",
-      sabores_impactados: [
-        "Todos os 8 sabores (Base Cremosa)",
-      ],
-      cenario_atual: "Creme de Leite Lata/Varejo (R$ 0,023/g)",
-      cenario_otimizado: "Piracanjuba ou Italac Leve Atacado (R$ 2,75 = R$ 0,014/g)",
-      reducao_grama_pct: 39.1,
-      economia_por_lote: 14.4,
-      economia_mensal_estimada: 115.2,
-      impacto_qualidade:
-        "Com Liga Neutra (10g/lote), o Creme de Leite TP 17% gordura entrega a mesma cremosidade sem cristais de gelo.",
-    },
-    {
-      id: "opt-leite-condensado",
-      insumo_alvo: "Leite Condensado 395g (Compra Varejo vs. Caixa Fechada Atacado)",
-      sabores_impactados: [
-        "Todos os 8 sabores (1 lata por receita)",
-      ],
-      cenario_atual: "Leite Condensado Moça Varejo (R$ 7,99 = R$ 0,020/g)",
-      cenario_otimizado:
-        "Moça Atacado (R$ 6,89) ou Italac Integral Atacado (R$ 4,79 = R$ 0,012/g)",
-      reducao_grama_pct: 32.5,
-      economia_por_lote: 19.8,
-      economia_mensal_estimada: 158.4,
-      impacto_qualidade:
-        "Para sabores de fruta intensa (Maracujá) ou Chocolate 50%, marcas intermediárias no atacado mantêm o padrão gourmet com alta margem.",
-    },
-    {
-      id: "opt-ovomaltine-750",
-      insumo_alvo: "Ovomaltine Flocos Crocantes (300g vs. 750g Atacado)",
-      sabores_impactados: ["Delícia de Ovomaltine"],
-      cenario_atual: "Pacote 300g Varejo (R$ 17,90 = R$ 0,059/g)",
-      cenario_otimizado: "Pacote 750g Atacado (R$ 30,90 = R$ 0,041/g)",
-      reducao_grama_pct: 30.5,
-      economia_por_lote: 1.98,
-      economia_mensal_estimada: 23.76,
-      impacto_qualidade:
-        "Mesmo produto original Ovomaltine com economia direta de 30,5% por grama.",
-    },
-    {
-      id: "opt-doce-leite-itambe",
-      insumo_alvo: "Doce de Leite Itambé (De Colher vs. Tradicional Pote 350g)",
-      sabores_impactados: ["Doce de Leite (Itambé)"],
-      cenario_atual: "Doce de Leite De Colher Itambé Varejo (R$ 10,98 = R$ 0,031/g)",
-      cenario_otimizado: "Doce de Leite Tradicional Itambé Atacado (R$ 9,98 = R$ 0,028/g)",
-      reducao_grama_pct: 9.7,
-      economia_por_lote: 1.2,
-      economia_mensal_estimada: 19.2,
-      impacto_qualidade:
-        "Preserva a assinatura 'Itambé' no rótulo e no paladar com menor custo por pote.",
-    },
-  ];
+  // 3. Build Cost & Brand Optimization Radar dinamically from the active company's real quotations
+  const companyQuotations = loadCurrentQuotations(companyId);
+  const companyPesquisas = loadPesquisasPreco(companyId);
+  const costOpportunities: CostOptimizationOpportunity[] = [];
+
+  for (const p of companyPesquisas) {
+    if (
+      p.preco_varejo &&
+      p.preco_atacado &&
+      p.preco_varejo > 0 &&
+      p.preco_atacado > 0 &&
+      p.preco_atacado < p.preco_varejo
+    ) {
+      const diffUn = p.preco_varejo - p.preco_atacado;
+      const pct = Number(((diffUn / p.preco_varejo) * 100).toFixed(1));
+      const estMensal = Number((diffUn * (p.qtd_minima_atacado || 6) * 2).toFixed(2));
+      costOpportunities.push({
+        id: `opt-pesq-${p.id}`,
+        insumo_alvo: `${p.insumo_nome}${p.marca ? ` (${p.marca})` : ""}`,
+        sabores_impactados: [p.estabelecimento_nome],
+        cenario_atual: `Varejo: ${formatCurrency(p.preco_varejo)} (${p.quantidade_embalagem}${p.unidade_medida})`,
+        cenario_otimizado: `Atacado: ${formatCurrency(p.preco_atacado)}${p.qtd_minima_atacado ? ` (mín. ${p.qtd_minima_atacado} un.)` : ""}`,
+        reducao_grama_pct: pct,
+        economia_por_lote: Number(diffUn.toFixed(2)),
+        economia_mensal_estimada: estMensal,
+        impacto_qualidade: `Economia real identificada na sua cotação de ${p.estabelecimento_nome} mantendo exatamente o mesmo insumo.`,
+      });
+    }
+  }
+
+  const parsePriceStr = (val?: string | number | null): number => {
+    if (typeof val === "number") return Number.isFinite(val) ? val : 0;
+    if (!val) return 0;
+    const match = String(val).match(/\d+(?:[.,]\d{1,2})?/);
+    if (!match) return 0;
+    const parsed = parseFloat(match[0].replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  for (const q of companyQuotations) {
+    const varejoNum = parsePriceStr(q.preco_varejo);
+    const atacadoNum = parsePriceStr(q.preco_atacado);
+    if (varejoNum > 0 && atacadoNum > 0 && atacadoNum < varejoNum) {
+      const diffUn = varejoNum - atacadoNum;
+      const pct = Number(((diffUn / varejoNum) * 100).toFixed(1));
+      const estMensal = Number((diffUn * 12).toFixed(2));
+      costOpportunities.push({
+        id: `opt-cot-${q.id}`,
+        insumo_alvo: q.produto,
+        sabores_impactados: [q.categoria],
+        cenario_atual: `Varejo: ${formatCurrency(varejoNum)}`,
+        cenario_otimizado: `Atacado: ${formatCurrency(atacadoNum)}`,
+        reducao_grama_pct: pct,
+        economia_por_lote: Number(diffUn.toFixed(2)),
+        economia_mensal_estimada: estMensal,
+        impacto_qualidade: `Redução direta de ${pct}% migrando a compra de ${q.produto} do varejo para o atacado.`,
+      });
+    }
+  }
+
+  costOpportunities.sort((a, b) => b.economia_mensal_estimada - a.economia_mensal_estimada);
+  const topCostOpportunities = costOpportunities.slice(0, 6);
 
   const economiaMensalPotencial = Number(
-    costOpportunities
+    topCostOpportunities
       .reduce((acc, o) => acc + o.economia_mensal_estimada, 0)
       .toFixed(2)
   );
@@ -556,34 +523,41 @@ export function computeAiIntelligenceReport(
     };
   });
 
-  // 5. Build Financial Profit Target Simulator
-  const lucroMedioUn =
-    analytics.dreConsolidada.lucro_bruto_un > 0
-      ? analytics.dreConsolidada.lucro_bruto_un
-      : 4.54;
+  // 5. Build Financial Profit Target Simulator (exclusivamente dos dados reais da empresa)
+  const hasProducts = produtos.length > 0 && dreItems.length > 0;
+  const avgProdPrice = hasProducts
+    ? Number((produtos.reduce((a, p) => a + (p.preco_venda || 0), 0) / produtos.length).toFixed(2))
+    : 0;
+  const avgProdCost = hasProducts
+    ? Number((produtos.reduce((a, p) => a + (p.custo_estimado || 0), 0) / produtos.length).toFixed(2))
+    : 0;
+
   const precoMedioLocal =
     analytics.dreConsolidada.preco_venda > 0
       ? analytics.dreConsolidada.preco_venda
-      : 7.47;
+      : avgProdPrice;
   const custoMedioUn =
     analytics.dreConsolidada.custo_total_un > 0
       ? analytics.dreConsolidada.custo_total_un
-      : 2.93;
+      : avgProdCost;
+  const lucroMedioUn =
+    analytics.dreConsolidada.lucro_bruto_un > 0
+      ? analytics.dreConsolidada.lucro_bruto_un
+      : Math.max(0, Number((precoMedioLocal - custoMedioUn).toFixed(2)));
 
-  const ifoodMedioCalc = calculateDynamicIfoodPrice(
-    precoMedioLocal,
-    custoMedioUn,
-    ifoodFeePct
-  );
+  const ifoodMedioCalc =
+    precoMedioLocal > 0
+      ? calculateDynamicIfoodPrice(precoMedioLocal, custoMedioUn, ifoodFeePct)
+      : { precoIfood: 0, taxaValor: 0, repasseLiquido: 0, lucroLiquidoIfood: 0, fatorDivisor: 1 };
 
   const diasSeguros = Math.max(1, Math.min(31, diasTrabalhadosMes));
   const metaSegura = Math.max(100, metaLucroMensal);
 
-  const unidadesMesNecessarias = Math.ceil(metaSegura / lucroMedioUn);
-  const unidadesDiaNecessarias = Math.ceil(unidadesMesNecessarias / diasSeguros);
-  const unidadesSemanaNecessarias = Math.ceil(unidadesMesNecessarias / 4.33);
-  const lotes69Mes = Number((unidadesMesNecessarias / 69).toFixed(1));
-  const lotes69Semana = Number((lotes69Mes / 4.33).toFixed(1));
+  const unidadesMesNecessarias = lucroMedioUn > 0 ? Math.ceil(metaSegura / lucroMedioUn) : 0;
+  const unidadesDiaNecessarias = unidadesMesNecessarias > 0 ? Math.ceil(unidadesMesNecessarias / diasSeguros) : 0;
+  const unidadesSemanaNecessarias = unidadesMesNecessarias > 0 ? Math.ceil(unidadesMesNecessarias / 4.33) : 0;
+  const lotes69Mes = unidadesMesNecessarias > 0 ? Number((unidadesMesNecessarias / 69).toFixed(1)) : 0;
+  const lotes69Semana = lotes69Mes > 0 ? Number((lotes69Mes / 4.33).toFixed(1)) : 0;
 
   const profitSimulation: ProfitGoalSimulation = {
     meta_lucro_mensal: metaSegura,
@@ -607,83 +581,42 @@ export function computeAiIntelligenceReport(
     ),
   };
 
-  // 6. Build Smart Combos & WhatsApp Copy Generator
+  // 6. Build Smart Combos & WhatsApp Copy Generator (exclusivamente com produtos reais da empresa)
+  const smartCombos: SmartComboOffer[] = [];
   const sortedByHighStock = [...analytics.inventoryByFlavor].sort(
     (a, b) => b.quantidade_disponivel - a.quantidade_disponivel
   );
-  const topStock1 = sortedByHighStock[0] || {
-    produto_id: "prod-ninho-brigadeiro",
-    nome: "Ninho com Brigadeiro 50%",
-    preco_venda: 7.0,
-    custo_estimado: 2.38,
-    quantidade_disponivel: 24,
-  };
-  const topStock2 = sortedByHighStock[1] || {
-    produto_id: "prod-maracuja-geleia",
-    nome: "Mousse de Maracujá c/ Geleia",
-    preco_venda: 7.5,
-    custo_estimado: 2.66,
-    quantidade_disponivel: 20,
-  };
 
-  const starFlavor =
-    bcgItems.find((b) => b.quadrante === "estrela") || bcgItems[0];
-  const gemFlavor =
-    bcgItems.find((b) => b.quadrante === "joia_oculta") || bcgItems[1] || starFlavor;
+  if (sortedByHighStock.length >= 2) {
+    const topStock1 = sortedByHighStock[0];
+    const topStock2 = sortedByHighStock[1];
 
-  // Combo 1: Giro de Estoque (4 unidades)
-  const c1Avulso = Number(
-    (topStock1.preco_venda * 2 + topStock2.preco_venda * 2).toFixed(2)
-  );
-  const c1Custo = Number(
-    (topStock1.custo_estimado * 2 + topStock2.custo_estimado * 2).toFixed(2)
-  );
-  const c1PrecoCombo = Number((Math.floor(c1Avulso * 0.92 * 2) / 2).toFixed(2));
-  const c1Lucro = Number((c1PrecoCombo - c1Custo).toFixed(2));
-  const c1Ifood = calculateDynamicIfoodPrice(
-    c1PrecoCombo,
-    c1Custo,
-    ifoodFeePct
-  ).precoIfood;
+    const starFlavor =
+      bcgItems.find((b) => b.quadrante === "estrela") || bcgItems[0];
+    const gemFlavor =
+      bcgItems.find((b) => b.quadrante === "joia_oculta") || bcgItems[1] || starFlavor;
 
-  // Combo 2: Estrela + Joia Oculta (Kit Degustação Gourmet 4 un)
-  const sProd =
-    produtos.find((p) => p.id === starFlavor?.produto_id) || produtos[0];
-  const gProd =
-    produtos.find((p) => p.id === gemFlavor?.produto_id) || produtos[1];
-  const c2Avulso = Number(
-    ((sProd?.preco_venda || 8) * 2 + (gProd?.preco_venda || 8) * 2).toFixed(2)
-  );
-  const c2Custo = Number(
-    (
-      (sProd?.custo_estimado || 3.1) * 2 +
-      (gProd?.custo_estimado || 3.1) * 2
-    ).toFixed(2)
-  );
-  const c2PrecoCombo = Number((c2Avulso - 2.0).toFixed(2));
-  const c2Lucro = Number((c2PrecoCombo - c2Custo).toFixed(2));
-  const c2Ifood = calculateDynamicIfoodPrice(
-    c2PrecoCombo,
-    c2Custo,
-    ifoodFeePct
-  ).precoIfood;
+    const companyUpper = companyNome.toUpperCase();
 
-  // Combo 3: Caixa Família 6 Sabores
-  const c3Avulso = Number((precoMedioLocal * 6).toFixed(2));
-  const c3Custo = Number((custoMedioUn * 6).toFixed(2));
-  const c3PrecoCombo = Number((c3Avulso - 3.5).toFixed(2));
-  const c3Lucro = Number((c3PrecoCombo - c3Custo).toFixed(2));
-  const c3Ifood = calculateDynamicIfoodPrice(
-    c3PrecoCombo,
-    c3Custo,
-    ifoodFeePct
-  ).precoIfood;
+    // Combo 1: Giro de Estoque (4 unidades)
+    const c1Avulso = Number(
+      (topStock1.preco_venda * 2 + topStock2.preco_venda * 2).toFixed(2)
+    );
+    const c1Custo = Number(
+      (topStock1.custo_estimado * 2 + topStock2.custo_estimado * 2).toFixed(2)
+    );
+    const c1PrecoCombo = Number((Math.floor(c1Avulso * 0.92 * 2) / 2).toFixed(2));
+    const c1Lucro = Number((c1PrecoCombo - c1Custo).toFixed(2));
+    const c1Ifood = calculateDynamicIfoodPrice(
+      c1PrecoCombo,
+      c1Custo,
+      ifoodFeePct
+    ).precoIfood;
 
-  const smartCombos: SmartComboOffer[] = [
-    {
+    smartCombos.push({
       id: "combo-giro-estoque",
-      titulo: "Combo Giro Rápido (4 Unidades 150ml)",
-      subtitulo: `Focado nos sabores com maior estoque pronta-entrega (${topStock1.quantidade_disponivel} e ${topStock2.quantidade_disponivel} un.)`,
+      titulo: "Combo Giro Rápido (4 Unidades)",
+      subtitulo: `Focado nos itens com maior estoque disponível (${topStock1.quantidade_disponivel} e ${topStock2.quantidade_disponivel} un.)`,
       sabores_inclusos: [
         { nome: topStock1.nome, quantidade: 2 },
         { nome: topStock2.nome, quantidade: 2 },
@@ -692,100 +625,176 @@ export function computeAiIntelligenceReport(
       preco_avulso_total: c1Avulso,
       preco_combo_sugerido: c1PrecoCombo,
       preco_combo_ifood: c1Ifood,
-      desconto_cliente_pct: Number(
-        (((c1Avulso - c1PrecoCombo) / c1Avulso) * 100).toFixed(1)
-      ),
+      desconto_cliente_pct: c1Avulso > 0 ? Number((((c1Avulso - c1PrecoCombo) / c1Avulso) * 100).toFixed(1)) : 0,
       custo_total_combo: c1Custo,
       lucro_liquido_combo: c1Lucro,
-      margem_sobre_custo_pct: Math.round((c1Lucro / c1Custo) * 100),
+      margem_sobre_custo_pct: c1Custo > 0 ? Math.round((c1Lucro / c1Custo) * 100) : 0,
       objetivo_estrategico:
-        "Converter estoque congelado abundante em caixa imediato via Pix sem sacrificar a margem.",
-      mensagem_whatsapp: `🍧 *COMBO ESPECIAL DO DIA — GELADINHOS GOURMET DA ROZE (150ml)* 🍧\n\nHoje preparamos o *Combo Queridinhos Pronta-Entrega* com desconto especial no Pix:\n✅ 2x *${topStock1.nome}*\n✅ 2x *${topStock2.nome}*\n\nDe ~${formatCurrency(c1Avulso)}~ por apenas *${formatCurrency(c1PrecoCombo)}* os 4 geladinhos gigantes de 150ml! 🤤✨\n\n📲 Responda *EU QUERO* aqui no WhatsApp para separar o seu antes que acabe!`,
-    },
-    {
-      id: "combo-estrela-joia",
-      titulo: "Dupla Gourmet Premium (Estrela + Joia Oculta)",
-      subtitulo:
-        "Usa o sabor mais pedido como âncora para apresentar um sabor de altíssima margem",
-      sabores_inclusos: [
-        { nome: sProd?.nome || "Ninho com Nutella", quantidade: 2 },
-        { nome: gProd?.nome || "Cheesecake Frutas Vermelhas", quantidade: 2 },
-      ],
-      total_unidades: 4,
-      preco_avulso_total: c2Avulso,
-      preco_combo_sugerido: c2PrecoCombo,
-      preco_combo_ifood: c2Ifood,
-      desconto_cliente_pct: Number(
-        (((c2Avulso - c2PrecoCombo) / c2Avulso) * 100).toFixed(1)
-      ),
-      custo_total_combo: c2Custo,
-      lucro_liquido_combo: c2Lucro,
-      margem_sobre_custo_pct: Math.round((c2Lucro / c2Custo) * 100),
-      objetivo_estrategico:
-        "Aumentar o Ticket Médio para acima de R$ 28,00 e fidelizar clientes nos sabores mais lucrativos.",
-      mensagem_whatsapp: `✨ *KIT EXPERIÊNCIA PREMIUM — GELADINHOS DA ROZE (150ml)* ✨\n\nQue tal adoçar a tarde com os nossos sabores mais nobres?\n🍫 2x *${sProd?.nome || "Ninho com Nutella"}*\n🍓 2x *${gProd?.nome || "Cheesecake Frutas Vermelhas"}*\n\n🔥 De ~${formatCurrency(c2Avulso)}~ por *${formatCurrency(c2PrecoCombo)}* no pedido direto!\nPeça agora pelo nosso WhatsApp! 🛵💨`,
-    },
-    {
+        "Converter estoque pronta-entrega em caixa imediato via Pix sem sacrificar a margem.",
+      mensagem_whatsapp: `✨ *COMBO ESPECIAL DO DIA — ${companyUpper}* ✨\n\nHoje preparamos o *Combo Pronta-Entrega* com desconto especial no Pix:\n✅ 2x *${topStock1.nome}*\n✅ 2x *${topStock2.nome}*\n\nDe ~${formatCurrency(c1Avulso)}~ por apenas *${formatCurrency(c1PrecoCombo)}* as 4 unidades! 🤤✨\n\n📲 Responda *EU QUERO* aqui no WhatsApp para separar o seu antes que acabe!`,
+    });
+
+    // Combo 2: Estrela + Joia Oculta (4 unidades)
+    const sProd =
+      produtos.find((p) => p.id === starFlavor?.produto_id) || produtos[0];
+    const gProd =
+      produtos.find((p) => p.id === gemFlavor?.produto_id && p.id !== sProd?.id) ||
+      produtos.find((p) => p.id !== sProd?.id) ||
+      produtos[1];
+
+    if (sProd && gProd) {
+      const c2Avulso = Number(
+        (sProd.preco_venda * 2 + gProd.preco_venda * 2).toFixed(2)
+      );
+      const c2Custo = Number(
+        (sProd.custo_estimado * 2 + gProd.custo_estimado * 2).toFixed(2)
+      );
+      const c2PrecoCombo = Number(Math.max(c2Custo + 1, c2Avulso - 2.0).toFixed(2));
+      const c2Lucro = Number((c2PrecoCombo - c2Custo).toFixed(2));
+      const c2Ifood = calculateDynamicIfoodPrice(
+        c2PrecoCombo,
+        c2Custo,
+        ifoodFeePct
+      ).precoIfood;
+
+      smartCombos.push({
+        id: "combo-estrela-joia",
+        titulo: "Dupla Premium (Estrela + Alta Margem)",
+        subtitulo:
+          "Usa seu item de maior destaque como âncora para apresentar um produto de alta margem",
+        sabores_inclusos: [
+          { nome: sProd.nome, quantidade: 2 },
+          { nome: gProd.nome, quantidade: 2 },
+        ],
+        total_unidades: 4,
+        preco_avulso_total: c2Avulso,
+        preco_combo_sugerido: c2PrecoCombo,
+        preco_combo_ifood: c2Ifood,
+        desconto_cliente_pct: c2Avulso > 0 ? Number((((c2Avulso - c2PrecoCombo) / c2Avulso) * 100).toFixed(1)) : 0,
+        custo_total_combo: c2Custo,
+        lucro_liquido_combo: c2Lucro,
+        margem_sobre_custo_pct: c2Custo > 0 ? Math.round((c2Lucro / c2Custo) * 100) : 0,
+        objetivo_estrategico:
+          "Aumentar o Ticket Médio e fidelizar clientes nos produtos mais lucrativos do cardápio.",
+        mensagem_whatsapp: `✨ *KIT EXPERIÊNCIA PREMIUM — ${companyUpper}* ✨\n\nQue tal aproveitar os nossos destaques do cardápio?\n⭐ 2x *${sProd.nome}*\n⭐ 2x *${gProd.nome}*\n\n🔥 De ~${formatCurrency(c2Avulso)}~ por *${formatCurrency(c2PrecoCombo)}* no pedido direto!\nPeça agora pelo nosso WhatsApp! 🛵💨`,
+      });
+    }
+
+    // Combo 3: Box Família 6 Unidades (usando apenas os produtos reais da empresa)
+    const boxProds = produtos.slice(0, 4);
+    const boxItems: Array<{ nome: string; quantidade: number; preco: number; custo: number }> =
+      boxProds.length >= 4
+        ? [
+            { nome: boxProds[0].nome, quantidade: 2, preco: boxProds[0].preco_venda, custo: boxProds[0].custo_estimado },
+            { nome: boxProds[1].nome, quantidade: 2, preco: boxProds[1].preco_venda, custo: boxProds[1].custo_estimado },
+            { nome: boxProds[2].nome, quantidade: 1, preco: boxProds[2].preco_venda, custo: boxProds[2].custo_estimado },
+            { nome: boxProds[3].nome, quantidade: 1, preco: boxProds[3].preco_venda, custo: boxProds[3].custo_estimado },
+          ]
+        : boxProds.length === 3
+        ? [
+            { nome: boxProds[0].nome, quantidade: 2, preco: boxProds[0].preco_venda, custo: boxProds[0].custo_estimado },
+            { nome: boxProds[1].nome, quantidade: 2, preco: boxProds[1].preco_venda, custo: boxProds[1].custo_estimado },
+            { nome: boxProds[2].nome, quantidade: 2, preco: boxProds[2].preco_venda, custo: boxProds[2].custo_estimado },
+          ]
+        : [
+            { nome: boxProds[0].nome, quantidade: 3, preco: boxProds[0].preco_venda, custo: boxProds[0].custo_estimado },
+            { nome: boxProds[1].nome, quantidade: 3, preco: boxProds[1].preco_venda, custo: boxProds[1].custo_estimado },
+          ];
+
+    const c3Avulso = Number(boxItems.reduce((a, it) => a + it.preco * it.quantidade, 0).toFixed(2));
+    const c3Custo = Number(boxItems.reduce((a, it) => a + it.custo * it.quantidade, 0).toFixed(2));
+    const c3PrecoCombo = Number(Math.max(c3Custo + 1, c3Avulso - 3.5).toFixed(2));
+    const c3Lucro = Number((c3PrecoCombo - c3Custo).toFixed(2));
+    const c3Ifood = calculateDynamicIfoodPrice(c3PrecoCombo, c3Custo, ifoodFeePct).precoIfood;
+    const boxLines = boxItems.map((it) => `⭐ ${it.quantidade}x ${it.nome}`).join("\n");
+
+    smartCombos.push({
       id: "combo-familia-6un",
-      titulo: "Box Família & Fim de Semana (6 Unidades 150ml)",
-      subtitulo: "Mix completo para elevar o ticket médio por entrega em +65%",
-      sabores_inclusos: [
-        { nome: "Ninho com Nutella", quantidade: 2 },
-        { nome: "Doce de Leite (Itambé)", quantidade: 2 },
-        { nome: "Mousse de Maracujá c/ Geleia", quantidade: 1 },
-        { nome: "Ninho c/ Geleia de Morango", quantidade: 1 },
-      ],
+      titulo: "Box Família & Fim de Semana (6 Unidades)",
+      subtitulo: "Mix completo para elevar o ticket médio por entrega",
+      sabores_inclusos: boxItems.map((it) => ({ nome: it.nome, quantidade: it.quantidade })),
       total_unidades: 6,
       preco_avulso_total: c3Avulso,
       preco_combo_sugerido: c3PrecoCombo,
       preco_combo_ifood: c3Ifood,
-      desconto_cliente_pct: Number(
-        (((c3Avulso - c3PrecoCombo) / c3Avulso) * 100).toFixed(1)
-      ),
+      desconto_cliente_pct: c3Avulso > 0 ? Number((((c3Avulso - c3PrecoCombo) / c3Avulso) * 100).toFixed(1)) : 0,
       custo_total_combo: c3Custo,
       lucro_liquido_combo: c3Lucro,
-      margem_sobre_custo_pct: Math.round((c3Lucro / c3Custo) * 100),
-      objetivo_estrategico:
-        "Garantir mais de R$ 23,00 de lucro líquido em uma única entrega.",
-      mensagem_whatsapp: `🎉 *BOX FAMÍLIA 6 SABORES — GELADINHOS GOURMET DA ROZE* 🎉\n\nGaranta a sobremesa da família inteira com 6 geladinhos artesanais ultra cremosos de 150ml:\n⭐ 2x Ninho com Nutella Original\n⭐ 2x Doce de Leite Puro Itambé\n⭐ 1x Mousse de Maracujá c/ Geleia Artesanal\n⭐ 1x Ninho c/ Geleia de Morango\n\n💰 De ~${formatCurrency(c3Avulso)}~ por *${formatCurrency(c3PrecoCombo)}*!\nChame aqui e escolha os seus! 🍨💖`,
-    },
-  ];
+      margem_sobre_custo_pct: c3Custo > 0 ? Math.round((c3Lucro / c3Custo) * 100) : 0,
+      objetivo_estrategico: `Garantir ${formatCurrency(c3Lucro)} de lucro líquido em uma única entrega.`,
+      mensagem_whatsapp: `🎉 *BOX FAMÍLIA 6 UNIDADES — ${companyUpper}* 🎉\n\nGaranta o kit completo para a família inteira:\n${boxLines}\n\n💰 De ~${formatCurrency(c3Avulso)}~ por *${formatCurrency(c3PrecoCombo)}*!\nChame aqui e peça já o seu! 💖`,
+    });
+  }
 
   // Overall Health Score & Executive Summary
   const criticalCount = productionItems.filter(
     (p) => p.urgencia === "critica" || p.urgencia === "alta"
   ).length;
-  const healthScore = Math.max(
-    68,
-    Math.min(
-      98,
-      Math.round(
-        85 +
-          (analytics.dreConsolidada.margem_contribuicao_pct >= 58 ? 8 : 0) -
-          criticalCount * 4
-      )
-    )
-  );
+  const healthScore =
+    produtos.length === 0
+      ? 100
+      : Math.max(
+          68,
+          Math.min(
+            98,
+            Math.round(
+              85 +
+                (analytics.dreConsolidada.margem_contribuicao_pct >= 58 ? 8 : 0) -
+                criticalCount * 4
+            )
+          )
+        );
 
   const topStar = bcgItems.find((b) => b.quadrante === "estrela") || bcgItems[0];
 
   const executiveHeadline =
-    criticalCount > 0
-      ? `Atenção Operacional: ${criticalCount} sabor(es) precisam de reposição imediata hoje (${totalUnidadesProduzir} un. em ${totalLotesHoje} lotes) para proteger ${formatCurrency(faturamentoPotencialHoje)} em vendas.`
+    produtos.length === 0
+      ? `Empresa "${companyNome}" pronta para começar: cadastre seus primeiros produtos, fichas técnicas e cotações para ativar os insights da PereiraLabs IA.`
+      : criticalCount > 0
+      ? `Atenção Operacional: ${criticalCount} produto(s) precisam de reposição imediata hoje (${totalUnidadesProduzir} un. em ${totalLotesHoje} lotes) para proteger ${formatCurrency(faturamentoPotencialHoje)} em vendas.`
       : `Operação Saudável (Score ${healthScore}/100): Estoque equilibrado e margem líquida consolidada de ${analytics.dreConsolidada.margem_contribuicao_pct}% no período.`;
 
-  const executiveSummaryBullets = [
-    `Produção Recomendada Hoje: Bater ${totalLotesHoje} lote(s) (${totalUnidadesProduzir} saquinhos de 150ml) com investimento em insumos de ${formatCurrency(custoTotalProducaoHoje)} e lucro líquido projetado de ${formatCurrency(lucroLiquidoEsperadoHoje)}.`,
-    `Aproveitamento de Despensa: Você já possui sobras mapeadas (Leite Ninho, Ovomaltine, Cacau 50%, Morango) que economizam ${formatCurrency(economiaComSobras)} na lista de compras de hoje.`,
-    `Engenharia de Insumos (54 Cotações): Migrar Nutella p/ Pote 650g e laticínios base p/ Atacado gera economia potencial de ${formatCurrency(economiaMensalPotencial)}/mês sem mudar nenhuma receita.`,
-    `Destaque do Cardápio: "${topStar?.nome}" lidera com ${topStar?.unidades_vendidas} un. vendidas e lucro unitário de ${formatCurrency(topStar?.lucro_bruto_un || 0)} (Preço iFood calibrado em ${formatCurrency(
-      calculateDynamicIfoodPrice(
-        topStar?.preco_venda || 8,
-        topStar?.custo_total_un || 3,
-        ifoodFeePct
-      ).precoIfood
-    )} p/ taxa de ${ifoodFeePct.toFixed(1)}%).`,
-  ];
+  const executiveSummaryBullets: string[] = [];
+
+  if (produtos.length === 0) {
+    executiveSummaryBullets.push(
+      `Catálogo Inicial Limpo: Nenhum produto cadastrado ainda em "${companyNome}". Cadastre seus produtos em "Produção & Fichas" ou "+ Novo Produto" para liberar previsões de produção e combos.`,
+      `Cotações & Compras: Registre seus fornecedores e pesquisas de preço (varejo x atacado) na aba "Cotações & Compras" para a IA calcular oportunidades reais de economia mensal.`,
+      `Vendas & PDV: Assim que registrar suas primeiras vendas no Frente de Caixa (PDV), a matriz BCG identificará automaticamente seus produtos campeões de venda e de margem.`
+    );
+  } else {
+    executiveSummaryBullets.push(
+      `Produção Recomendada Hoje: Produzir ${totalLotesHoje} lote(s) (${totalUnidadesProduzir} unidades) com investimento estimado em insumos de ${formatCurrency(custoTotalProducaoHoje)} e lucro líquido projetado de ${formatCurrency(lucroLiquidoEsperadoHoje)}.`
+    );
+
+    if (economiaComSobras > 0) {
+      executiveSummaryBullets.push(
+        `Aproveitamento de Despensa: Sobras reais cadastradas no estoque de matéria-prima economizam ${formatCurrency(economiaComSobras)} na lista de compras de hoje.`
+      );
+    }
+
+    if (topCostOpportunities.length > 0) {
+      executiveSummaryBullets.push(
+        `Engenharia de Insumos (${topCostOpportunities.length} oportunidades): Migrar insumos cotados no varejo para o atacado gera economia potencial de ${formatCurrency(economiaMensalPotencial)}/mês.`
+      );
+    } else {
+      executiveSummaryBullets.push(
+        `Engenharia de Insumos: Cadastre pesquisas de preço com valores de varejo e atacado em "Cotações & Compras" para ativar o Radar de Redução de Custo.`
+      );
+    }
+
+    if (topStar && topStar.unidades_vendidas > 0) {
+      executiveSummaryBullets.push(
+        `Destaque do Cardápio: "${topStar.nome}" lidera com ${topStar.unidades_vendidas} un. vendidas e lucro unitário de ${formatCurrency(topStar.lucro_bruto_un)} (Preço iFood calibrado em ${formatCurrency(
+          calculateDynamicIfoodPrice(topStar.preco_venda, topStar.custo_total_un, ifoodFeePct).precoIfood
+        )} p/ taxa de ${ifoodFeePct.toFixed(1)}%).`
+      );
+    } else {
+      executiveSummaryBullets.push(
+        `Destaque do Cardápio: Registre suas primeiras vendas no PDV para a IA identificar o campeão de vendas e o ranking de rentabilidade de "${companyNome}".`
+      );
+    }
+  }
 
   return {
     healthScore,
@@ -806,7 +815,7 @@ export function computeAiIntelligenceReport(
       desembolsoLiquidoEstimado,
     },
     costOptimizations: {
-      opportunities: costOpportunities,
+      opportunities: topCostOpportunities,
       economiaMensalPotencial,
     },
     bcgMatrix: {
@@ -831,6 +840,7 @@ export async function askPereiraLabsAI(
   ifoodFeePct: number,
   apiKey?: string
 ): Promise<{ answer: string; mode: "gemini_cloud" | "pereiralabs_local" }> {
+  const activeCompany = getActiveCompany();
   const companyGemini = getActiveCompanyGeminiConfig();
   const cleanKey = (
     apiKey ||
@@ -842,31 +852,26 @@ export async function askPereiraLabsAI(
   // If Gemini API Key is provided, try modern models with rich system context
   if (cleanKey) {
     try {
-      const systemContext = `Você é o Consultor Chefe de Operações, Confeitaria e Finanças da PereiraLabs IA, especializado na marca "Geladinhos Gourmet da Roze" (proprietária: Rozana Helena Miguel, com bases em Jaú/SP e Três Pontas/MG).
-Responda sempre em Português do Brasil (pt-BR), com tom acolhedor, profissional, encorajador e altamente resolutivo, sem enrolação. Dê respostas práticas, passo a passo e com números reais.
+      const catalogSummary =
+        analytics.drePorProduto.length > 0
+          ? analytics.drePorProduto
+              .map(
+                (p) =>
+                  `   - ${p.nome}: Custo ${formatCurrency(p.custo_total_un)} | Venda Local ${formatCurrency(p.preco_venda)} | Lucro Líquido Local ${formatCurrency(p.lucro_bruto_un)}/un | Vendidos no período: ${p.unidades_vendidas} un.`
+              )
+              .join("\n")
+          : "   - Nenhum produto cadastrado ainda nesta empresa.";
 
-CONHECIMENTO COMPLETO DA OPERAÇÃO:
-1. PADRÃO GOURMET:
-   - Volume padrão: exatamente 150ml por saquinho.
-   - Base cremosa clássica: 1 lata de leite condensado (395g) + 1 cx de creme de leite (200g) + 1 medida de leite integral + 10g a 12g de Liga Neutra. Bater no liquidificador, retirar a espuma com colher após descansar 15 a 20 min para não formar cristais de gelo nem bolhas de ar.
-   - Custo da embalagem: R$ 0,05 por saquinho (150ml). Custo operacional (energia, gás, freezer): ~15% (R$ 0,35/un).
+      const systemContext = `Você é o Consultor Chefe de Operações, Alimentos e Finanças da PereiraLabs IA, dedicado exclusivamente à empresa "${activeCompany.nome}" (nicho: ${activeCompany.nicho || "Alimentação & Confeitaria"}).
+Responda sempre em Português do Brasil (pt-BR), com tom acolhedor, profissional, encorajador e altamente resolutivo, sem enrolação. Use exclusivamente os dados reais desta empresa.
 
-2. OS 8 SABORES OFICIAIS, CUSTOS E PREÇOS:
-   - Ninho com Nutella: Custo R$ 3,44 | Venda Local R$ 7,50 | iFood R$ 10,16 | Lucro Líquido Local R$ 4,06/un (54,1% margem). Modo: Espalhar 15g de Nutella na parede interna do saquinho com saco de confeitar antes de colocar a base de Ninho.
-   - Mousse de Morango c/ Geleia Artesanal: Custo R$ 2,89 | Venda Local R$ 7,00 | iFood R$ 9,49 | Lucro Líquido Local R$ 4,11/un (58,7% margem). Geleia: Morangos frescos reduzidos com açúcar.
-   - Mousse de Maracujá c/ Geleia Artesanal: Custo R$ 2,64 | Venda Local R$ 6,50 | iFood R$ 8,81 | Lucro Líquido Local R$ 3,86/un (59,4% margem). Toque azedinho da polpa com sementes mesclada no saquinho.
-   - Doce de Leite: Custo R$ 2,74 | Venda Local R$ 6,50 | iFood R$ 8,81 | Lucro Líquido Local R$ 3,76/un (57,8% margem). 12g de Doce de Leite Itambé espalhado no saquinho.
-   - Paçoca Cremosa: Custo R$ 2,33 | Venda Local R$ 6,00 | iFood R$ 8,13 | Lucro Líquido Local R$ 3,67/un (61,2% margem). Paçoca rolha batida com a base e pedacinhos no saquinho.
-   - Ouro Branco: Custo R$ 3,25 | Venda Local R$ 7,50 | iFood R$ 10,16 | Lucro Líquido Local R$ 4,25/un (56,7% margem). Bombom picado e base de chocolate branco.
-   - Sonho de Valsa: Custo R$ 3,28 | Venda Local R$ 7,50 | iFood R$ 10,16 | Lucro Líquido Local R$ 4,22/un (56,3% margem). Bombom picado e base de amendoim/castanha.
-   - Coco Branco Cremoso: Custo R$ 2,27 | Venda Local R$ 6,00 | iFood R$ 8,13 | Lucro Líquido Local R$ 3,73/un (62,2% margem). Leite de coco + coco ralado úmido.
+CATÁLOGO E CUSTOS REAIS DA EMPRESA "${activeCompany.nome}":
+${catalogSummary}
 
-3. REGRAS DE NEGÓCIO E TECNOLOGIA:
-   - Taxa iFood: ${ifoodFeePct.toFixed(1)}%. Para receber o mesmo valor da venda local, divide o preço local por ${(1 - ifoodFeePct / 100).toFixed(4)}.
-   - Pagamentos: Pix Stone dinâmico (taxa 0,99%), Dinheiro (0%), Débito (1,99%), Crédito (3,50%).
-   - Estoque: Bloqueio estrito de vendas sem saldo. Não permite estoque negativo nem zerado. Ajustes físicos pelo Admin exigem motivo e notificam por e-mail na Central de Auditoria.
-   - Dados Atuais no Período: Faturamento Total: ${formatCurrency(analytics.kpis.faturamentoTotal)} (${analytics.kpis.totalGeladinhosVendidos} un.), Lucro Líquido: ${formatCurrency(analytics.dreConsolidada.lucro_liquido)}.
-   - Se o faturamento estiver zerado (início ou teste novo), não diga que está tudo confortável sem fazer nada; oriente ativamente os primeiros passos para a produção e venda.`;
+REGRAS DE NEGÓCIO E DADOS ATUAIS:
+- Taxa iFood configurada: ${ifoodFeePct.toFixed(1)}% (divisor dinâmico: ${(1 - ifoodFeePct / 100).toFixed(4)}).
+- Faturamento Total no Período: ${formatCurrency(analytics.kpis.faturamentoTotal)} (${analytics.kpis.totalGeladinhosVendidos} un.), Lucro Líquido: ${formatCurrency(analytics.dreConsolidada.lucro_liquido)}.
+- Se o catálogo ou faturamento estiverem zerados (empresa recém-criada), oriente ativamente os primeiros passos para cadastrar produtos, fichas técnicas, cotações e registrar as primeiras vendas no PDV.`;
 
       const preferredModel = companyGemini.model || "gemini-2.5-flash";
       const modelsToTry = [

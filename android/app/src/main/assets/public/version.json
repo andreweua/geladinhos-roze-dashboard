@@ -1,10 +1,10 @@
 {
-  "version": "3.7.4",
-  "build": 2026112801,
-  "releaseDate": "2026-11-28T03:00:00.000Z",
+  "version": "3.7.5",
+  "build": 2026112802,
+  "releaseDate": "2026-11-28T17:05:00.000Z",
   "features": [
-    "Zerar Tudo agora apaga os dados da empresa na nuvem (Supabase) e no aparelho, inclusive da empresa-matriz",
-    "Exclusão definitiva de empresa no Painel Master remove também a empresa e seus dados da nuvem, impedindo que reapareçam em outros aparelhos",
-    "Fim dos dados de exemplo automáticos (sabores, cotações, estabelecimentos e listas da Roze): tudo começa vazio"
+    "PereiraLabs IA 100% isolada por empresa: removidos os combos, cotações de R$ 398,64/mês e sobras de despensa fixos da Roze em empresas novas ou vazias",
+    "Combos Inteligentes, Radar de Redução de Custo, Simulador de Meta e Resumo Executivo agora usam exclusivamente os produtos, cotações e nome reais da empresa ativa",
+    "Corrigido texto \"undefined lidera com undefined un. vendidas\" quando a empresa ainda não possui vendas registradas"
   ]
 }
