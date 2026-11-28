@@ -7,6 +7,16 @@ e este projeto adere ao [Versionamento SemÃ¢ntico (SemVer)](https://semver.org/l
 
 ---
 
+## [3.7.4] - 2026-11-28
+
+### Corrigido (Limpeza total sem resíduos)
+- **`src/services/purgeService.ts` (novo)**: `purgeCompanyEverywhere()` apaga na nuvem (produtos, estoque, fichas, vendas/itens, listas de compras, cotações, estabelecimentos, notas fiscais, clientes e, opcionalmente, a empresa) e remove todas as chaves locais da empresa.
+- **`wipeCompanyData`** (Zerar Tudo) agora limpa nuvem + aparelho; antes limpava só o aparelho e o celular baixava tudo de volta.
+- **Exclusão definitiva no Painel Master** agora remove a empresa e seus dados do Supabase.
+- Removidos os dados de exemplo automáticos da matriz (sabores, cotações, estabelecimentos, notas, lista de compras e matérias-primas).
+- Versão `v3.7.4` (Build `2026112801`, Android `versionCode 68`).
+
+---
 ## [3.7.3] - 2026-11-26
 
 ### Corrigido & Aprimorado (Isolamento Estrito Multi-Empresa / Multi-Tenant)

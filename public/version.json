@@ -1,11 +1,10 @@
 {
-  "version": "3.7.3",
-  "build": 2026112601,
-  "releaseDate": "2026-11-26T13:30:00.000Z",
+  "version": "3.7.4",
+  "build": 2026112801,
+  "releaseDate": "2026-11-28T03:00:00.000Z",
   "features": [
-    "Auditoria e Correção Completa de Isolamento Multi-Empresa (Multi-Tenant): dados de uma empresa nunca aparecem ou se misturam com os de outra empresa",
-    "Isolamento estrito por empresa_id em Listas de Compras, Estabelecimentos, Pesquisas de Preço, Compras/Notas Fiscais, Auditoria de Estoque, Matérias-Primas e Fichas Técnicas",
-    "Invalidação instantânea de estado em memória, caches locais e rascunhos ao trocar de empresa ativa ou encerrar sessão",
-    "Proteção contra condições de corrida (race conditions) em requisições assíncronas e isolamento do comando Zerar Dados de Produção por empresa_id"
+    "Zerar Tudo agora apaga os dados da empresa na nuvem (Supabase) e no aparelho, inclusive da empresa-matriz",
+    "Exclus�o definitiva de empresa no Painel Master remove tamb�m a empresa e seus dados da nuvem, impedindo que reapare�am em outros aparelhos",
+    "Fim dos dados de exemplo autom�ticos (sabores, cota��es, estabelecimentos e listas da Roze): tudo come�a vazio"
   ]
 }

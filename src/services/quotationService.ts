@@ -49,10 +49,7 @@ export function loadCurrentQuotations(companyId?: string): CotacaoInsumo[] {
   } catch {
     // fallback
   }
-  // Apenas a Matriz Roze Gourmet herda as 54 cotações de geladinhos
-  if (currentId === "emp-roze-gourmet") {
-    return [...TABELA_COTACAO_INSUMOS];
-  }
+  // Sem dados locais: começa vazio para qualquer empresa (sem resíduos de exemplo)
   return [];
 }
 

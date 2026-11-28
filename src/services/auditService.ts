@@ -192,9 +192,6 @@ export function loadMateriaPrimaCatalog(companyId?: string): MateriaPrimaItem[] 
   } catch (err) {
     console.warn("Erro ao ler matérias-primas:", err);
   }
-  if (currentId === "emp-roze-gourmet") {
-    return DEFAULT_MATERIA_PRIMA;
-  }
   return [];
 }
 

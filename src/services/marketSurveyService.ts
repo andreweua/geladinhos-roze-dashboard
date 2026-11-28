@@ -916,9 +916,6 @@ export function loadEstabelecimentos(companyId?: string): EstabelecimentoLocal[]
   } catch {
     // fallback
   }
-  if (currentId === "emp-roze-gourmet") {
-    return [...DEFAULT_ESTABELECIMENTOS];
-  }
   return [];
 }
 
@@ -1024,9 +1021,6 @@ export function loadPesquisasPreco(companyId?: string): PesquisaPrecoLocal[] {
     }
   } catch {
     // fallback
-  }
-  if (currentId === "emp-roze-gourmet") {
-    return [...DEFAULT_PESQUISAS];
   }
   return [];
 }
@@ -1134,9 +1128,6 @@ export function loadComprasNotasFiscais(companyId?: string): CompraNotaFiscalRea
     }
   } catch {
     // fallback
-  }
-  if (currentId === "emp-roze-gourmet") {
-    return [...DEFAULT_COMPRAS];
   }
   return [];
 }

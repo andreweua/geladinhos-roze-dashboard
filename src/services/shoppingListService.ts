@@ -475,9 +475,7 @@ export function loadShoppingLists(companyId?: string): ListaCompras[] {
   }
 
   // Apenas para a empresa original emp-roze-gourmet: migra ou cria a lista padrão da semana
-  if (currentId !== "emp-roze-gourmet") {
-    return [];
-  }
+  return [];
 
   const defaultList: ListaCompras = {
     id: `lista-${Date.now()}`,

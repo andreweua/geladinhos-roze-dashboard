@@ -13,6 +13,7 @@ import {
   Venda,
 } from "@/types/dashboard";
 import { saveOrUpdateCustomer } from "@/services/customerService";
+import { purgeCompanyEverywhere } from "@/services/purgeService";
 
 // Converte valor do banco para número preservando 0 legítimo; usa fallback só se ausente/inválido
 function numOr(value: unknown, fallback: number): number {
@@ -617,14 +618,8 @@ export function getLocalSnapshot(companyId?: string): DashboardDataSnapshot {
     console.warn("Erro ao ler dados locais:", err);
   }
 
-  // Matriz Roze Gourmet: Gera o seed oficial dos 8 sabores e fichas técnicas reais
-  if (currentId === "emp-roze-gourmet") {
-    const initial = generateInitialDemoData();
-    saveLocalSnapshot(initial, currentId);
-    return initial;
-  }
-
-  // Para qualquer NOVA EMPRESA cadastrada (Multi-Empresa SaaS):
+  // Nenhuma empresa (inclusive a matriz) recebe mais dados de exemplo automaticamente:
+  // Para qualquer empresa sem dados locais (Multi-Empresa SaaS):
   // Inicia 100% LIMPA: 0 vendas, 0 produtos da Roze, 0 estoque, 0 fichas antigas!
   const cleanSnapshot: DashboardDataSnapshot = {
     produtos: [],
@@ -650,11 +645,6 @@ export function saveLocalSnapshot(snapshot: DashboardDataSnapshot, companyId?: s
 
 export function resetLocalDemoData(companyId?: string): DashboardDataSnapshot {
   const currentId = companyId || getActiveCompanyId();
-  if (currentId === "emp-roze-gourmet") {
-    const fresh = generateInitialDemoData();
-    saveLocalSnapshot(fresh, currentId);
-    return fresh;
-  }
   const clean: DashboardDataSnapshot = {
     produtos: [],
     vendas: [],
@@ -2435,6 +2425,12 @@ export async function deleteProduct(
 export async function wipeCompanyData(companyId?: string): Promise<DashboardDataSnapshot> {
   const currentId = companyId || getActiveCompanyId();
   const nowIso = new Date().toISOString();
+
+  // Apaga na nuvem (Supabase) e remove todas as chaves locais da empresa
+  const report = await purgeCompanyEverywhere(currentId);
+  if (report.cloudErrors.length > 0) {
+    console.warn("Avisos ao limpar a nuvem:", report.cloudErrors);
+  }
 
   const cleanSnapshot: DashboardDataSnapshot = {
     produtos: [],

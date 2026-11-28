@@ -114,9 +114,9 @@ export interface BrandConfig {
 }
 
 export const BRAND_CONFIG: BrandConfig = {
-  appVersion: "3.7.3",
-  buildNumber: 2026112601,
-  androidVersionCode: 67,
+  appVersion: "3.7.4",
+  buildNumber: 2026112801,
+  androidVersionCode: 68,
   companyName: "Geladinhos Gourmet da Roze",
   shortName: "Roze Gourmet",
   tagline: "Confeitaria Gelada & Sobremesas Artesanais",

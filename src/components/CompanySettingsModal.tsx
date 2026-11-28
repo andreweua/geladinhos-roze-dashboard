@@ -467,9 +467,9 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
     const activeComp = getActiveCompany();
     const confirmed = window.confirm(
       `ATENÇÃO: Deseja realmente ZERAR TUDO da empresa "${activeComp.nome}"?\n\n` +
-        "✓ Todos os produtos, receitas e fichas técnicas serão excluídos.\n" +
-        "✓ Todas as vendas e estoques serão limpos (0 registros).\n" +
-        "✓ O painel começará 100% LIMPO para cadastrar seus próprios produtos (ex: Pão de Mel, Bolos, Doces) sem nenhum vestígio da Roze!\n\n" +
+        "✓ Todos os produtos, receitas, fichas, vendas, estoques, cotações, listas de compras e clientes serão APAGADOS da nuvem (Supabase) e deste aparelho.\n" +
+        "✓ O painel começará 100% LIMPO, sem nenhum resíduo.\n" +
+        "⚠ Depois, nos OUTROS aparelhos (celulares), limpe os dados do app (Configurações > Apps > Armazenamento > Limpar dados) ou reinstale, senão eles reenviarão os dados antigos.\n\n" +
         "Deseja prosseguir com a limpeza total?"
     );
     if (!confirmed) return;

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { purgeCompanyEverywhere } from "@/services/purgeService";
 import {
   X,
   Building2,
@@ -387,20 +388,26 @@ export const PereiraLabsMasterModal: React.FC<PereiraLabsMasterModalProps> = ({
     }
   };
 
-  const handleDeleteCompanyAction = (companyId: string, permanent: boolean) => {
+  const handleDeleteCompanyAction = async (companyId: string, permanent: boolean) => {
     const target = companies.find((c) => c.id === companyId);
     if (!target) return;
 
     if (permanent) {
       const confirmed = window.confirm(
         `PERIGO: Deseja EXCLUIR DEFINITIVAMENTE a empresa "${target.nome}"?\n\n` +
-          "Esta ação removerá todos os registros e arquivos do sistema e não poderá ser desfeita."
+          "Esta ação apagará a empresa e TODOS os seus dados (produtos, vendas, estoque, fichas, cotações, listas, clientes) na nuvem e neste aparelho. Não poderá ser desfeita."
       );
       if (!confirmed) return;
+      setFeedback(`Excluindo "${target.nome}" da nuvem e do aparelho...`);
+      const report = await purgeCompanyEverywhere(companyId, true);
       deleteCompany(companyId, true);
       reloadCompanies();
-      setFeedback(`✓ Empresa "${target.nome}" excluída permanentemente.`);
-      setTimeout(() => setFeedback(null), 3500);
+      setFeedback(
+        report.cloudErrors.length > 0
+          ? `Empresa "${target.nome}" excluída, mas a nuvem retornou avisos: ${report.cloudErrors[0]}`
+          : `✓ Empresa "${target.nome}" excluída permanentemente (nuvem + aparelho).`
+      );
+      setTimeout(() => setFeedback(null), 5000);
       return;
     }
 
